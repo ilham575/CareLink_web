@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import logo from './logo.svg';
+import Home from './js/pages/default/home';
 import './App.css';
 
 // Mock pages
@@ -134,7 +135,8 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/login" />} />
+          <Route path='/login' element={<Navigate to="/login" />} />
+          <Route path='/' element={<Home />} />
         </Routes>
       </div>
     </Router>
