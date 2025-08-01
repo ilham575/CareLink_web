@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../../css/pages/default/pharmacyDetail.css';
-import HomeHeader from './HomeHeader';
+import HomeHeader from '../../components/HomeHeader';
 
 function PharmacyDetail() {
   const navigate = useNavigate();

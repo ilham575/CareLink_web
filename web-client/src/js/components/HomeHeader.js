@@ -1,12 +1,30 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import logo from '../../../images/image 3.png';
+import logo from '../../images/image 3.png';
 
 function HomeHeader({ pharmacyName }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   const isPharmacyDetail = location.pathname.startsWith('/pharmacy/');
+  const isSignup = location.pathname === '/signup';
+
+  if (isSignup) {
+    return (
+      <header className="app-header" style={{ background: '#00ff4c', height: 50, display: 'flex', alignItems: 'center', paddingLeft: 20 }}>
+        <img
+          src={logo}
+          alt="Logo"
+          className="app-logo"
+          style={{ width: '65px', height: '65px', marginRight: '20px', borderRadius: 8, background: '#fff' 
+            , cursor: 'pointer'
+          }}
+          onClick={() => navigate('/login')}
+        />
+        <div style={{ fontSize: '2em', color: '#1a3d1a', fontWeight: 600, letterSpacing: 1 }}>สร้างบัญชี</div>
+      </header>
+    );
+  }
 
   return (
     <header className="app-header">

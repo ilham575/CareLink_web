@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Home from './js/pages/default/home';
 import PharmacyDetail from './js/pages/default/PharmacyDetail';
 import LoginPage from './js/pages/default/signin';
+import Signup from './js/pages/default/Signup';
 import './App.css';
 
 // Mock pages
@@ -37,6 +38,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<LoginPage onLogin={setUserRole} />} />
           <Route path="/pharmacy/:id" element={<PharmacyDetail />} />
+          <Route path="/signup" element={<Signup />} />
           <Route
             path="/page1"
             element={

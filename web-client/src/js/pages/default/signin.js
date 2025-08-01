@@ -89,7 +89,16 @@ function LoginPage({ onLogin }) {
 
               <div className="forgot-password">
                 <span>หากยังไม่มีบัญชี</span>
-                <a href="#" style={{ marginLeft: 5 }}>สร้างบัญชี</a>
+                <a
+                  href="#"
+                  style={{ marginLeft: 5 }}
+                  onClick={e => {
+                    e.preventDefault();
+                    navigate('/signup');
+                  }}
+                >
+                  สร้างบัญชี
+                </a>
               </div>
 
               <button type="submit" className="login-button">
