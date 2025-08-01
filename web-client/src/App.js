@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import logo from './logo.svg';
 import Home from './js/pages/default/home';
-import './App.css';
+import PharmacyDetail from './js/pages/default/PharmacyDetail';
 
 // Mock pages
 function Page1() {
@@ -103,6 +103,7 @@ function App() {
       <div className="App">
         <Routes>
           <Route path="/login" element={<Login onLogin={setUserRole} />} />
+          <Route path="/pharmacy/:id" element={<PharmacyDetail />} />
           <Route
             path="/page1"
             element={

@@ -2,7 +2,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../../css/pages/default/home.css'; // Assuming you put your CSS in App.css
 
-function PharmacyItem() {
+function PharmacyItem({id}) {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate(`/pharmacy/${id}`);
+  };
+
   return (
     <div className="pharmacy-item">
       <div className="pharmacy-image-placeholder">รูปภาพร้านยา</div>
@@ -11,7 +17,7 @@ function PharmacyItem() {
         <p>ที่อยู่: .........................................................</p>
         <p>เวลาเปิดทำการ: 17.00-21.00 เบอร์โทรศัพท์: .......................</p>
       </div>
-      <button className="detail-button">กด<br/>เพื่อดูรายละเอียด</button>
+      <button className="detail-button" onClick={handleClick}>กด<br/>เพื่อดูรายละเอียด</button>
     </div>
   );
 }
