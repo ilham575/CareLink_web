@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../../../css/pages/default/home.css'; // Assuming you put your CSS in App.css
+import '../../../css/pages/default/home.css';
+import HomeHeader from './HomeHeader';
 
 function PharmacyItem({id}) {
   const navigate = useNavigate();
@@ -27,19 +28,7 @@ function Home() {
 
   return (
     <div className="app-container">
-      <header className="app-header">
-        <div className="search-bar-container">
-          <span className="search-icon">🔍</span>
-          <input type="text" placeholder="ค้นหา" className="search-input" />
-        </div>
-        <button
-          className="login-button"
-          onClick={() => navigate('/login')}
-        >
-          ลงชื่อเข้าใช้
-        </button>
-      </header>
-
+      <HomeHeader />
       <main className="main-content">
         <h2>ร้านยา:</h2>
         <PharmacyItem />

@@ -1,19 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../../css/pages/default/pharmacyDetail.css';
+import HomeHeader from './HomeHeader';
 
 function PharmacyDetail() {
   const navigate = useNavigate();
 
   return (
     <div className="detail-container">
-      <header className="detail-header">
-        <img src="/logo.png" alt="logo" className="detail-logo" />
-        <h2 className="detail-title">&lt;ชื่อร้าน&gt;</h2>
-        <button className="login-button" onClick={() => navigate('/login')}>
-          ลงชื่อเข้าใช้
-        </button>
-      </header>
+      <HomeHeader />
 
       <div className="image-row">
         <div className="image-box">รูปด้านนอกร้านยา</div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import logo from './logo.svg';
+// import logo from './logo.svg';
 import Home from './js/pages/default/home';
 import PharmacyDetail from './js/pages/default/PharmacyDetail';
 import LoginPage from './js/pages/default/signin';

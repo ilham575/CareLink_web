@@ -39,64 +39,64 @@ function LoginPage({ onLogin }) {
   return (
     <div className="login-page-container">
       <div className="login-background-image">
-        <div className="login-header-logo">
+        <div className="login-header-logo" onClick={() => navigate('/') } style={{ cursor: 'pointer' }}>
           <img src={logo} alt="CareLink Logo" className="carelink-logo" />
         </div>
-      </div>
 
-      <div className="login-content">
-        <div className="welcome-section">
-          <h1>ยินดีต้อนรับ</h1>
-          <h2>CareLink</h2>
-        </div>
+        <div className="login-content" >
+          <div className="welcome-section">
+            <h1>ยินดีต้อนรับ</h1>
+            <h2>CareLink</h2>
+          </div>
 
-        <div className="login-form-section">
-          <form onSubmit={handleLogin} className="login-form">
-            <div className="input-group">
-              <label htmlFor="username">USERNAME</label>
-              <input
-                type="text"
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                placeholder="USERNAME"
-              />
-            </div>
+          <div className="login-form-section">
+            <form onSubmit={handleLogin} className="login-form">
+              <div className="input-group">
+                <label htmlFor="username">USERNAME</label>
+                <input
+                  type="text"
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                  placeholder="USERNAME"
+                />
+              </div>
 
-            <div className="input-group">
-              <label htmlFor="password">PASSWORD</label>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                placeholder="**********"
-              />
-            </div>
+              <div className="input-group">
+                <label htmlFor="password">PASSWORD</label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  placeholder="**********"
+                />
+              </div>
 
-            <div className="checkbox-group">
-              <input
-                type="checkbox"
-                id="show-password"
-                checked={showPassword}
-                onChange={() => setShowPassword(!showPassword)}
-              />
-              <label htmlFor="show-password">แสดงรหัสผ่าน</label>
-            </div>
+              <div className="checkbox-group">
+                <input
+                  type="checkbox"
+                  id="show-password"
+                  checked={showPassword}
+                  onChange={() => setShowPassword(!showPassword)}
+                />
+                <label htmlFor="show-password">แสดงรหัสผ่าน</label>
+              </div>
 
-            {error && <div style={{ color: 'red', marginTop: 10 }}>{error}</div>}
+              {error && <div style={{ color: 'red', marginTop: 10 }}>{error}</div>}
 
-            <div className="forgot-password">
-              <span>หากยังไม่มีบัญชี</span>
-              <a href="#" style={{ marginLeft: 5 }}>สร้างบัญชี</a>
-            </div>
+              <div className="forgot-password">
+                <span>หากยังไม่มีบัญชี</span>
+                <a href="#" style={{ marginLeft: 5 }}>สร้างบัญชี</a>
+              </div>
 
-            <button type="submit" className="login-button">
-              ลงชื่อเข้าใช้
-            </button>
-          </form>
+              <button type="submit" className="login-button">
+                ลงชื่อเข้าใช้
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
