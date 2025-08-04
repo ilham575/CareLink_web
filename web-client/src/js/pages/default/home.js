@@ -3,8 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import '../../../css/pages/default/home.css';
 import HomeHeader from '../../components/HomeHeader';
 
-function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store }) {
+function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front }) {
   const navigate = useNavigate();
+
+  const getImageUrl = (photo) => {
+    if (!photo) return null;
+    if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
+    if (photo.url) return photo.url;
+    return null;
+  };
+
+  const imageUrl = getImageUrl(photo_front);
 
   const handleClick = () => {
     navigate(`/pharmacy/${id}`);
@@ -12,7 +21,17 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
 
   return (
     <div className="pharmacy-item">
-      <div className="pharmacy-image-placeholder">รูปภาพร้านยา</div>
+      <div className="pharmacy-image-placeholder" style={{ padding: 0, background: 'none' }}>
+        {imageUrl ? (
+          <img
+            src={imageUrl.startsWith('/') ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}` : imageUrl}
+            alt="รูปภาพร้านยา"
+            style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: 5, display: 'block' }}
+          />
+        ) : (
+          'รูปภาพร้านยา'
+        )}
+      </div>
       <div className="pharmacy-details">
         <p>ชื่อร้านยา: {name_th || 'ไม่พบข้อมูล'}</p>
         <p>ที่อยู่: {address || 'ไม่พบข้อมูล'}</p>
@@ -31,7 +50,7 @@ function Home() {
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
-    fetch('http://localhost:1337/api/drug-stores')
+    fetch('http://localhost:1337/api/drug-stores?populate=*')
       .then(res => res.json())
       .then(data => {
         setPharmacies(Array.isArray(data.data) ? data.data : []);
@@ -61,6 +80,7 @@ function Home() {
               time_open={pharmacy.time_open}
               time_close={pharmacy.time_close}
               phone_store={pharmacy.phone_store}
+              photo_front={pharmacy.photo_front}
             />
           ))
         )}
