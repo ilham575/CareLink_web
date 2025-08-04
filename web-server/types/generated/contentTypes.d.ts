@@ -373,6 +373,48 @@ export interface AdminUser extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
+  collectionName: 'drug_stores';
+  info: {
+    displayName: 'drug_store';
+    pluralName: 'drug-stores';
+    singularName: 'drug-store';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    address: Schema.Attribute.Text & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    drug_business_no: Schema.Attribute.String & Schema.Attribute.Required;
+    drug_regiter_no: Schema.Attribute.String & Schema.Attribute.Required;
+    link_gps: Schema.Attribute.String & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::drug-store.drug-store'
+    > &
+      Schema.Attribute.Private;
+    name_en: Schema.Attribute.String & Schema.Attribute.Required;
+    name_th: Schema.Attribute.String & Schema.Attribute.Required;
+    phone_store: Schema.Attribute.String & Schema.Attribute.Required;
+    photo_front: Schema.Attribute.Media<'images' | 'files'> &
+      Schema.Attribute.Required;
+    photo_in: Schema.Attribute.Media<'images' | 'files'> &
+      Schema.Attribute.Required;
+    photo_staff: Schema.Attribute.Media<'images' | 'files'> &
+      Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    time_close: Schema.Attribute.Time & Schema.Attribute.Required;
+    time_open: Schema.Attribute.Time & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiUserInterUserInter extends Struct.CollectionTypeSchema {
   collectionName: 'user_inters';
   info: {
@@ -912,6 +954,7 @@ declare module '@strapi/strapi' {
       'admin::transfer-token': AdminTransferToken;
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
+      'api::drug-store.drug-store': ApiDrugStoreDrugStore;
       'api::user-inter.user-inter': ApiUserInterUserInter;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;

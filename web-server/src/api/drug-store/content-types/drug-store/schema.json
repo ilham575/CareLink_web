@@ -1,0 +1,78 @@
+{
+  "kind": "collectionType",
+  "collectionName": "drug_stores",
+  "info": {
+    "singularName": "drug-store",
+    "pluralName": "drug-stores",
+    "displayName": "drug_store"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name_th": {
+      "type": "string",
+      "required": true
+    },
+    "name_en": {
+      "type": "string",
+      "required": true
+    },
+    "drug_regiter_no": {
+      "type": "string",
+      "required": true
+    },
+    "drug_business_no": {
+      "type": "string",
+      "required": true
+    },
+    "address": {
+      "type": "text",
+      "required": true
+    },
+    "phone_store": {
+      "type": "string",
+      "required": true
+    },
+    "time_open": {
+      "type": "time",
+      "required": true
+    },
+    "time_close": {
+      "type": "time",
+      "required": true
+    },
+    "link_gps": {
+      "type": "string",
+      "required": true
+    },
+    "photo_front": {
+      "type": "media",
+      "multiple": false,
+      "required": true,
+      "allowedTypes": [
+        "images",
+        "files"
+      ]
+    },
+    "photo_in": {
+      "type": "media",
+      "multiple": false,
+      "required": true,
+      "allowedTypes": [
+        "images",
+        "files"
+      ]
+    },
+    "photo_staff": {
+      "type": "media",
+      "multiple": false,
+      "required": true,
+      "allowedTypes": [
+        "images",
+        "files"
+      ]
+    }
+  }
+}

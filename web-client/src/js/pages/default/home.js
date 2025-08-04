@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../../css/pages/default/home.css';
 import HomeHeader from '../../components/HomeHeader';
 
-function PharmacyItem({id}) {
+function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store }) {
   const navigate = useNavigate();
 
   const handleClick = () => {
@@ -14,9 +14,11 @@ function PharmacyItem({id}) {
     <div className="pharmacy-item">
       <div className="pharmacy-image-placeholder">รูปภาพร้านยา</div>
       <div className="pharmacy-details">
-        <p>ชื่อร้านยา: .....................................................</p>
-        <p>ที่อยู่: .........................................................</p>
-        <p>เวลาเปิดทำการ: 17.00-21.00 เบอร์โทรศัพท์: .......................</p>
+        <p>ชื่อร้านยา: {name_th || 'ไม่พบข้อมูล'}</p>
+        <p>ที่อยู่: {address || 'ไม่พบข้อมูล'}</p>
+        <p>
+          เวลาเปิดทำการ: {time_open || '-'} - {time_close || '-'} เบอร์โทรศัพท์: {phone_store || '-'}
+        </p>
       </div>
       <button className="detail-button" onClick={handleClick}>กด<br/>เพื่อดูรายละเอียด</button>
     </div>
@@ -24,16 +26,44 @@ function PharmacyItem({id}) {
 }
 
 function Home() {
-  const navigate = useNavigate();
+  const [pharmacies, setPharmacies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
+
+  useEffect(() => {
+    fetch('http://localhost:1337/api/drug-stores')
+      .then(res => res.json())
+      .then(data => {
+        setPharmacies(Array.isArray(data.data) ? data.data : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const filteredPharmacies = pharmacies.filter(pharmacy =>
+    pharmacy.name_th?.toLowerCase().includes(searchText.toLowerCase())
+  );
 
   return (
     <div className="app-container">
-      <HomeHeader />
+      <HomeHeader onSearch={setSearchText} />
       <main className="main-content">
         <h2>ร้านยา:</h2>
-        <PharmacyItem />
-        <PharmacyItem />
-        {/* You can add more PharmacyItem components as needed */}
+        {loading ? (
+          <div>กำลังโหลดข้อมูล...</div>
+        ) : (
+          filteredPharmacies.map(pharmacy => (
+            <PharmacyItem
+              key={pharmacy.id}
+              id={pharmacy.id}
+              name_th={pharmacy.name_th}
+              address={pharmacy.address}
+              time_open={pharmacy.time_open}
+              time_close={pharmacy.time_close}
+              phone_store={pharmacy.phone_store}
+            />
+          ))
+        )}
       </main>
     </div>
   );

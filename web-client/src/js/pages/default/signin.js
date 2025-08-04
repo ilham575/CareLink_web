@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../../css/pages/default/signin.css';
 import logo from '../../../images/image 3.png';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Mock user database
 const mockUsers = [
@@ -26,18 +28,20 @@ function LoginPage({ onLogin }) {
     if (user) {
       if (onLogin) onLogin(user.role);
       setError('');
-      // Redirect based on role
-      if (user.role === 'admin') navigate('/page1');
-      else if (user.role === 'doctor') navigate('/page2');
-      else if (user.role === 'nurse') navigate('/page3');
-      else if (user.role === 'patient') navigate('/page4');
+      // Redirect based on role first
+      if (user.role === 'admin') navigate('/page1', { state: { showToast: true } });
+      else if (user.role === 'doctor') navigate('/page2', { state: { showToast: true } });
+      else if (user.role === 'nurse') navigate('/page3', { state: { showToast: true } });
+      else if (user.role === 'patient') navigate('/page4', { state: { showToast: true } });
+      // ไม่ต้องเรียก toast ที่นี่ เพราะ component จะ unmount
     } else {
-      setError('Invalid username or password');
+      toast.error('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', { autoClose: 2500 });
     }
   };
 
   return (
     <div className="login-page-container">
+      <ToastContainer />
       <div className="login-background-image">
         <div className="login-header-logo" onClick={() => navigate('/') } style={{ cursor: 'pointer' }}>
           <img src={logo} alt="CareLink Logo" className="carelink-logo" />
