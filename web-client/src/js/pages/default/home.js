@@ -70,6 +70,10 @@ function Home() {
         <h2>ร้านยา:</h2>
         {loading ? (
           <div>กำลังโหลดข้อมูล...</div>
+        ) : filteredPharmacies.length === 0 ? (
+          <div style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>
+            ไม่พบข้อมูลร้านยา
+          </div>
         ) : (
           filteredPharmacies.map(pharmacy => (
             <PharmacyItem
