@@ -25,7 +25,7 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
   );
 }
 
-function Home() {
+function Home({ isLoggedIn, onLogout }) {
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
@@ -46,7 +46,7 @@ function Home() {
 
   return (
     <div className="app-container">
-      <HomeHeader onSearch={setSearchText} />
+      <HomeHeader onSearch={setSearchText} isLoggedIn={isLoggedIn} onLogout={onLogout} />
       <main className="main-content">
         <h2>ร้านยา:</h2>
         {loading ? (
