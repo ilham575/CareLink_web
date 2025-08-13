@@ -429,6 +429,7 @@ export interface ApiUserInterUserInter extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    email: Schema.Attribute.Email & Schema.Attribute.Required;
     full_name: Schema.Attribute.Text & Schema.Attribute.Required;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -436,12 +437,18 @@ export interface ApiUserInterUserInter extends Struct.CollectionTypeSchema {
       'api::user-inter.user-inter'
     > &
       Schema.Attribute.Private;
-    password: Schema.Attribute.Password;
+    password: Schema.Attribute.Password & Schema.Attribute.Required;
+    phone: Schema.Attribute.String & Schema.Attribute.Required;
+    profileImage: Schema.Attribute.Media<
+      'images' | 'videos' | 'audios' | 'files'
+    > &
+      Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
+    role: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    usernamde: Schema.Attribute.String & Schema.Attribute.Required;
+    username: Schema.Attribute.String & Schema.Attribute.Required;
   };
 }
 

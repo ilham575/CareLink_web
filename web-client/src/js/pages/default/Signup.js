@@ -5,10 +5,25 @@ import logo from '../../../images/image 3.png';
 
 function Signup() {
   const [profileImage, setProfileImage] = useState(null);
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    username: '',
+    password: '',
+    email: '',
+    profileImage: null,
+  });
   const fileInputRef = useRef();
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(f => ({ ...f, [name]: value }));
+  };
 
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
+      setForm(f => ({ ...f, profileImage: e.target.files[0] }));
       setProfileImage(URL.createObjectURL(e.target.files[0]));
     }
   };
@@ -17,10 +32,46 @@ function Signup() {
     fileInputRef.current.click();
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // TODO: handle signup logic
-    alert('สมัครบัญชีสำเร็จ (Demo)');
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    const formData = new FormData();
+
+    // 1. เตรียมข้อมูลแบบ JSON string และแนบเข้า key 'data'
+    const data = {
+      full_name: `${form.firstName} ${form.lastName}`,
+      phone: form.phone,
+      username: form.username,
+      password: form.password,
+      email: form.email,
+      role: 'admin',
+    };
+    formData.append('data', JSON.stringify(data));
+    formData.append('files.profileImage', form.profileImage);
+
+    // 3. ทดสอบว่า formData มี key ชื่อ data และไฟล์จริง
+    for (let [key, value] of formData.entries()) {
+      console.log(key, value); // ✅ สำคัญ: ตรวจดูใน console
+    }
+
+    try {
+      const res = await fetch('http://localhost:1337/api/user-inters', {
+        method: 'POST',
+        body: formData, // ✅ Content-Type ถูกตั้งอัตโนมัติ
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        alert('✅ สมัครบัญชีสำเร็จ!');
+      } else {
+        console.error(result);
+        alert('❌ เกิดข้อผิดพลาด: ' + (result?.error?.message || 'ไม่สามารถสมัครบัญชีได้'));
+      }
+    } catch (err) {
+      alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      console.error(err);
+    }
   };
 
   return (
@@ -34,17 +85,17 @@ function Signup() {
           <div className="signup-row">
             <div className="signup-col">
               <label>ชื่อ<span className="required">*</span></label>
-              <input type="text" required />
+              <input type="text" name="firstName" value={form.firstName} onChange={handleChange} required />
             </div>
             <div className="signup-col">
               <label>เบอร์โทรศัพท์</label>
-              <input type="text" />
+              <input type="text" name="phone" value={form.phone} onChange={handleChange} />
             </div>
           </div>
           <div className="signup-row">
             <div className="signup-col">
               <label>นามสกุล<span className="required">*</span></label>
-              <input type="text" required />
+              <input type="text" name="lastName" value={form.lastName} onChange={handleChange} required />
             </div>
             <div className="signup-col">
               <label>เพิ่มรูปภาพตัวเอง<span className="required">*</span></label>
@@ -66,11 +117,11 @@ function Signup() {
             </div>
           </div>
           <label>USERNAME<span className="required">*</span></label>
-          <input type="text" required />
+          <input type="text" name="username" value={form.username} onChange={handleChange} required />
           <label>PASSWORD<span className="required">*</span></label>
-          <input type="password" required />
+          <input type="password" name="password" value={form.password} onChange={handleChange} required />
           <label>EMAIL<span className="required">*</span></label>
-          <input type="email" required />
+          <input type="email" name="email" value={form.email} onChange={handleChange} required />
           <button type="submit" className="signup-submit-btn">
             บันทึกและลงชื่อเข้าใช้
           </button>

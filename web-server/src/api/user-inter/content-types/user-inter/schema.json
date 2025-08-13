@@ -15,12 +15,36 @@
       "type": "text",
       "required": true
     },
-    "usernamde": {
+    "username": {
       "type": "string",
       "required": true
     },
     "password": {
-      "type": "password"
+      "type": "password",
+      "required": true
+    },
+    "phone": {
+      "type": "string",
+      "required": true
+    },
+    "email": {
+      "type": "email",
+      "required": true
+    },
+    "role": {
+      "type": "string",
+      "required": true
+    },
+    "profileImage": {
+      "type": "media",
+      "multiple": false,
+      "required": true,
+      "allowedTypes": [
+        "images",
+        "videos",
+        "audios",
+        "files"
+      ]
     }
   }
 }
