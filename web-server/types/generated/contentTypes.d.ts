@@ -415,43 +415,6 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
   };
 }
 
-export interface ApiUserInterUserInter extends Struct.CollectionTypeSchema {
-  collectionName: 'user_inters';
-  info: {
-    displayName: 'user_inter';
-    pluralName: 'user-inters';
-    singularName: 'user-inter';
-  };
-  options: {
-    draftAndPublish: true;
-  };
-  attributes: {
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    email: Schema.Attribute.Email & Schema.Attribute.Required;
-    full_name: Schema.Attribute.Text & Schema.Attribute.Required;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::user-inter.user-inter'
-    > &
-      Schema.Attribute.Private;
-    password: Schema.Attribute.Password & Schema.Attribute.Required;
-    phone: Schema.Attribute.String & Schema.Attribute.Required;
-    profileImage: Schema.Attribute.Media<
-      'images' | 'videos' | 'audios' | 'files'
-    > &
-      Schema.Attribute.Required;
-    publishedAt: Schema.Attribute.DateTime;
-    role: Schema.Attribute.String & Schema.Attribute.Required;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    username: Schema.Attribute.String & Schema.Attribute.Required;
-  };
-}
-
 export interface PluginContentReleasesRelease
   extends Struct.CollectionTypeSchema {
   collectionName: 'strapi_releases';
@@ -907,7 +870,6 @@ export interface PluginUsersPermissionsUser
   };
   options: {
     draftAndPublish: false;
-    timestamps: true;
   };
   attributes: {
     blocked: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
@@ -921,6 +883,7 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    full_name: Schema.Attribute.Text & Schema.Attribute.Required;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -932,6 +895,10 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    phone: Schema.Attribute.String & Schema.Attribute.Required;
+    profileimage: Schema.Attribute.Media<
+      'images' | 'files' | 'videos' | 'audios'
+    >;
     provider: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     resetPasswordToken: Schema.Attribute.String & Schema.Attribute.Private;
@@ -962,7 +929,6 @@ declare module '@strapi/strapi' {
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
       'api::drug-store.drug-store': ApiDrugStoreDrugStore;
-      'api::user-inter.user-inter': ApiUserInterUserInter;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;

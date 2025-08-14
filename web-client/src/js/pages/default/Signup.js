@@ -33,46 +33,80 @@ function Signup() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-
-    const formData = new FormData();
-
-    // 1. เตรียมข้อมูลแบบ JSON string และแนบเข้า key 'data'
-    const data = {
-      full_name: `${form.firstName} ${form.lastName}`,
-      phone: form.phone,
-      username: form.username,
-      password: form.password,
-      email: form.email,
-      role: 'admin',
-    };
-    formData.append('data', JSON.stringify(data));
-    formData.append('files.profileImage', form.profileImage);
-
-    // 3. ทดสอบว่า formData มี key ชื่อ data และไฟล์จริง
-    for (let [key, value] of formData.entries()) {
-      console.log(key, value); // ✅ สำคัญ: ตรวจดูใน console
-    }
+    e.preventDefault();
 
     try {
-      const res = await fetch('http://localhost:1337/api/user-inters', {
+      // 1. Register user (เฉพาะ username, email, password)
+      const registerRes = await fetch('http://localhost:1337/api/auth/local/register', {
         method: 'POST',
-        body: formData, // ✅ Content-Type ถูกตั้งอัตโนมัติ
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: form.username,
+          email: form.email,
+          password: form.password,
+        }),
       });
+      const registerData = await registerRes.json();
 
-      const result = await res.json();
+      if (!registerRes.ok) {
+        alert(registerData.error?.message || "สมัครไม่สำเร็จ");
+        return;
+      }
 
-      if (res.ok) {
+      // ได้ userId และ jwt
+      const userId = registerData.user.id;
+      const jwt = registerData.jwt;
+
+      // 2. Upload image (profileImage ต้องเป็นไฟล์)
+      let profileImageId = null;
+      if (form.profileImage) {
+        const imageData = new FormData();
+        imageData.append('files', form.profileImage);
+        const uploadRes = await fetch('http://localhost:1337/api/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${jwt}` },
+          body: imageData,
+        });
+        const uploadResult = await uploadRes.json();
+        if (uploadRes.ok && uploadResult && uploadResult[0]?.id) {
+          profileImageId = uploadResult[0].id;
+        }
+      }
+
+      // 3. PATCH user: เพิ่ม full_name, phone, profileimage, role
+      // ถ้าอยาก set role เป็นค่าเฉพาะ ต้องใช้ roleId จริงจากตาราง role (ดูใน Strapi admin > Users & Permissions > Roles)
+      const targetRoleId = 3; // แทน id จริง เช่น admin = 3 (กรณีอยากเปลี่ยน role)
+      const patchUser = {
+        full_name: `${form.firstName} ${form.lastName}`,
+        phone: form.phone,
+        confirmed: true,
+        ...(profileImageId ? { profileimage: profileImageId } : {}),
+        role: targetRoleId,   
+      };
+      // ถ้าอยากเปลี่ยน role ให้ uncomment บรรทัดข้างบน
+
+      const patchRes = await fetch(`http://localhost:1337/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwt}`,
+        },
+        body: JSON.stringify(patchUser),
+      });
+      const patchData = await patchRes.json();
+
+      if (patchRes.ok) {
         alert('✅ สมัครบัญชีสำเร็จ!');
       } else {
-        console.error(result);
-        alert('❌ เกิดข้อผิดพลาด: ' + (result?.error?.message || 'ไม่สามารถสมัครบัญชีได้'));
+        alert(patchData.error?.message || "เกิดข้อผิดพลาดในการอัปเดต user");
       }
+
     } catch (err) {
       alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
       console.error(err);
     }
   };
+
 
   return (
     <div className="signup-page-container">

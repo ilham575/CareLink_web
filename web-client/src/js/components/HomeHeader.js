@@ -1,11 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../images/image 3.png';
 
-function HomeHeader({ pharmacyName, isLoggedIn, onLogout, onSearch }) {
+function HomeHeader({ pharmacyName, onSearch }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchText, setSearchText] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    localStorage.getItem('isLoggedIn') === 'true'
+  );
+
+  useEffect(() => {
+    // Sync isLoggedIn กับ localStorage ทุกครั้งที่หน้าเปลี่ยน
+    setIsLoggedIn(localStorage.getItem('isLoggedIn') === 'true');
+  }, [location]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('jwt');
+    setIsLoggedIn(false);
+    navigate('/login');
+  };
 
   const isPharmacyDetail = location.pathname.startsWith('/pharmacy/');
   const isSignup = location.pathname === '/signup';
@@ -55,17 +70,11 @@ function HomeHeader({ pharmacyName, isLoggedIn, onLogout, onSearch }) {
         </div>
       )}
       {isLoggedIn ? (
-        <button
-          className="home-button"
-          onClick={onLogout}
-        >
+        <button className="home-button" onClick={handleLogout}>
           ออกจากระบบ
         </button>
       ) : (
-        <button
-          className="home-button"
-          onClick={() => navigate('/login')}
-        >
+        <button className="home-button" onClick={() => navigate('/login')}>
           ลงชื่อเข้าใช้
         </button>
       )}

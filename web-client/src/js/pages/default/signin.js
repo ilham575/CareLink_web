@@ -5,37 +5,70 @@ import logo from '../../../images/image 3.png';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// Mock user database
-const mockUsers = [
-  { username: 'admin1', password: 'adminpass', role: 'admin' },
-  { username: 'doctor1', password: 'doctorpass', role: 'doctor' },
-  { username: 'nurse1', password: 'nursepass', role: 'nurse' },
-  { username: 'patient1', password: 'patientpass', role: 'patient' },
-];
-
-function LoginPage({ onLogin }) {
+function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const user = mockUsers.find(
-      u => u.username === username && u.password === password
-    );
-    if (user) {
-      if (onLogin) onLogin(user.role);
-      setError('');
-      // Redirect based on role first
-      if (user.role === 'admin') navigate('/page1', { state: { showToast: true } });
-      else if (user.role === 'doctor') navigate('/page2', { state: { showToast: true } });
-      else if (user.role === 'nurse') navigate('/page3', { state: { showToast: true } });
-      else if (user.role === 'patient') navigate('/page4', { state: { showToast: true } });
-      // ไม่ต้องเรียก toast ที่นี่ เพราะ component จะ unmount
-    } else {
-      toast.error('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', { autoClose: 2500 });
+
+    try {
+      const response = await fetch('http://localhost:1337/api/auth/local', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: username,
+          password: password
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // ได้ JWT และ user.id
+        const jwt = data.jwt;
+        const userId = data.user.id;
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('jwt', jwt);
+        // ดึง user พร้อม role
+        const userRes = await fetch(`http://localhost:1337/api/users/${userId}?populate=role`, {
+          headers: { 'Authorization': `Bearer ${jwt}` }
+        });
+        const userData = await userRes.json();
+
+        const role = userData.role?.name || '';
+        setError('');
+        console.log('ROLE:', role);
+
+        // route ตาม role
+        if (role === 'admin') {
+          toast.success('เข้าสู่ระบบสำเร็จ!', { autoClose: 2000 });
+          return navigate('/page1', { state: { showToast: true } });
+        }
+        if (role === 'pharmacy') {
+          toast.success('เข้าสู่ระบบสำเร็จ!', { autoClose: 2000 });
+          return navigate('/page2', { state: { showToast: true } });
+        }
+        if (role === 'nurse') {
+          toast.success('เข้าสู่ระบบสำเร็จ!', { autoClose: 2000 });
+          return navigate('/page3', { state: { showToast: true } });
+        }
+        if (role === 'patient') {
+          toast.success('เข้าสู่ระบบสำเร็จ!', { autoClose: 2000 });
+          return navigate('/page4', { state: { showToast: true } });
+        }
+
+        // ถ้าไม่ match role
+        toast.error('ไม่พบ role นี้ในระบบ', { autoClose: 2500 });
+
+      } else {
+        toast.error(data.error?.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', { autoClose: 2500 });
+      }
+    } catch (err) {
+      toast.error('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', { autoClose: 2500 });
     }
   };
 
@@ -43,7 +76,7 @@ function LoginPage({ onLogin }) {
     <div className="login-page-container">
       <ToastContainer />
       <div className="login-background-image">
-        <div className="login-header-logo" onClick={() => navigate('/') } style={{ cursor: 'pointer' }}>
+        <div className="login-header-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
           <img src={logo} alt="CareLink Logo" className="carelink-logo" />
         </div>
 
