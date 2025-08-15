@@ -107,31 +107,34 @@ function Signup() {
     }
   };
 
-
   return (
     <div className="signup-page-container">
+      {/* <div className="signup-header">
+        <img src={logo} alt="CareLink Logo" className="signup-logo" />
+        <div className="signup-title">สมัครสมาชิกผู้ดูแลระบบ</div>
+      </div> */}
       <HomeHeader />
       <div className="signup-content">
         <div className="signup-note">
           หมายเหตุ: บัญชีที่ถูกสร้างขึ้นนี้จะได้รับสิทธิ์เป็น <b>ผู้ดูแลระบบ (ADMIN)</b> โดยอัตโนมัติ
         </div>
         <form className="signup-form" onSubmit={handleSubmit}>
-          <div className="signup-row">
-            <div className="signup-col">
+          <div className="signup-form-flex">
+            <div className="signup-form-left">
               <label>ชื่อ<span className="required">*</span></label>
               <input type="text" name="firstName" value={form.firstName} onChange={handleChange} required />
-            </div>
-            <div className="signup-col">
-              <label>เบอร์โทรศัพท์</label>
-              <input type="text" name="phone" value={form.phone} onChange={handleChange} />
-            </div>
-          </div>
-          <div className="signup-row">
-            <div className="signup-col">
               <label>นามสกุล<span className="required">*</span></label>
               <input type="text" name="lastName" value={form.lastName} onChange={handleChange} required />
+              <label>เบอร์โทรศัพท์</label>
+              <input type="text" name="phone" value={form.phone} onChange={handleChange} />
+              <label>USERNAME<span className="required">*</span></label>
+              <input type="text" name="username" value={form.username} onChange={handleChange} required />
+              <label>PASSWORD<span className="required">*</span></label>
+              <input type="password" name="password" value={form.password} onChange={handleChange} required />
+              <label>EMAIL<span className="required">*</span></label>
+              <input type="email" name="email" value={form.email} onChange={handleChange} required />
             </div>
-            <div className="signup-col">
+            <div className="signup-form-right">
               <label>เพิ่มรูปภาพตัวเอง<span className="required">*</span></label>
               <div className="signup-upload-box" onClick={handleUploadClick}>
                 {profileImage ? (
@@ -150,12 +153,6 @@ function Signup() {
               </div>
             </div>
           </div>
-          <label>USERNAME<span className="required">*</span></label>
-          <input type="text" name="username" value={form.username} onChange={handleChange} required />
-          <label>PASSWORD<span className="required">*</span></label>
-          <input type="password" name="password" value={form.password} onChange={handleChange} required />
-          <label>EMAIL<span className="required">*</span></label>
-          <input type="email" name="email" value={form.email} onChange={handleChange} required />
           <button type="submit" className="signup-submit-btn">
             บันทึกและลงชื่อเข้าใช้
           </button>

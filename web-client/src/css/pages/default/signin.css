@@ -1,10 +1,18 @@
+/* Body and Global Styles */
+body {
+  margin: 0;
+  background: var(--bg-gradient);
+  font-family: var(--font-main);
+}
+
 /* Layout */
 .login-page-container {
   display: flex;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  font-family: 'Prompt', 'Kanit', 'Arial', sans-serif;
+  font-family: var(--font-main);
+  background: var(--bg-card);
 }
 
 /* Background image section */
@@ -15,9 +23,11 @@
   background-position: center;
   position: relative;
   display: flex;
-  justify-content: center;     /* เปลี่ยนจาก flex-start */
-  align-items: center;         /* เปลี่ยนจาก flex-start */
-  flex-direction: column;      /* ใหม่ */
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  box-shadow: var(--shadow-lg);
 }
 
 .login-header-logo {
@@ -30,34 +40,39 @@
 .carelink-logo {
   width: 120px;
   height: auto;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-md);
 }
 
 /* Main content (green and dark green sections) */
 .login-content {
-  margin-top: 10%;
-  flex: 1.2;
+  margin-top: 8%;
   display: flex;
   flex-direction: row;
   min-width: 400px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
 }
 
 /* Welcome Section (Left Green Box) */
 .welcome-section {
   flex: 1;
-  background-color: #00ff4c;
+  background: linear-gradient(135deg, var(--color-primary) 60%, var(--color-secondary) 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  color: #0a3d1a;
+  color: var(--text-heading);
   text-align: center;
   min-width: 320px;
   padding: 0;
   width: 500px;
   height: 60vh; /* Full height to match the background image */
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .welcome-section h1 {
@@ -65,18 +80,20 @@
   font-weight: bold;
   margin: 0;
   padding: 0;
+  letter-spacing: 1px;
 }
 
 .welcome-section h2 {
   font-size: 2em;
   font-weight: 600;
   margin-top: 10px;
+  letter-spacing: 1px;
 }
 
 /* Login Form Section (Right Dark Green Box) */
 .login-form-section {
   flex: 1.2;
-  background-color: #006633;
+  background: linear-gradient(135deg, var(--color-primary-dark) 60%, var(--color-primary) 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -84,12 +101,14 @@
   padding: 0 40px;
   min-width: 340px;
   height: 60vh;
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .login-form {
   width: 100%;
   max-width: 400px;
-  color: white;
+  color: #fff;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -116,16 +135,17 @@
   border: none;
   border-radius: 30px;
   background-color: #eaeaea;
-  color: #222;
+  color: var(--text-main);
   font-size: 1.1em;
   box-sizing: border-box;
   outline: none;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, background 0.2s;
 }
 
 .input-group input[type="text"]:focus,
 .input-group input[type="password"]:focus {
-  box-shadow: 0 0 0 2px #00ff4c;
+  box-shadow: 0 0 0 2px var(--color-primary);
+  background: #fff;
 }
 
 
@@ -141,7 +161,7 @@
   margin-right: 10px;
   width: 20px;
   height: 20px;
-  accent-color: #00ff4c;
+  accent-color: var(--color-primary);
 }
 
 .checkbox-group label {
@@ -161,27 +181,39 @@
   text-decoration: underline;
   margin-left: 5px;
   font-weight: 500;
+  transition: color 0.2s;
+}
+
+.forgot-password a:hover {
+  color: var(--color-primary);
 }
 
 .login-button {
   width: 100%;
   padding: 16px;
-  background-color: #00e65c;
-  color: #003d1f;
+  background: linear-gradient(90deg, var(--color-primary) 60%, var(--color-primary-dark) 100%);
+  color: var(--color-primary-dark);
   border: none;
   font-weight: 600;
   border-radius: 30px;
   font-size: 1.1em;
-  font-weight: bold;
+  font-family: var(--font-main);
   cursor: pointer;
   margin-top: 10px;
-  transition: background 0.2s;
+  transition: background 0.2s, box-shadow 0.2s;
   letter-spacing: 1px;
-  font-family: 'Prompt', sans-serif;
+  box-shadow: var(--shadow-sm);
 }
 
 .login-button:hover {
-  background-color: #00e63b;
+  background: linear-gradient(90deg, var(--color-primary-dark) 60%, var(--color-primary) 100%);
+  box-shadow: var(--shadow-md);
+  color: #fff;
+}
+
+.login-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary);
 }
 
 /* Responsive adjustments */
@@ -189,11 +221,15 @@
   .login-content {
     min-width: 0;
     flex-direction: column;
+    border-radius: var(--radius-lg);
+    margin-top: 24px;
   }
   .welcome-section, .login-form-section {
     min-width: 0;
     width: 100%;
     padding: 30px 10vw;
+    border-radius: var(--radius-lg);
+    height: auto;
   }
   .login-form {
     max-width: 100%;
@@ -203,6 +239,7 @@
 @media (max-width: 600px) {
   .login-page-container {
     flex-direction: column;
+    background: #fff;
   }
   .login-background-image {
     display: none;
@@ -210,10 +247,15 @@
   .login-content {
     min-width: 0;
     flex-direction: column;
+    margin-top: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
   .welcome-section, .login-form-section {
     min-width: 0;
     width: 100%;
     padding: 30px 5vw;
+    border-radius: 0;
+    height: auto;
   }
 }

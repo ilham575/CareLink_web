@@ -11,7 +11,6 @@ function HomeHeader({ pharmacyName, onSearch }) {
   );
 
   useEffect(() => {
-    // Sync isLoggedIn กับ localStorage ทุกครั้งที่หน้าเปลี่ยน
     setIsLoggedIn(localStorage.getItem('isLoggedIn') === 'true');
   }, [location]);
 
@@ -27,26 +26,44 @@ function HomeHeader({ pharmacyName, onSearch }) {
 
   if (isSignup) {
     return (
-      <header className="app-header" style={{ background: '#00ff4c', height: 50, display: 'flex', alignItems: 'center', paddingLeft: 20 }}>
+      <header className="app-header">
         <img
           src={logo}
           alt="Logo"
           className="app-logo"
-          style={{ width: '65px', height: '65px', marginRight: '20px', borderRadius: 8, background: '#fff' 
-            , cursor: 'pointer'
+          style={{
+            width: '65px',
+            height: '65px',
+            marginRight: '20px',
+            borderRadius: 12,
+            background: '#fff',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            cursor: 'pointer'
           }}
           onClick={() => navigate('/login')}
         />
-        <div style={{ fontSize: '2em', color: '#1a3d1a', fontWeight: 600, letterSpacing: 1 }}>สร้างบัญชี</div>
+        <div className="signup-title">สร้างบัญชี</div>
       </header>
     );
   }
 
   return (
     <header className="app-header">
-      <img src={logo} alt="Logo" className="app-logo" style={{ width: '70px', height: '70px', marginRight: '10px' }} />
+      <img
+        src={logo}
+        alt="Logo"
+        className="app-logo"
+        style={{
+          width: '70px',
+          height: '70px',
+          marginRight: '18px',
+          borderRadius: 12,
+          background: '#fff',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+        }}
+      />
       {isPharmacyDetail ? (
-        <div style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#0B5827', flexGrow: 1 }}>
+        <div className="detail-title">
           {"ร้านยา " + (pharmacyName || 'ชื่อร้านยา')}
         </div>
       ) : (
@@ -70,11 +87,17 @@ function HomeHeader({ pharmacyName, onSearch }) {
         </div>
       )}
       {isLoggedIn ? (
-        <button className="home-button" onClick={handleLogout}>
+        <button
+          className="home-button"
+          onClick={handleLogout}
+        >
           ออกจากระบบ
         </button>
       ) : (
-        <button className="home-button" onClick={() => navigate('/login')}>
+        <button
+          className="home-button"
+          onClick={() => navigate('/login')}
+        >
           ลงชื่อเข้าใช้
         </button>
       )}

@@ -1,0 +1,31 @@
+:root {
+  /* Primary colors */
+  --color-primary: #0097a7;         /* Teal (โลโก้) */
+  --color-primary-dark: #005662;    /* Dark Teal */
+  --color-primary-light: #b2ebf2;   /* Light Teal */
+  --color-secondary: #26c6da;       /* Cyan (โลโก้) */
+  --color-accent: #00796b;          /* Accent Greenish Teal */
+
+  /* Backgrounds */
+  --bg-gradient: linear-gradient(135deg, var(--color-primary-light) 0%, #e0f7fa 100%);
+  --bg-card: rgba(255,255,255,0.92);
+
+  /* Text */
+  --text-main: #222;
+  --text-heading: #005662;          /* Heading Teal */
+  --text-muted: #333;
+
+  /* Border radius */
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 4px;
+
+  /* Box shadow */
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+
+  /* Font */
+  --font-main: 'Prompt', 'Kanit', 'Arial', sans-serif;
+}

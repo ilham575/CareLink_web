@@ -4,6 +4,7 @@ import Home from './js/pages/default/home';
 import PharmacyDetail from './js/pages/default/PharmacyDetail';
 import LoginPage from './js/pages/default/signin';
 import Signup from './js/pages/default/Signup';
+import './css/theme.css';
 import './App.css';
 import HomeHeader from './js/components/HomeHeader';
 import { ToastContainer, toast } from 'react-toastify';

@@ -3,6 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import '../../../css/pages/default/pharmacyDetail.css';
 import HomeHeader from '../../components/HomeHeader';
 
+// Suppress ResizeObserver loop error in Chrome
+// if (typeof window !== 'undefined') {
+//   window.addEventListener('error', function(e) {
+//     if (e.message === 'ResizeObserver loop completed with undelivered notifications.') {
+//       e.stopImmediatePropagation();
+//     }
+//   });
+// }
+
 function getImageUrl(photo) {
   // ใช้รูปขนาด medium ถ้ามี, ถ้าไม่มีใช้ url หลัก
   if (!photo) return null;
