@@ -75,7 +75,10 @@ function Signup() {
 
       // 3. PATCH user: เพิ่ม full_name, phone, profileimage, role
       // ถ้าอยาก set role เป็นค่าเฉพาะ ต้องใช้ roleId จริงจากตาราง role (ดูใน Strapi admin > Users & Permissions > Roles)
-      const targetRoleId = 3; // แทน id จริง เช่น admin = 3 (กรณีอยากเปลี่ยน role)
+      // NOTE: To actually change the user's role, you must allow "Authenticated" users to update the "role" field in Strapi permissions.
+      // Go to Strapi Admin > Settings > Users & Permissions Plugin > Roles > Authenticated > User-permissions
+      // Enable "Update" for users and allow "role" field to be updated.
+      const targetRoleId = 3; // admin role id is 3 in Strapi, must be a number not a string
       const patchUser = {
         full_name: `${form.firstName} ${form.lastName}`,
         phone: form.phone,
