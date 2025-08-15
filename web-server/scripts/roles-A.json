@@ -1,0 +1,46 @@
+[
+  {
+    "id": 2,
+    "documentId": "vayg3qngbd3rozp2rtkcyh02",
+    "name": "Public",
+    "description": "Default role given to unauthenticated user.",
+    "type": "public",
+    "createdAt": "2025-07-19T06:32:39.469Z",
+    "updatedAt": "2025-08-14T06:26:40.974Z",
+    "publishedAt": "2025-07-19T06:32:39.469Z",
+    "locale": null
+  },
+  {
+    "id": 1,
+    "documentId": "zi89ex7edsrx3alhnbpvo9xa",
+    "name": "Authenticated",
+    "description": "Default role given to authenticated user.",
+    "type": "authenticated",
+    "createdAt": "2025-07-19T06:32:39.466Z",
+    "updatedAt": "2025-08-14T06:28:37.532Z",
+    "publishedAt": "2025-07-19T06:32:39.466Z",
+    "locale": null
+  },
+  {
+    "id": 3,
+    "documentId": "p7es1v5pvahkcs698i13jcgp",
+    "name": "admin",
+    "description": "admin",
+    "type": "admin",
+    "createdAt": "2025-08-14T06:15:15.885Z",
+    "updatedAt": "2025-08-14T06:29:03.938Z",
+    "publishedAt": "2025-08-14T06:15:15.887Z",
+    "locale": null
+  },
+  {
+    "id": 4,
+    "documentId": "pv2im4od9renv9q4fdgw3oey",
+    "name": "pharmacy",
+    "description": "pharmacy",
+    "type": "pharmacy",
+    "createdAt": "2025-08-14T06:44:03.254Z",
+    "updatedAt": "2025-08-14T06:49:14.859Z",
+    "publishedAt": "2025-08-14T06:44:03.255Z",
+    "locale": null
+  }
+]
