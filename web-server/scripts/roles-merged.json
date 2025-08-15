@@ -1,591 +1,12 @@
 [
   {
-    "id": 5,
-    "documentId": "tqbbphuc9zzvzgbmcj0cpjqp",
-    "name": "staff",
-    "description": "staff",
-    "type": "staff",
-    "createdAt": "2025-08-15T16:59:44.847Z",
-    "updatedAt": "2025-08-15T16:59:44.847Z",
-    "publishedAt": "2025-08-15T16:59:44.847Z",
-    "locale": null,
-    "permissions": [
-      {
-        "id": 86,
-        "documentId": "ldy179hf3iho1zzvcgkp37bn",
-        "action": "api::drug-store.drug-store.find",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.853Z",
-        "locale": null
-      },
-      {
-        "id": 85,
-        "documentId": "gijwwca43kzpy9c1m3pz0xdk",
-        "action": "api::drug-store.drug-store.findOne",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.852Z",
-        "locale": null
-      },
-      {
-        "id": 87,
-        "documentId": "jn9dh6i2p4tatyvntd7umsir",
-        "action": "plugin::users-permissions.auth.callback",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.853Z",
-        "locale": null
-      },
-      {
-        "id": 88,
-        "documentId": "hf5fya2s5lq2dmxucdn3hffn",
-        "action": "plugin::users-permissions.auth.changePassword",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.853Z",
-        "locale": null
-      },
-      {
-        "id": 89,
-        "documentId": "odqq4af5p4z7l4wqwmxwk742",
-        "action": "plugin::users-permissions.auth.resetPassword",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.853Z",
-        "locale": null
-      },
-      {
-        "id": 90,
-        "documentId": "ul1msl39barc8stbcnp8m5wd",
-        "action": "plugin::users-permissions.auth.connect",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.853Z",
-        "locale": null
-      },
-      {
-        "id": 91,
-        "documentId": "s9aqx7w2rxbtfiz4pyv40dzk",
-        "action": "plugin::users-permissions.auth.forgotPassword",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.853Z",
-        "locale": null
-      },
-      {
-        "id": 92,
-        "documentId": "muji81lfv0z6psqc2buiczx5",
-        "action": "plugin::users-permissions.auth.register",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.853Z",
-        "locale": null
-      },
-      {
-        "id": 93,
-        "documentId": "yh4h3j55q7vw75g150tsls3b",
-        "action": "plugin::users-permissions.auth.emailConfirmation",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.853Z",
-        "locale": null
-      },
-      {
-        "id": 94,
-        "documentId": "m26r46risslde0hp9ii4fd0u",
-        "action": "plugin::users-permissions.auth.sendEmailConfirmation",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.853Z",
-        "locale": null
-      },
-      {
-        "id": 95,
-        "documentId": "bp05957e64mzb73bd63v5tpi",
-        "action": "plugin::users-permissions.user.update",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.853Z",
-        "locale": null
-      },
-      {
-        "id": 96,
-        "documentId": "u842s94cjmndcf6ynmr1tbxh",
-        "action": "plugin::users-permissions.user.find",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.853Z",
-        "locale": null
-      },
-      {
-        "id": 97,
-        "documentId": "huwi6fo0040j5d02wnfk8xu0",
-        "action": "plugin::users-permissions.user.findOne",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.854Z",
-        "locale": null
-      },
-      {
-        "id": 98,
-        "documentId": "jfngyzxh2q0wbtmoyctyhhvp",
-        "action": "plugin::users-permissions.user.me",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.854Z",
-        "locale": null
-      },
-      {
-        "id": 99,
-        "documentId": "upp0k48mki6fnp5syffidkcj",
-        "action": "plugin::users-permissions.role.findOne",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.854Z",
-        "locale": null
-      },
-      {
-        "id": 100,
-        "documentId": "sz0np561geqwtgdzyx8c1779",
-        "action": "plugin::users-permissions.role.find",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.854Z",
-        "locale": null
-      },
-      {
-        "id": 101,
-        "documentId": "nrvxkzd9e5rwksybn7kattes",
-        "action": "plugin::users-permissions.permissions.getPermissions",
-        "createdAt": "2025-08-15T16:59:44.852Z",
-        "updatedAt": "2025-08-15T16:59:44.852Z",
-        "publishedAt": "2025-08-15T16:59:44.854Z",
-        "locale": null
-      }
-    ]
-  },
-  {
-    "id": 2,
-    "documentId": "ja079bgamf5a3awrnpk89clb",
-    "name": "Public",
-    "description": "Default role given to unauthenticated user.",
-    "type": "public",
-    "createdAt": "2025-07-03T16:55:37.833Z",
-    "updatedAt": "2025-08-15T17:00:46.421Z",
-    "publishedAt": "2025-07-03T16:55:37.833Z",
-    "locale": null,
-    "permissions": [
-      {
-        "id": 3,
-        "documentId": "ywwb40nj1dm2c8q0be4ckj2z",
-        "action": "plugin::users-permissions.auth.callback",
-        "createdAt": "2025-07-03T16:55:37.846Z",
-        "updatedAt": "2025-07-03T16:55:37.846Z",
-        "publishedAt": "2025-07-03T16:55:37.846Z",
-        "locale": null
-      },
-      {
-        "id": 4,
-        "documentId": "k8tbfrt0io0wg1h5rl2ry1gp",
-        "action": "plugin::users-permissions.auth.connect",
-        "createdAt": "2025-07-03T16:55:37.846Z",
-        "updatedAt": "2025-07-03T16:55:37.846Z",
-        "publishedAt": "2025-07-03T16:55:37.846Z",
-        "locale": null
-      },
-      {
-        "id": 5,
-        "documentId": "c9y555umeacfsnagaougjt82",
-        "action": "plugin::users-permissions.auth.resetPassword",
-        "createdAt": "2025-07-03T16:55:37.846Z",
-        "updatedAt": "2025-07-03T16:55:37.846Z",
-        "publishedAt": "2025-07-03T16:55:37.847Z",
-        "locale": null
-      },
-      {
-        "id": 6,
-        "documentId": "gu4kemdtia88eqrw6cuusjec",
-        "action": "plugin::users-permissions.auth.register",
-        "createdAt": "2025-07-03T16:55:37.846Z",
-        "updatedAt": "2025-07-03T16:55:37.846Z",
-        "publishedAt": "2025-07-03T16:55:37.847Z",
-        "locale": null
-      },
-      {
-        "id": 7,
-        "documentId": "n137skda0q8ho4gsvumk8csz",
-        "action": "plugin::users-permissions.auth.forgotPassword",
-        "createdAt": "2025-07-03T16:55:37.846Z",
-        "updatedAt": "2025-07-03T16:55:37.846Z",
-        "publishedAt": "2025-07-03T16:55:37.846Z",
-        "locale": null
-      },
-      {
-        "id": 8,
-        "documentId": "yoyow3c5f4x3hgemw7cuu3qh",
-        "action": "plugin::users-permissions.auth.emailConfirmation",
-        "createdAt": "2025-07-03T16:55:37.846Z",
-        "updatedAt": "2025-07-03T16:55:37.846Z",
-        "publishedAt": "2025-07-03T16:55:37.847Z",
-        "locale": null
-      },
-      {
-        "id": 9,
-        "documentId": "ppes3b6gs9sh89lnfepvec0e",
-        "action": "plugin::users-permissions.auth.sendEmailConfirmation",
-        "createdAt": "2025-07-03T16:55:37.846Z",
-        "updatedAt": "2025-07-03T16:55:37.846Z",
-        "publishedAt": "2025-07-03T16:55:37.847Z",
-        "locale": null
-      },
-      {
-        "id": 25,
-        "documentId": "lar5oa3vrf64pnp6a7yrzy7t",
-        "action": "api::drug-store.drug-store.findOne",
-        "createdAt": "2025-08-15T14:32:10.277Z",
-        "updatedAt": "2025-08-15T14:32:10.277Z",
-        "publishedAt": "2025-08-15T14:32:10.278Z",
-        "locale": null
-      },
-      {
-        "id": 26,
-        "documentId": "qrg59bds2k594r5711fwoibo",
-        "action": "api::drug-store.drug-store.find",
-        "createdAt": "2025-08-15T14:32:10.277Z",
-        "updatedAt": "2025-08-15T14:32:10.277Z",
-        "publishedAt": "2025-08-15T14:32:10.278Z",
-        "locale": null
-      },
-      {
-        "id": 54,
-        "documentId": "mqb3497d4gawekclz49fd59t",
-        "action": "plugin::users-permissions.user.create",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.833Z",
-        "locale": null
-      },
-      {
-        "id": 60,
-        "documentId": "hht71y48m5i9ci3mlgxscxdo",
-        "action": "plugin::users-permissions.user.me",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.834Z",
-        "locale": null
-      },
-      {
-        "id": 61,
-        "documentId": "ubcapo3i40jjlhjrkxveyhho",
-        "action": "plugin::users-permissions.role.findOne",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.834Z",
-        "locale": null
-      },
-      {
-        "id": 62,
-        "documentId": "jw8z8dcs92oanb2ueb4w0o9i",
-        "action": "plugin::users-permissions.role.find",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.834Z",
-        "locale": null
-      },
-      {
-        "id": 53,
-        "documentId": "unmctjxrxl5zqjz4mrjod5ai",
-        "action": "plugin::users-permissions.user.update",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.833Z",
-        "locale": null
-      },
-      {
-        "id": 55,
-        "documentId": "ha1q0f7obb5l9xt02f4v43ie",
-        "action": "plugin::users-permissions.user.find",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.833Z",
-        "locale": null
-      },
-      {
-        "id": 56,
-        "documentId": "q8m7se998mgs2sc481etfi17",
-        "action": "plugin::users-permissions.user.findOne",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.833Z",
-        "locale": null
-      },
-      {
-        "id": 57,
-        "documentId": "hxl31zbm9zfdo1z9dpbae80f",
-        "action": "plugin::users-permissions.user.count",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.833Z",
-        "locale": null
-      },
-      {
-        "id": 58,
-        "documentId": "edb9uhjy9c3170my3cltvm33",
-        "action": "plugin::users-permissions.user.destroy",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.834Z",
-        "locale": null
-      },
-      {
-        "id": 59,
-        "documentId": "zbfy5xd5z5nrp5phgajueyli",
-        "action": "plugin::users-permissions.role.createRole",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.834Z",
-        "locale": null
-      },
-      {
-        "id": 63,
-        "documentId": "z83hnhw4zuagii3l4p8ch168",
-        "action": "plugin::users-permissions.role.updateRole",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.834Z",
-        "locale": null
-      },
-      {
-        "id": 64,
-        "documentId": "ahhou372fyrepqps68pht04d",
-        "action": "plugin::users-permissions.role.deleteRole",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.834Z",
-        "locale": null
-      },
-      {
-        "id": 65,
-        "documentId": "itos8mtvotiwq0ynp46d1vbm",
-        "action": "plugin::users-permissions.permissions.getPermissions",
-        "createdAt": "2025-08-15T15:39:21.833Z",
-        "updatedAt": "2025-08-15T15:39:21.833Z",
-        "publishedAt": "2025-08-15T15:39:21.834Z",
-        "locale": null
-      }
-    ]
-  },
-  {
-    "id": 1,
-    "documentId": "io75xk9yfscfjgd2s5g2bppd",
-    "name": "Authenticated",
-    "description": "Default role given to authenticated user.",
-    "type": "authenticated",
-    "createdAt": "2025-07-03T16:55:37.830Z",
-    "updatedAt": "2025-08-15T17:00:46.424Z",
-    "publishedAt": "2025-07-03T16:55:37.830Z",
-    "locale": null,
-    "permissions": [
-      {
-        "id": 1,
-        "documentId": "rs1azh5jv3rmsnf1jbebt1t9",
-        "action": "plugin::users-permissions.user.me",
-        "createdAt": "2025-07-03T16:55:37.837Z",
-        "updatedAt": "2025-07-03T16:55:37.837Z",
-        "publishedAt": "2025-07-03T16:55:37.837Z",
-        "locale": null
-      },
-      {
-        "id": 2,
-        "documentId": "j9g7jxel3z726p12l1tnp97n",
-        "action": "plugin::users-permissions.auth.changePassword",
-        "createdAt": "2025-07-03T16:55:37.837Z",
-        "updatedAt": "2025-07-03T16:55:37.837Z",
-        "publishedAt": "2025-07-03T16:55:37.837Z",
-        "locale": null
-      },
-      {
-        "id": 66,
-        "documentId": "d85gbd1ebf023bl2otc806u6",
-        "action": "plugin::users-permissions.auth.callback",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 67,
-        "documentId": "vwg7k3lbv0ewgw6xjbi7olce",
-        "action": "plugin::users-permissions.auth.resetPassword",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 68,
-        "documentId": "cjsbh9l1o57hkwzne4ywybtq",
-        "action": "plugin::users-permissions.auth.connect",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 69,
-        "documentId": "h9d174z0tgqygumugg45rmvn",
-        "action": "plugin::users-permissions.auth.forgotPassword",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 70,
-        "documentId": "net0925obosytttxs42p2opn",
-        "action": "plugin::users-permissions.auth.register",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 71,
-        "documentId": "l30x4xjt68ru9x5u44jyxigq",
-        "action": "plugin::users-permissions.auth.emailConfirmation",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 72,
-        "documentId": "wiywb1zy86p5p4h8tfoens4v",
-        "action": "plugin::users-permissions.auth.sendEmailConfirmation",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 73,
-        "documentId": "u1hsnhcspj7rlbxre6785yrp",
-        "action": "plugin::users-permissions.user.create",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 74,
-        "documentId": "jzbb0m07occcr1okadftzr0h",
-        "action": "plugin::users-permissions.user.update",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 75,
-        "documentId": "s1rc91sa1pbnys8k220jwfzi",
-        "action": "plugin::users-permissions.user.find",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 76,
-        "documentId": "ferjg31t6vg86q24b2k371r5",
-        "action": "plugin::users-permissions.user.findOne",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 77,
-        "documentId": "r9rarl9pntdct4t4ts773cnd",
-        "action": "plugin::users-permissions.user.count",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.811Z",
-        "locale": null
-      },
-      {
-        "id": 78,
-        "documentId": "uq0kmgc33iswqz7zowil10pm",
-        "action": "plugin::users-permissions.user.destroy",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.812Z",
-        "locale": null
-      },
-      {
-        "id": 79,
-        "documentId": "mspvx874v9vn72uit1olzyev",
-        "action": "plugin::users-permissions.role.createRole",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.812Z",
-        "locale": null
-      },
-      {
-        "id": 80,
-        "documentId": "hcar989l2y83y2jftdphjpb6",
-        "action": "plugin::users-permissions.role.findOne",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.812Z",
-        "locale": null
-      },
-      {
-        "id": 81,
-        "documentId": "v7i4mc0vuc45jkwf3or1xnwo",
-        "action": "plugin::users-permissions.role.find",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.812Z",
-        "locale": null
-      },
-      {
-        "id": 82,
-        "documentId": "tidwbocusl4u8hqlqx3fgyvm",
-        "action": "plugin::users-permissions.role.updateRole",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.812Z",
-        "locale": null
-      },
-      {
-        "id": 83,
-        "documentId": "l2idisxidk67kpbn3vzlsj5r",
-        "action": "plugin::users-permissions.role.deleteRole",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.812Z",
-        "locale": null
-      },
-      {
-        "id": 84,
-        "documentId": "zujveiza7m0kbhhsd5uxi76e",
-        "action": "plugin::users-permissions.permissions.getPermissions",
-        "createdAt": "2025-08-15T16:55:17.811Z",
-        "updatedAt": "2025-08-15T16:55:17.811Z",
-        "publishedAt": "2025-08-15T16:55:17.812Z",
-        "locale": null
-      }
-    ]
-  },
-  {
     "id": 3,
     "documentId": "havxgy16xty7fohf57baio36",
     "name": "admin",
     "description": "admin",
     "type": "admin",
     "createdAt": "2025-08-15T15:39:09.452Z",
-    "updatedAt": "2025-08-15T17:00:46.427Z",
+    "updatedAt": "2025-08-15T17:38:13.947Z",
     "publishedAt": "2025-08-15T15:39:09.453Z",
     "locale": null,
     "permissions": [
@@ -832,9 +253,778 @@
     "description": "pharmacy",
     "type": "pharmacy",
     "createdAt": "2025-08-15T16:42:12.529Z",
-    "updatedAt": "2025-08-15T17:00:46.432Z",
+    "updatedAt": "2025-08-15T17:38:13.950Z",
     "publishedAt": "2025-08-15T16:42:12.529Z",
     "locale": null,
-    "permissions": []
+    "permissions": [
+      {
+        "id": 102,
+        "documentId": "do5mpwjxi0v9iirkqx6xyk31",
+        "action": "plugin::users-permissions.auth.callback",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.465Z",
+        "locale": null
+      },
+      {
+        "id": 103,
+        "documentId": "q0fyev0354rac85rbdyxwbqq",
+        "action": "plugin::users-permissions.auth.changePassword",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.465Z",
+        "locale": null
+      },
+      {
+        "id": 104,
+        "documentId": "ri2g7kubgg16uwjdw08ck398",
+        "action": "plugin::users-permissions.auth.resetPassword",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.466Z",
+        "locale": null
+      },
+      {
+        "id": 105,
+        "documentId": "mm7uicxqm3h8jd1co3pcs6gq",
+        "action": "plugin::users-permissions.auth.connect",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.466Z",
+        "locale": null
+      },
+      {
+        "id": 106,
+        "documentId": "a21bd8u7t0lidy54lixoik1i",
+        "action": "plugin::users-permissions.auth.forgotPassword",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.466Z",
+        "locale": null
+      },
+      {
+        "id": 107,
+        "documentId": "xhno73cddh8mcfd94w9fk0gg",
+        "action": "plugin::users-permissions.auth.register",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.467Z",
+        "locale": null
+      },
+      {
+        "id": 108,
+        "documentId": "qg2kh8da9bes084t5jrjtp66",
+        "action": "plugin::users-permissions.auth.emailConfirmation",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.467Z",
+        "locale": null
+      },
+      {
+        "id": 109,
+        "documentId": "rruv8rlw21ygl77bgypupkqs",
+        "action": "plugin::users-permissions.auth.sendEmailConfirmation",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.468Z",
+        "locale": null
+      },
+      {
+        "id": 110,
+        "documentId": "ud5hogpb8x4dbqpgnpx5cxf3",
+        "action": "plugin::users-permissions.user.create",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.468Z",
+        "locale": null
+      },
+      {
+        "id": 111,
+        "documentId": "avuer4mtn4gx6s8sz7x84lhw",
+        "action": "plugin::users-permissions.user.update",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.469Z",
+        "locale": null
+      },
+      {
+        "id": 112,
+        "documentId": "wog9xn6ycgd8c3mx3ril37kq",
+        "action": "plugin::users-permissions.user.find",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.469Z",
+        "locale": null
+      },
+      {
+        "id": 113,
+        "documentId": "wq07dbsi2r5ghr59roqoceja",
+        "action": "plugin::users-permissions.user.findOne",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.469Z",
+        "locale": null
+      },
+      {
+        "id": 114,
+        "documentId": "lgqzpnydnznmn0wpx143h3p3",
+        "action": "plugin::users-permissions.user.count",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.470Z",
+        "locale": null
+      },
+      {
+        "id": 115,
+        "documentId": "hxvqwg84h5vyh0vnwz62xhu3",
+        "action": "plugin::users-permissions.user.destroy",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.470Z",
+        "locale": null
+      },
+      {
+        "id": 116,
+        "documentId": "b89z1oyb844k7o7v2hgkl6a8",
+        "action": "plugin::users-permissions.user.me",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.470Z",
+        "locale": null
+      },
+      {
+        "id": 117,
+        "documentId": "p5zi6ggqd7tbsuqhb3w3v1yw",
+        "action": "plugin::users-permissions.role.createRole",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.470Z",
+        "locale": null
+      },
+      {
+        "id": 118,
+        "documentId": "usf8hv5t81gldydgwcqgm45y",
+        "action": "plugin::users-permissions.role.findOne",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.471Z",
+        "locale": null
+      },
+      {
+        "id": 119,
+        "documentId": "su9rom5cmfl098h6hdancoy0",
+        "action": "plugin::users-permissions.role.find",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.471Z",
+        "locale": null
+      },
+      {
+        "id": 120,
+        "documentId": "h1fonjwdifqomwxryxmv5xhl",
+        "action": "plugin::users-permissions.role.updateRole",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.471Z",
+        "locale": null
+      },
+      {
+        "id": 121,
+        "documentId": "cjpdj0ta0b4arsb21omqbhqc",
+        "action": "plugin::users-permissions.role.deleteRole",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.471Z",
+        "locale": null
+      },
+      {
+        "id": 122,
+        "documentId": "qskgt5esgbccm2d3l3ph554h",
+        "action": "plugin::users-permissions.permissions.getPermissions",
+        "createdAt": "2025-08-15T17:14:50.464Z",
+        "updatedAt": "2025-08-15T17:14:50.464Z",
+        "publishedAt": "2025-08-15T17:14:50.472Z",
+        "locale": null
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "documentId": "tqbbphuc9zzvzgbmcj0cpjqp",
+    "name": "staff",
+    "description": "staff",
+    "type": "staff",
+    "createdAt": "2025-08-15T16:59:44.847Z",
+    "updatedAt": "2025-08-15T17:38:13.939Z",
+    "publishedAt": "2025-08-15T16:59:44.847Z",
+    "locale": null,
+    "permissions": [
+      {
+        "id": 86,
+        "documentId": "ldy179hf3iho1zzvcgkp37bn",
+        "action": "api::drug-store.drug-store.find",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.853Z",
+        "locale": null
+      },
+      {
+        "id": 85,
+        "documentId": "gijwwca43kzpy9c1m3pz0xdk",
+        "action": "api::drug-store.drug-store.findOne",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.852Z",
+        "locale": null
+      },
+      {
+        "id": 87,
+        "documentId": "jn9dh6i2p4tatyvntd7umsir",
+        "action": "plugin::users-permissions.auth.callback",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.853Z",
+        "locale": null
+      },
+      {
+        "id": 88,
+        "documentId": "hf5fya2s5lq2dmxucdn3hffn",
+        "action": "plugin::users-permissions.auth.changePassword",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.853Z",
+        "locale": null
+      },
+      {
+        "id": 89,
+        "documentId": "odqq4af5p4z7l4wqwmxwk742",
+        "action": "plugin::users-permissions.auth.resetPassword",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.853Z",
+        "locale": null
+      },
+      {
+        "id": 90,
+        "documentId": "ul1msl39barc8stbcnp8m5wd",
+        "action": "plugin::users-permissions.auth.connect",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.853Z",
+        "locale": null
+      },
+      {
+        "id": 91,
+        "documentId": "s9aqx7w2rxbtfiz4pyv40dzk",
+        "action": "plugin::users-permissions.auth.forgotPassword",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.853Z",
+        "locale": null
+      },
+      {
+        "id": 92,
+        "documentId": "muji81lfv0z6psqc2buiczx5",
+        "action": "plugin::users-permissions.auth.register",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.853Z",
+        "locale": null
+      },
+      {
+        "id": 93,
+        "documentId": "yh4h3j55q7vw75g150tsls3b",
+        "action": "plugin::users-permissions.auth.emailConfirmation",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.853Z",
+        "locale": null
+      },
+      {
+        "id": 94,
+        "documentId": "m26r46risslde0hp9ii4fd0u",
+        "action": "plugin::users-permissions.auth.sendEmailConfirmation",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.853Z",
+        "locale": null
+      },
+      {
+        "id": 95,
+        "documentId": "bp05957e64mzb73bd63v5tpi",
+        "action": "plugin::users-permissions.user.update",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.853Z",
+        "locale": null
+      },
+      {
+        "id": 96,
+        "documentId": "u842s94cjmndcf6ynmr1tbxh",
+        "action": "plugin::users-permissions.user.find",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.853Z",
+        "locale": null
+      },
+      {
+        "id": 97,
+        "documentId": "huwi6fo0040j5d02wnfk8xu0",
+        "action": "plugin::users-permissions.user.findOne",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.854Z",
+        "locale": null
+      },
+      {
+        "id": 98,
+        "documentId": "jfngyzxh2q0wbtmoyctyhhvp",
+        "action": "plugin::users-permissions.user.me",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.854Z",
+        "locale": null
+      },
+      {
+        "id": 99,
+        "documentId": "upp0k48mki6fnp5syffidkcj",
+        "action": "plugin::users-permissions.role.findOne",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.854Z",
+        "locale": null
+      },
+      {
+        "id": 100,
+        "documentId": "sz0np561geqwtgdzyx8c1779",
+        "action": "plugin::users-permissions.role.find",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.854Z",
+        "locale": null
+      },
+      {
+        "id": 101,
+        "documentId": "nrvxkzd9e5rwksybn7kattes",
+        "action": "plugin::users-permissions.permissions.getPermissions",
+        "createdAt": "2025-08-15T16:59:44.852Z",
+        "updatedAt": "2025-08-15T16:59:44.852Z",
+        "publishedAt": "2025-08-15T16:59:44.854Z",
+        "locale": null
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "documentId": "ja079bgamf5a3awrnpk89clb",
+    "name": "Public",
+    "description": "Default role given to unauthenticated user.",
+    "type": "public",
+    "createdAt": "2025-07-03T16:55:37.833Z",
+    "updatedAt": "2025-08-15T17:38:13.942Z",
+    "publishedAt": "2025-07-03T16:55:37.833Z",
+    "locale": null,
+    "permissions": [
+      {
+        "id": 3,
+        "documentId": "ywwb40nj1dm2c8q0be4ckj2z",
+        "action": "plugin::users-permissions.auth.callback",
+        "createdAt": "2025-07-03T16:55:37.846Z",
+        "updatedAt": "2025-07-03T16:55:37.846Z",
+        "publishedAt": "2025-07-03T16:55:37.846Z",
+        "locale": null
+      },
+      {
+        "id": 4,
+        "documentId": "k8tbfrt0io0wg1h5rl2ry1gp",
+        "action": "plugin::users-permissions.auth.connect",
+        "createdAt": "2025-07-03T16:55:37.846Z",
+        "updatedAt": "2025-07-03T16:55:37.846Z",
+        "publishedAt": "2025-07-03T16:55:37.846Z",
+        "locale": null
+      },
+      {
+        "id": 5,
+        "documentId": "c9y555umeacfsnagaougjt82",
+        "action": "plugin::users-permissions.auth.resetPassword",
+        "createdAt": "2025-07-03T16:55:37.846Z",
+        "updatedAt": "2025-07-03T16:55:37.846Z",
+        "publishedAt": "2025-07-03T16:55:37.847Z",
+        "locale": null
+      },
+      {
+        "id": 6,
+        "documentId": "gu4kemdtia88eqrw6cuusjec",
+        "action": "plugin::users-permissions.auth.register",
+        "createdAt": "2025-07-03T16:55:37.846Z",
+        "updatedAt": "2025-07-03T16:55:37.846Z",
+        "publishedAt": "2025-07-03T16:55:37.847Z",
+        "locale": null
+      },
+      {
+        "id": 7,
+        "documentId": "n137skda0q8ho4gsvumk8csz",
+        "action": "plugin::users-permissions.auth.forgotPassword",
+        "createdAt": "2025-07-03T16:55:37.846Z",
+        "updatedAt": "2025-07-03T16:55:37.846Z",
+        "publishedAt": "2025-07-03T16:55:37.846Z",
+        "locale": null
+      },
+      {
+        "id": 8,
+        "documentId": "yoyow3c5f4x3hgemw7cuu3qh",
+        "action": "plugin::users-permissions.auth.emailConfirmation",
+        "createdAt": "2025-07-03T16:55:37.846Z",
+        "updatedAt": "2025-07-03T16:55:37.846Z",
+        "publishedAt": "2025-07-03T16:55:37.847Z",
+        "locale": null
+      },
+      {
+        "id": 9,
+        "documentId": "ppes3b6gs9sh89lnfepvec0e",
+        "action": "plugin::users-permissions.auth.sendEmailConfirmation",
+        "createdAt": "2025-07-03T16:55:37.846Z",
+        "updatedAt": "2025-07-03T16:55:37.846Z",
+        "publishedAt": "2025-07-03T16:55:37.847Z",
+        "locale": null
+      },
+      {
+        "id": 25,
+        "documentId": "lar5oa3vrf64pnp6a7yrzy7t",
+        "action": "api::drug-store.drug-store.findOne",
+        "createdAt": "2025-08-15T14:32:10.277Z",
+        "updatedAt": "2025-08-15T14:32:10.277Z",
+        "publishedAt": "2025-08-15T14:32:10.278Z",
+        "locale": null
+      },
+      {
+        "id": 26,
+        "documentId": "qrg59bds2k594r5711fwoibo",
+        "action": "api::drug-store.drug-store.find",
+        "createdAt": "2025-08-15T14:32:10.277Z",
+        "updatedAt": "2025-08-15T14:32:10.277Z",
+        "publishedAt": "2025-08-15T14:32:10.278Z",
+        "locale": null
+      },
+      {
+        "id": 54,
+        "documentId": "mqb3497d4gawekclz49fd59t",
+        "action": "plugin::users-permissions.user.create",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.833Z",
+        "locale": null
+      },
+      {
+        "id": 60,
+        "documentId": "hht71y48m5i9ci3mlgxscxdo",
+        "action": "plugin::users-permissions.user.me",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.834Z",
+        "locale": null
+      },
+      {
+        "id": 61,
+        "documentId": "ubcapo3i40jjlhjrkxveyhho",
+        "action": "plugin::users-permissions.role.findOne",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.834Z",
+        "locale": null
+      },
+      {
+        "id": 62,
+        "documentId": "jw8z8dcs92oanb2ueb4w0o9i",
+        "action": "plugin::users-permissions.role.find",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.834Z",
+        "locale": null
+      },
+      {
+        "id": 53,
+        "documentId": "unmctjxrxl5zqjz4mrjod5ai",
+        "action": "plugin::users-permissions.user.update",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.833Z",
+        "locale": null
+      },
+      {
+        "id": 55,
+        "documentId": "ha1q0f7obb5l9xt02f4v43ie",
+        "action": "plugin::users-permissions.user.find",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.833Z",
+        "locale": null
+      },
+      {
+        "id": 56,
+        "documentId": "q8m7se998mgs2sc481etfi17",
+        "action": "plugin::users-permissions.user.findOne",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.833Z",
+        "locale": null
+      },
+      {
+        "id": 57,
+        "documentId": "hxl31zbm9zfdo1z9dpbae80f",
+        "action": "plugin::users-permissions.user.count",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.833Z",
+        "locale": null
+      },
+      {
+        "id": 58,
+        "documentId": "edb9uhjy9c3170my3cltvm33",
+        "action": "plugin::users-permissions.user.destroy",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.834Z",
+        "locale": null
+      },
+      {
+        "id": 59,
+        "documentId": "zbfy5xd5z5nrp5phgajueyli",
+        "action": "plugin::users-permissions.role.createRole",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.834Z",
+        "locale": null
+      },
+      {
+        "id": 63,
+        "documentId": "z83hnhw4zuagii3l4p8ch168",
+        "action": "plugin::users-permissions.role.updateRole",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.834Z",
+        "locale": null
+      },
+      {
+        "id": 64,
+        "documentId": "ahhou372fyrepqps68pht04d",
+        "action": "plugin::users-permissions.role.deleteRole",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.834Z",
+        "locale": null
+      },
+      {
+        "id": 65,
+        "documentId": "itos8mtvotiwq0ynp46d1vbm",
+        "action": "plugin::users-permissions.permissions.getPermissions",
+        "createdAt": "2025-08-15T15:39:21.833Z",
+        "updatedAt": "2025-08-15T15:39:21.833Z",
+        "publishedAt": "2025-08-15T15:39:21.834Z",
+        "locale": null
+      }
+    ]
+  },
+  {
+    "id": 1,
+    "documentId": "io75xk9yfscfjgd2s5g2bppd",
+    "name": "Authenticated",
+    "description": "Default role given to authenticated user.",
+    "type": "authenticated",
+    "createdAt": "2025-07-03T16:55:37.830Z",
+    "updatedAt": "2025-08-15T17:38:13.945Z",
+    "publishedAt": "2025-07-03T16:55:37.830Z",
+    "locale": null,
+    "permissions": [
+      {
+        "id": 1,
+        "documentId": "rs1azh5jv3rmsnf1jbebt1t9",
+        "action": "plugin::users-permissions.user.me",
+        "createdAt": "2025-07-03T16:55:37.837Z",
+        "updatedAt": "2025-07-03T16:55:37.837Z",
+        "publishedAt": "2025-07-03T16:55:37.837Z",
+        "locale": null
+      },
+      {
+        "id": 2,
+        "documentId": "j9g7jxel3z726p12l1tnp97n",
+        "action": "plugin::users-permissions.auth.changePassword",
+        "createdAt": "2025-07-03T16:55:37.837Z",
+        "updatedAt": "2025-07-03T16:55:37.837Z",
+        "publishedAt": "2025-07-03T16:55:37.837Z",
+        "locale": null
+      },
+      {
+        "id": 66,
+        "documentId": "d85gbd1ebf023bl2otc806u6",
+        "action": "plugin::users-permissions.auth.callback",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 67,
+        "documentId": "vwg7k3lbv0ewgw6xjbi7olce",
+        "action": "plugin::users-permissions.auth.resetPassword",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 68,
+        "documentId": "cjsbh9l1o57hkwzne4ywybtq",
+        "action": "plugin::users-permissions.auth.connect",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 69,
+        "documentId": "h9d174z0tgqygumugg45rmvn",
+        "action": "plugin::users-permissions.auth.forgotPassword",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 70,
+        "documentId": "net0925obosytttxs42p2opn",
+        "action": "plugin::users-permissions.auth.register",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 71,
+        "documentId": "l30x4xjt68ru9x5u44jyxigq",
+        "action": "plugin::users-permissions.auth.emailConfirmation",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 72,
+        "documentId": "wiywb1zy86p5p4h8tfoens4v",
+        "action": "plugin::users-permissions.auth.sendEmailConfirmation",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 73,
+        "documentId": "u1hsnhcspj7rlbxre6785yrp",
+        "action": "plugin::users-permissions.user.create",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 74,
+        "documentId": "jzbb0m07occcr1okadftzr0h",
+        "action": "plugin::users-permissions.user.update",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 75,
+        "documentId": "s1rc91sa1pbnys8k220jwfzi",
+        "action": "plugin::users-permissions.user.find",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 76,
+        "documentId": "ferjg31t6vg86q24b2k371r5",
+        "action": "plugin::users-permissions.user.findOne",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 77,
+        "documentId": "r9rarl9pntdct4t4ts773cnd",
+        "action": "plugin::users-permissions.user.count",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.811Z",
+        "locale": null
+      },
+      {
+        "id": 78,
+        "documentId": "uq0kmgc33iswqz7zowil10pm",
+        "action": "plugin::users-permissions.user.destroy",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.812Z",
+        "locale": null
+      },
+      {
+        "id": 79,
+        "documentId": "mspvx874v9vn72uit1olzyev",
+        "action": "plugin::users-permissions.role.createRole",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.812Z",
+        "locale": null
+      },
+      {
+        "id": 80,
+        "documentId": "hcar989l2y83y2jftdphjpb6",
+        "action": "plugin::users-permissions.role.findOne",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.812Z",
+        "locale": null
+      },
+      {
+        "id": 81,
+        "documentId": "v7i4mc0vuc45jkwf3or1xnwo",
+        "action": "plugin::users-permissions.role.find",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.812Z",
+        "locale": null
+      },
+      {
+        "id": 82,
+        "documentId": "tidwbocusl4u8hqlqx3fgyvm",
+        "action": "plugin::users-permissions.role.updateRole",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.812Z",
+        "locale": null
+      },
+      {
+        "id": 83,
+        "documentId": "l2idisxidk67kpbn3vzlsj5r",
+        "action": "plugin::users-permissions.role.deleteRole",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.812Z",
+        "locale": null
+      },
+      {
+        "id": 84,
+        "documentId": "zujveiza7m0kbhhsd5uxi76e",
+        "action": "plugin::users-permissions.permissions.getPermissions",
+        "createdAt": "2025-08-15T16:55:17.811Z",
+        "updatedAt": "2025-08-15T16:55:17.811Z",
+        "publishedAt": "2025-08-15T16:55:17.812Z",
+        "locale": null
+      }
+    ]
   }
 ]

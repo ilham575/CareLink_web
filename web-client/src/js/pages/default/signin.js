@@ -45,20 +45,20 @@ function LoginPage() {
 
         // route ตาม role
         if (role === 'admin') {
-          toast.success('เข้าสู่ระบบสำเร็จ!', { autoClose: 2000 });
-          return navigate('/page1', { state: { showToast: true } });
+          navigate('/page1', { state: { showToast: true } });
+          return;
         }
         if (role === 'pharmacy') {
-          toast.success('เข้าสู่ระบบสำเร็จ!', { autoClose: 2000 });
-          return navigate('/page2', { state: { showToast: true } });
+          navigate('/page2', { state: { showToast: true } });
+          return;
         }
         if (role === 'nurse') {
-          toast.success('เข้าสู่ระบบสำเร็จ!', { autoClose: 2000 });
-          return navigate('/page3', { state: { showToast: true } });
+          navigate('/page3', { state: { showToast: true } });
+          return;
         }
         if (role === 'patient') {
-          toast.success('เข้าสู่ระบบสำเร็จ!', { autoClose: 2000 });
-          return navigate('/page4', { state: { showToast: true } });
+          navigate('/page4', { state: { showToast: true } });
+          return;
         }
 
         // ถ้าไม่ match role
