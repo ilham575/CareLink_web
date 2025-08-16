@@ -41,7 +41,7 @@ function LoginPage() {
 
         const role = userData.role?.name || '';
         setError('');
-        console.log('ROLE:', role);
+        localStorage.setItem('role', role); // เพิ่มบรรทัดนี้
 
         // route ตาม role
         if (role === 'admin') {
@@ -65,7 +65,13 @@ function LoginPage() {
         toast.error('ไม่พบ role นี้ในระบบ', { autoClose: 2500 });
 
       } else {
-        toast.error(data.error?.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', { autoClose: 2500 });
+        // ปรับ error handling ให้แสดงข้อความที่อ่านง่าย
+        let errorMsg = data.error?.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+        // ถ้ามี error หลายอัน ให้รวมข้อความ
+        if (Array.isArray(data.error?.details?.errors)) {
+          errorMsg = data.error.details.errors.map(e => e.message).join('\n');
+        }
+        toast.error(errorMsg, { autoClose: 2500 });
       }
     } catch (err) {
       toast.error('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', { autoClose: 2500 });
