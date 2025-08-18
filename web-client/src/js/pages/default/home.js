@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../../css/pages/default/home.css';
 import HomeHeader from '../../components/HomeHeader';
+import { formatTime } from '../../utils/time';
 
 function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front }) {
   const navigate = useNavigate();
@@ -81,8 +82,8 @@ function Home() {
               id={pharmacy.id}
               name_th={pharmacy.name_th}
               address={pharmacy.address}
-              time_open={pharmacy.time_open}
-              time_close={pharmacy.time_close}
+              time_open={formatTime(pharmacy.time_open)}
+              time_close={formatTime(pharmacy.time_close)}
               phone_store={pharmacy.phone_store}
               photo_front={pharmacy.photo_front}
             />

@@ -74,15 +74,11 @@
       "type": "string",
       "required": true
     },
-    "profileimage": {
-      "type": "media",
-      "multiple": false,
-      "allowedTypes": [
-        "images",
-        "files",
-        "videos",
-        "audios"
-      ]
+    "drug_stores": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::drug-store.drug-store",
+      "mappedBy": "owner"
     }
   }
 }

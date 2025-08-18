@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './js/pages/default/home';
 import PharmacyDetail from './js/pages/default/PharmacyDetail';
 import LoginPage from './js/pages/default/signin';
@@ -41,7 +41,7 @@ function App() {
           <Route
             path="/page3"
             element={
-              <RequireRole role="nurse">
+              <RequireRole role="staff">
                 <StaffHome />
               </RequireRole>
             }
@@ -49,7 +49,7 @@ function App() {
           <Route
             path="/page4"
             element={
-              <RequireRole role="patient">
+              <RequireRole role="customer">
                 <CustomerHome />
               </RequireRole>
             }

@@ -107,8 +107,13 @@ body {
   color: var(--text-muted);
   background: rgba(224,255,224,0.5);
   border-radius: 10px;
-  padding: 18px 16px;
+  padding: 18px 20px;
   box-shadow: var(--shadow-sm);
+  text-align: left; /* เพิ่มบรรทัดนี้ */
+}
+
+.left-info p {
+  text-align: left; /* เพิ่มบรรทัดนี้ */
 }
 
 .right-service {
@@ -132,6 +137,7 @@ body {
   font-size: 1em;
   line-height: 1.8;
   box-shadow: var(--shadow-sm);
+  text-align: left;
 }
 
 .map-box {

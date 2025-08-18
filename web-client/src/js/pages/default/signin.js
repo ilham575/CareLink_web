@@ -52,11 +52,11 @@ function LoginPage() {
           navigate('/page2', { state: { showToast: true } });
           return;
         }
-        if (role === 'nurse') {
+        if (role === 'staff') {
           navigate('/page3', { state: { showToast: true } });
           return;
         }
-        if (role === 'patient') {
+        if (role === 'customer') {
           navigate('/page4', { state: { showToast: true } });
           return;
         }

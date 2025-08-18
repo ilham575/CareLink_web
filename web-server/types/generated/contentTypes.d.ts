@@ -399,6 +399,10 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     name_en: Schema.Attribute.String & Schema.Attribute.Required;
     name_th: Schema.Attribute.String & Schema.Attribute.Required;
+    owner: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
     phone_store: Schema.Attribute.String & Schema.Attribute.Required;
     photo_front: Schema.Attribute.Media<'images' | 'files'> &
       Schema.Attribute.Required;
@@ -878,6 +882,10 @@ export interface PluginUsersPermissionsUser
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    drug_stores: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::drug-store.drug-store'
+    >;
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMaxLength<{
@@ -896,9 +904,6 @@ export interface PluginUsersPermissionsUser
         minLength: 6;
       }>;
     phone: Schema.Attribute.String & Schema.Attribute.Required;
-    profileimage: Schema.Attribute.Media<
-      'images' | 'files' | 'videos' | 'audios'
-    >;
     provider: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     resetPasswordToken: Schema.Attribute.String & Schema.Attribute.Private;

@@ -2,15 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import '../../../css/pages/default/pharmacyDetail.css';
 import HomeHeader from '../../components/HomeHeader';
-
-// Suppress ResizeObserver loop error in Chrome
-// if (typeof window !== 'undefined') {
-//   window.addEventListener('error', function(e) {
-//     if (e.message === 'ResizeObserver loop completed with undelivered notifications.') {
-//       e.stopImmediatePropagation();
-//     }
-//   });
-// }
+import { formatTime } from '../../utils/time';
 
 function getImageUrl(photo) {
   // ใช้รูปขนาด medium ถ้ามี, ถ้าไม่มีใช้ url หลัก
@@ -98,7 +90,7 @@ function PharmacyDetail() {
               <p>ชื่อร้านยา: {pharmacy.name_th || '-'}</p>
               <p>ที่อยู่: {pharmacy.address || '-'}</p>
               <p>
-                เวลาทำการ: {pharmacy.time_open || '-'} - {pharmacy.time_close || '-'}
+                เวลาทำการ: {formatTime(pharmacy.time_open)} - {formatTime(pharmacy.time_close)}
               </p>
               <p>เบอร์โทรศัพท์ร้านยา: {pharmacy.phone_store || '-'}</p>
               <p>ชื่อ-นามสกุลเภสัชกร: {pharmacy.pharmacist_name || '-'}</p>
