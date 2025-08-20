@@ -54,19 +54,19 @@ function LoginPage() {
 
         // route ตาม role
         if (role === 'admin') {
-          navigate('/page1', { state: { showToast: true } });
+          navigate('/adminHome', { state: { showToast: true } });
           return;
         }
         if (role === 'pharmacy') {
-          navigate('/page2', { state: { showToast: true } });
+          navigate('/pharmacyHome', { state: { showToast: true } });
           return;
         }
         if (role === 'staff') {
-          navigate('/page3', { state: { showToast: true } });
+          navigate('/staffHome', { state: { showToast: true } });
           return;
         }
         if (role === 'customer') {
-          navigate('/page4', { state: { showToast: true } });
+          navigate('/customerHome', { state: { showToast: true } });
           return;
         }
 

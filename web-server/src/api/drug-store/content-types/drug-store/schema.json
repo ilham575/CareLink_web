@@ -79,6 +79,12 @@
       "relation": "manyToOne",
       "target": "api::admin-profile.admin-profile",
       "inversedBy": "drug_stores"
+    },
+    "pharmacy_profiles": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::pharmacy-profile.pharmacy-profile",
+      "inversedBy": "drug_stores"
     }
   }
 }

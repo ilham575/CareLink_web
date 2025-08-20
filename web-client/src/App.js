@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './js/pages/default/home';
-import PharmacyDetail from './js/pages/default/PharmacyDetail';
+import DrugStoreDetail from './js/pages/default/DrugStoreDetail';
 import LoginPage from './js/pages/default/signin';
 import Signup from './js/pages/default/Signup';
 import './css/theme.css';
@@ -12,6 +12,7 @@ import PharmacyHome from './js/pages/pharmacy/home';
 import StaffHome from './js/pages/staff/home';
 import CustomerHome from './js/pages/customer/home';
 import RequireRole from './js/components/RequireRole';
+import DrugStoresDetailPharmacist from './js/pages/pharmacy/DrugStoresDetail_pharmacist';
 
 function App() {
   return (
@@ -20,10 +21,11 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/pharmacy/:id" element={<PharmacyDetail />} />
+          <Route path="/drug_store/:id" element={<DrugStoreDetail />} />
+          <Route path="/drug_store_pharmacy/:id" element={<DrugStoresDetailPharmacist />} />
           <Route path="/signup" element={<Signup />} />
           <Route
-            path="/page1"
+            path="/adminHome"
             element={
               <RequireRole role="admin">
                 <AdminHome />
@@ -31,7 +33,7 @@ function App() {
             }
           />
           <Route
-            path="/page2"
+            path="/pharmacyHome"
             element={
               <RequireRole role="pharmacy">
                 <PharmacyHome />
@@ -39,7 +41,7 @@ function App() {
             }
           />
           <Route
-            path="/page3"
+            path="/staffHome"
             element={
               <RequireRole role="staff">
                 <StaffHome />
@@ -47,7 +49,7 @@ function App() {
             }
           />
           <Route
-            path="/page4"
+            path="/customerHome"
             element={
               <RequireRole role="customer">
                 <CustomerHome />

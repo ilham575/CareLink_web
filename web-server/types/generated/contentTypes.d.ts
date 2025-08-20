@@ -442,6 +442,10 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     name_en: Schema.Attribute.String & Schema.Attribute.Required;
     name_th: Schema.Attribute.String & Schema.Attribute.Required;
+    pharmacy_profiles: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::pharmacy-profile.pharmacy-profile'
+    >;
     phone_store: Schema.Attribute.String & Schema.Attribute.Required;
     photo_front: Schema.Attribute.Media<'images' | 'files'> &
       Schema.Attribute.Required;
@@ -455,6 +459,46 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+  };
+}
+
+export interface ApiPharmacyProfilePharmacyProfile
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'pharmacy_profiles';
+  info: {
+    displayName: 'pharmacy_profile';
+    pluralName: 'pharmacy-profiles';
+    singularName: 'pharmacy-profile';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    drug_stores: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::drug-store.drug-store'
+    >;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::pharmacy-profile.pharmacy-profile'
+    > &
+      Schema.Attribute.Private;
+    pharmacy_license_no: Schema.Attribute.String & Schema.Attribute.Required;
+    profileimage: Schema.Attribute.Media<
+      'images' | 'files' | 'videos' | 'audios'
+    >;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    users_permissions_user: Schema.Attribute.Relation<
+      'oneToOne',
+      'plugin::users-permissions.user'
+    >;
   };
 }
 
@@ -942,6 +986,10 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    pharmacy_profile: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::pharmacy-profile.pharmacy-profile'
+    >;
     phone: Schema.Attribute.String & Schema.Attribute.Required;
     provider: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
@@ -974,6 +1022,7 @@ declare module '@strapi/strapi' {
       'admin::user': AdminUser;
       'api::admin-profile.admin-profile': ApiAdminProfileAdminProfile;
       'api::drug-store.drug-store': ApiDrugStoreDrugStore;
+      'api::pharmacy-profile.pharmacy-profile': ApiPharmacyProfilePharmacyProfile;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;

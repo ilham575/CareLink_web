@@ -1,45 +1,48 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import '../../../css/pages/default/pharmacyDetail.css';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
+import '../../../css/pages/default/pharmacyDetail.css';
 
 function getImageUrl(photo) {
-  // ใช้รูปขนาด medium ถ้ามี, ถ้าไม่มีใช้ url หลัก
   if (!photo) return null;
   if (photo.formats?.medium?.url) return photo.formats.medium.url;
   if (photo.url) return photo.url;
   return null;
 }
 
-function PharmacyDetail() {
+function DrugStoresDetail_pharmacist() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [pharmacy, setPharmacy] = useState(null);
+  const [pharmacists, setPharmacists] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ตรวจสอบว่า id ที่ได้จาก useParams() ตรงกับ /pharmacy/:id ใน URL เช่น /pharmacy/2
-    // ถ้า id เป็น 2 จะ fetch http://localhost:1337/api/drug-stores/2
-    fetch(`http://localhost:1337/api/drug-stores/${id}`)
-      .then(res => res.json())
-      .then(data => {
-        // data เป็น { data: {...} }
-        // ตรวจสอบว่า data.data เป็น object หรือ array
-        if (data.data) {
-          // ถ้า data.data เป็น array (เช่นจาก findMany) ให้ใช้ data.data[0]
-          if (Array.isArray(data.data)) {
-            setPharmacy(data.data[0] || null);
-          } else {
-            // ถ้าเป็น object (จาก findOne) ใช้ตรงๆ
-            setPharmacy(data.data);
-          }
-        } else {
-          setPharmacy(null);
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    Promise.all([
+      fetch(`http://localhost:1337/api/drug-stores/${id}?populate=pharmacy_profiles,photo_front,photo_in,photo_staff`).then(res => res.json()),
+      fetch('http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user').then(res => res.json())
+    ]).then(([storeRes, profileRes]) => {
+      const store = storeRes.data;
+      setPharmacy(store ? (store.attributes || store) : null);
+
+      const profilesFromStore = Array.isArray(store.pharmacy_profiles)
+        ? store.pharmacy_profiles
+        : (store.pharmacy_profiles?.data || []);
+
+      const allProfiles = profileRes.data || [];
+
+      const pharmacistsArr = profilesFromStore
+        .map(profile => {
+          const found = allProfiles.find(p => p.documentId === profile.documentId);
+          return found?.users_permissions_user || null;
+        })
+        .filter(u => !!u);
+
+      setPharmacists(pharmacistsArr);
+
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [id]);
 
   return (
@@ -53,7 +56,10 @@ function PharmacyDetail() {
             <div className="image-box" style={{ padding: 0, background: 'none' }}>
               {getImageUrl(pharmacy.photo_front) ? (
                 <img
-                  src={getImageUrl(pharmacy.photo_front).startsWith('/') ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_front)}` : getImageUrl(pharmacy.photo_front)}
+                  src={getImageUrl(pharmacy.photo_front).startsWith('/')
+                    ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_front)}`
+                    : getImageUrl(pharmacy.photo_front)
+                  }
                   alt="รูปด้านนอกร้านยา"
                   style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
                 />
@@ -64,7 +70,10 @@ function PharmacyDetail() {
             <div className="image-box" style={{ padding: 0, background: 'none' }}>
               {getImageUrl(pharmacy.photo_in) ? (
                 <img
-                  src={getImageUrl(pharmacy.photo_in).startsWith('/') ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_in)}` : getImageUrl(pharmacy.photo_in)}
+                  src={getImageUrl(pharmacy.photo_in).startsWith('/')
+                    ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_in)}`
+                    : getImageUrl(pharmacy.photo_in)
+                  }
                   alt="รูปด้านในร้านยา"
                   style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
                 />
@@ -75,7 +84,10 @@ function PharmacyDetail() {
             <div className="image-box" style={{ padding: 0, background: 'none' }}>
               {getImageUrl(pharmacy.photo_staff) ? (
                 <img
-                  src={getImageUrl(pharmacy.photo_staff).startsWith('/') ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_staff)}` : getImageUrl(pharmacy.photo_staff)}
+                  src={getImageUrl(pharmacy.photo_staff).startsWith('/')
+                    ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_staff)}`
+                    : getImageUrl(pharmacy.photo_staff)
+                  }
                   alt="รูปเภสัชกรและพนักงาน"
                   style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
                 />
@@ -93,8 +105,23 @@ function PharmacyDetail() {
                 เวลาทำการ: {formatTime(pharmacy.time_open)} - {formatTime(pharmacy.time_close)}
               </p>
               <p>เบอร์โทรศัพท์ร้านยา: {pharmacy.phone_store || '-'}</p>
-              <p>ชื่อ-นามสกุลเภสัชกร: {pharmacy.pharmacist_name || '-'}</p>
-              <p>เบอร์โทรศัพท์เภสัชกร: {pharmacy.pharmacist_phone || '-'}</p>
+              <div style={{ marginTop: 12 }}>
+                <p style={{ fontWeight: 'bold', marginBottom: 4 }}>ข้อมูลเภสัชกรประจำร้านยา:</p>
+                <ul>
+                  {pharmacists.length > 0
+                    ? pharmacists.map((u, idx) => (
+                      <li key={u.id || idx}>
+                        {u.full_name ? `ชื่อเภสัชกร : ${u.full_name}` : '-'}
+                        <br />
+                        <span style={{ color: '#555', fontSize: '0.95em' }}>
+                          {u.phone ? `เบอร์โทรศัพท์ : ${u.phone}` : ''}
+                        </span>
+                      </li>
+                    ))
+                    : <li>ไม่พบข้อมูลเภสัชกร</li>
+                  }
+                </ul>
+              </div>
             </div>
 
             <div className="right-service">
@@ -107,7 +134,6 @@ function PharmacyDetail() {
                   <li>รับฝากยาและจัดส่งยา</li>
                 </ul>
               </div>
-
               <div className="map-box">
                 <p className="section-title">GOOGLE MAP</p>
                 <div className="map-placeholder">
@@ -130,7 +156,6 @@ function PharmacyDetail() {
               </div>
             </div>
           </div>
-
           <div className="bottom-button">
             <button className="back-button" onClick={() => navigate(-1)}>กลับ</button>
           </div>
@@ -142,4 +167,4 @@ function PharmacyDetail() {
   );
 }
 
-export default PharmacyDetail;
+export default DrugStoresDetail_pharmacist;

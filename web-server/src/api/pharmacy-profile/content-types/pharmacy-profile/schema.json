@@ -1,0 +1,41 @@
+{
+  "kind": "collectionType",
+  "collectionName": "pharmacy_profiles",
+  "info": {
+    "singularName": "pharmacy-profile",
+    "pluralName": "pharmacy-profiles",
+    "displayName": "pharmacy_profile"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "pharmacy_license_no": {
+      "type": "string",
+      "required": true
+    },
+    "profileimage": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    },
+    "users_permissions_user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "pharmacy_profile"
+    },
+    "drug_stores": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::drug-store.drug-store",
+      "mappedBy": "pharmacy_profiles"
+    }
+  }
+}

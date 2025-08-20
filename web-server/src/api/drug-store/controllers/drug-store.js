@@ -3,6 +3,32 @@
 const { createCoreController } = require('@strapi/strapi').factories;
 
 module.exports = createCoreController('api::drug-store.drug-store', ({ strapi }) => ({
+  async find(ctx) {
+    const user = ctx.state.user;
+
+    if (user) {
+      // ถ้า login เป็นเภสัชกร
+      const pharmacyProfiles = await strapi.entityService.findMany('api::pharmacy-profile.pharmacy-profile', {
+        filters: { users_permissions_user: user.id },
+        populate: '*',
+      });
+      if (!pharmacyProfiles || pharmacyProfiles.length === 0) {
+        return this.transformResponse([]);
+      }
+      const profileIds = pharmacyProfiles.map(p => p.id);
+      const stores = await strapi.entityService.findMany('api::drug-store.drug-store', {
+        filters: { pharmacy_profiles: { id: { $in: profileIds } } },
+        populate: '*',
+      });
+      return this.transformResponse(stores);
+    } else {
+      // ยังไม่ login: คืนร้านยาทั้งหมด
+      const stores = await strapi.entityService.findMany('api::drug-store.drug-store', {
+        populate: '*',
+      });
+      return this.transformResponse(stores);
+    }
+  },
   async findOne(ctx) {
     const { id } = ctx.params;
 
