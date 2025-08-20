@@ -1,0 +1,37 @@
+{
+  "kind": "collectionType",
+  "collectionName": "admin_profiles",
+  "info": {
+    "singularName": "admin-profile",
+    "pluralName": "admin-profiles",
+    "displayName": "admin_profile"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "users_permissions_user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "admin_profile"
+    },
+    "drug_stores": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::drug-store.drug-store",
+      "mappedBy": "admin_profile"
+    },
+    "profileimage": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    }
+  }
+}

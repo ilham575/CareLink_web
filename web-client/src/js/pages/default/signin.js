@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import '../../../css/pages/default/signin.css';
 import logo from '../../../images/image 3.png';
 import { ToastContainer, toast } from 'react-toastify';
@@ -11,6 +11,15 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.toast) {
+      toast.success(location.state.toast, { autoClose: 2500 });
+      // Clear the toast state so it doesn't show again on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();

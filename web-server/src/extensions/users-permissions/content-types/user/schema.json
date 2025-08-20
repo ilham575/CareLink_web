@@ -74,11 +74,11 @@
       "type": "string",
       "required": true
     },
-    "drug_stores": {
+    "admin_profile": {
       "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::drug-store.drug-store",
-      "mappedBy": "owner"
+      "relation": "oneToOne",
+      "target": "api::admin-profile.admin-profile",
+      "mappedBy": "users_permissions_user"
     }
   }
 }

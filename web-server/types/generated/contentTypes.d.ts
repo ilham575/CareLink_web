@@ -373,6 +373,45 @@ export interface AdminUser extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiAdminProfileAdminProfile
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'admin_profiles';
+  info: {
+    displayName: 'admin_profile';
+    pluralName: 'admin-profiles';
+    singularName: 'admin-profile';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    drug_stores: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::drug-store.drug-store'
+    >;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::admin-profile.admin-profile'
+    > &
+      Schema.Attribute.Private;
+    profileimage: Schema.Attribute.Media<
+      'images' | 'files' | 'videos' | 'audios'
+    >;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    users_permissions_user: Schema.Attribute.Relation<
+      'oneToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
 export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
   collectionName: 'drug_stores';
   info: {
@@ -385,6 +424,10 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
   };
   attributes: {
     address: Schema.Attribute.Text & Schema.Attribute.Required;
+    admin_profile: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::admin-profile.admin-profile'
+    >;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -399,10 +442,6 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     name_en: Schema.Attribute.String & Schema.Attribute.Required;
     name_th: Schema.Attribute.String & Schema.Attribute.Required;
-    owner: Schema.Attribute.Relation<
-      'manyToOne',
-      'plugin::users-permissions.user'
-    >;
     phone_store: Schema.Attribute.String & Schema.Attribute.Required;
     photo_front: Schema.Attribute.Media<'images' | 'files'> &
       Schema.Attribute.Required;
@@ -876,16 +915,16 @@ export interface PluginUsersPermissionsUser
     draftAndPublish: false;
   };
   attributes: {
+    admin_profile: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::admin-profile.admin-profile'
+    >;
     blocked: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     confirmationToken: Schema.Attribute.String & Schema.Attribute.Private;
     confirmed: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    drug_stores: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::drug-store.drug-store'
-    >;
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMaxLength<{
@@ -933,6 +972,7 @@ declare module '@strapi/strapi' {
       'admin::transfer-token': AdminTransferToken;
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
+      'api::admin-profile.admin-profile': ApiAdminProfileAdminProfile;
       'api::drug-store.drug-store': ApiDrugStoreDrugStore;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;

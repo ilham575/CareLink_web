@@ -74,14 +74,11 @@
         "files"
       ]
     },
-    "owner": {
+    "admin_profile": {
       "type": "relation",
       "relation": "manyToOne",
-      "target": "plugin::users-permissions.user",
-      "inversedBy": "drug_stores",
-      "config": {
-        "visible": false   
-      } 
+      "target": "api::admin-profile.admin-profile",
+      "inversedBy": "drug_stores"
     }
   }
 }

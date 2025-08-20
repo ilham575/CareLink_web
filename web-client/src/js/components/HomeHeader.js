@@ -17,6 +17,7 @@ function HomeHeader({ pharmacyName, onSearch }) {
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('jwt');
+    localStorage.removeItem('role');
     setIsLoggedIn(false);
     navigate('/login');
   };

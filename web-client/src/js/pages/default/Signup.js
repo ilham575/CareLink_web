@@ -1,7 +1,10 @@
 import React, { useRef, useState } from 'react';
 import '../../../css/pages/default/signup.css';
 import HomeHeader from '../../components/HomeHeader';
-import logo from '../../../images/image 3.png';
+// import logo from '../../../images/image 3.png';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { useNavigate } from 'react-router-dom';
 
 function Signup() {
   const [profileImage, setProfileImage] = useState(null);
@@ -15,6 +18,7 @@ function Signup() {
     profileImage: null,
   });
   const fileInputRef = useRef();
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -36,7 +40,7 @@ function Signup() {
     e.preventDefault();
 
     try {
-      // 1. Register user (เฉพาะ username, email, password)
+      // 1. Register user
       const registerRes = await fetch('http://localhost:1337/api/auth/local/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -49,15 +53,14 @@ function Signup() {
       const registerData = await registerRes.json();
 
       if (!registerRes.ok) {
-        alert(registerData.error?.message || "สมัครไม่สำเร็จ");
+        toast.error(registerData.error?.message || "สมัครไม่สำเร็จ");
         return;
       }
 
-      // ได้ userId และ jwt
       const userId = registerData.user.id;
       const jwt = registerData.jwt;
 
-      // 2. Upload image (profileImage ต้องเป็นไฟล์)
+      // 2. Upload profile image
       let profileImageId = null;
       if (form.profileImage) {
         const imageData = new FormData();
@@ -73,21 +76,15 @@ function Signup() {
         }
       }
 
-      // 3. PATCH user: เพิ่ม full_name, phone, profileimage, role
-      // ถ้าอยาก set role เป็นค่าเฉพาะ ต้องใช้ roleId จริงจากตาราง role (ดูใน Strapi admin > Users & Permissions > Roles)
-      // NOTE: To actually change the user's role, you must allow "Authenticated" users to update the "role" field in Strapi permissions.
-      // Go to Strapi Admin > Settings > Users & Permissions Plugin > Roles > Authenticated > User-permissions
-      // Enable "Update" for users and allow "role" field to be updated.
-      const targetRoleId = 3; // admin role id is 3 in Strapi, must be a number not a string
+      // 3. Patch user (full_name, phone, profileimage, role)
+      const targetRoleId = 3; // ตรวจสอบ role id ที่แท้จริงอีกทีใน Strapi
       const patchUser = {
         full_name: `${form.firstName} ${form.lastName}`,
         phone: form.phone,
         confirmed: true,
         ...(profileImageId ? { profileimage: profileImageId } : {}),
-        role: targetRoleId,   
+        role: targetRoleId,
       };
-      // ถ้าอยากเปลี่ยน role ให้ uncomment บรรทัดข้างบน
-
       const patchRes = await fetch(`http://localhost:1337/api/users/${userId}`, {
         method: 'PUT',
         headers: {
@@ -98,25 +95,43 @@ function Signup() {
       });
       const patchData = await patchRes.json();
 
-      if (patchRes.ok) {
-        alert('✅ สมัครบัญชีสำเร็จ!');
-      } else {
-        alert(patchData.error?.message || "เกิดข้อผิดพลาดในการอัปเดต user");
+      if (!patchRes.ok) {
+        toast.error(patchData.error?.message || "เกิดข้อผิดพลาดในการอัปเดต user");
+        return;
       }
 
+      // 4. Create admin_profile (เชื่อม user กับ profile image)
+      const adminProfileRes = await fetch('http://localhost:1337/api/admin-profiles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({
+          data: {
+            users_permissions_user: userId,
+            ...(profileImageId ? { profileimage: profileImageId } : {}),
+          }
+        }),
+      });
+      const adminProfileData = await adminProfileRes.json();
+
+      if (!adminProfileRes.ok) {
+        toast.error(adminProfileData.error?.message || "เกิดข้อผิดพลาดในการสร้างโปรไฟล์แอดมิน");
+        return;
+      }
+
+      navigate('/login', { state: { toast: 'สมัครบัญชีสำเร็จ! กรุณาเข้าสู่ระบบ' } });
     } catch (err) {
-      alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      toast.error('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
       console.error(err);
     }
   };
 
   return (
     <div className="signup-page-container">
-      {/* <div className="signup-header">
-        <img src={logo} alt="CareLink Logo" className="signup-logo" />
-        <div className="signup-title">สมัครสมาชิกผู้ดูแลระบบ</div>
-      </div> */}
       <HomeHeader />
+      <ToastContainer />
       <div className="signup-content">
         <div className="signup-note">
           หมายเหตุ: บัญชีที่ถูกสร้างขึ้นนี้จะได้รับสิทธิ์เป็น <b>ผู้ดูแลระบบ (ADMIN)</b> โดยอัตโนมัติ

@@ -7,7 +7,7 @@ module.exports = createCoreController('api::drug-store.drug-store', ({ strapi })
     const { id } = ctx.params;
 
     const entity = await strapi.entityService.findOne('api::drug-store.drug-store', Number(id), {
-      populate: '*', // เพิ่ม media fields ที่คุณต้องการ
+      populate: '*', // ดึง relation/media ทุก field
     });
 
     if (!entity) {
@@ -21,22 +21,27 @@ module.exports = createCoreController('api::drug-store.drug-store', ({ strapi })
   async create(ctx) {
     const user = ctx.state.user;
     if (!user) {
-      return ctx.unauthorized('You must be logged in to create a drug store.');
+      return ctx.unauthorized('You must be logged in');
     }
 
-    // กรณี user.role เป็น object หรือ id
-    const roleId = typeof user.role === 'object' ? user.role.id : user.role;
-    const userRole = await strapi.entityService.findOne('plugin::users-permissions.role', roleId, {});
-
-    if (!userRole || userRole.type !== 'admin') {
-      return ctx.forbidden('Only admin can create a drug store.');
+    // หา admin_profile ที่เชื่อมกับ user นี้
+    const adminProfiles = await strapi.entityService.findMany('api::admin-profile.admin-profile', {
+      filters: { users_permissions_user: user.id },
+      limit: 1,
+    });
+    if (!adminProfiles || adminProfiles.length === 0) {
+      return ctx.forbidden('No admin_profile found for this user');
     }
+    const adminProfileId = adminProfiles[0].id;
 
+    // แก้ไขให้ robust รองรับกรณี body.data เป็น string (กรณี multipart/form-data)
+    if (typeof ctx.request.body.data === 'string') {
+      ctx.request.body.data = JSON.parse(ctx.request.body.data);
+    }
     ctx.request.body.data = ctx.request.body.data || {};
-    ctx.request.body.data.owner = user.id;
+    ctx.request.body.data.admin_profile = adminProfileId; // ผูก profile อัตโนมัติ
 
-    const response = await super.create(ctx);
-    return response;
-  }
+    // เรียก core create (รองรับทั้งไฟล์และ JSON)
+    return await super.create(ctx);
+  },
 }));
-
