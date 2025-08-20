@@ -78,7 +78,10 @@
       "type": "relation",
       "relation": "manyToOne",
       "target": "plugin::users-permissions.user",
-      "inversedBy": "drug_stores"
+      "inversedBy": "drug_stores",
+      "config": {
+        "visible": false   
+      } 
     }
   }
 }
