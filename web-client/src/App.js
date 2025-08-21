@@ -13,6 +13,7 @@ import StaffHome from './js/pages/staff/home';
 import CustomerHome from './js/pages/customer/home';
 import RequireRole from './js/components/RequireRole';
 import DrugStoresDetailPharmacist from './js/pages/pharmacy/DrugStoresDetail_pharmacist';
+import DrugStoresDetailAdmin from './js/pages/admin/DrugStoresDetail_admin';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/drug_store/:id" element={<DrugStoreDetail />} />
           <Route path="/drug_store_pharmacy/:id" element={<DrugStoresDetailPharmacist />} />
+          <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
           <Route path="/signup" element={<Signup />} />
           <Route
             path="/adminHome"
