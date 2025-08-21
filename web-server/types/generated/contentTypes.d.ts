@@ -502,6 +502,38 @@ export interface ApiPharmacyProfilePharmacyProfile
   };
 }
 
+export interface ApiStaffProfileStaffProfile
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'staff_profiles';
+  info: {
+    displayName: 'staff_profile';
+    pluralName: 'staff-profiles';
+    singularName: 'staff-profile';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::staff-profile.staff-profile'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    users_permissions_user: Schema.Attribute.Relation<
+      'oneToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
 export interface PluginContentReleasesRelease
   extends Struct.CollectionTypeSchema {
   collectionName: 'strapi_releases';
@@ -998,6 +1030,10 @@ export interface PluginUsersPermissionsUser
       'manyToOne',
       'plugin::users-permissions.role'
     >;
+    staff_profile: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::staff-profile.staff-profile'
+    >;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1023,6 +1059,7 @@ declare module '@strapi/strapi' {
       'api::admin-profile.admin-profile': ApiAdminProfileAdminProfile;
       'api::drug-store.drug-store': ApiDrugStoreDrugStore;
       'api::pharmacy-profile.pharmacy-profile': ApiPharmacyProfilePharmacyProfile;
+      'api::staff-profile.staff-profile': ApiStaffProfileStaffProfile;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;

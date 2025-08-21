@@ -38,7 +38,7 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
         <p>ชื่อร้านยา: {name_th || 'ไม่พบข้อมูล'}</p>
         <p>ที่อยู่: {address || 'ไม่พบข้อมูล'}</p>
         <p>
-          เวลาเปิดทำการ: {time_open || '-'} - {time_close || '-'} เบอร์โทรศัพท์: {phone_store || '-'}
+          เวลาเปิดทำการ: {formatTime(time_open) || '-'} - {formatTime(time_close) || '-'} เบอร์โทรศัพท์: {phone_store || '-'}
         </p>
       </div>
       <button className="detail-button" onClick={handleClick}>กด<br />เพื่อดูรายละเอียด</button>

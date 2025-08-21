@@ -85,6 +85,12 @@
       "relation": "oneToOne",
       "target": "api::pharmacy-profile.pharmacy-profile",
       "mappedBy": "users_permissions_user"
+    },
+    "staff_profile": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::staff-profile.staff-profile",
+      "mappedBy": "users_permissions_user"
     }
   }
 }

@@ -156,7 +156,39 @@ function DrugStoresDetail_pharmacist() {
               </div>
             </div>
           </div>
-          <div className="bottom-button">
+          <div className="bottom-button" style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+            <button
+              className="back-button"
+              // style={{
+              //   padding: '8px 20px',
+              //   borderRadius: 5,
+              //   background: '#6c757d',
+              //   color: '#fff',
+              //   border: 'none',
+              //   cursor: 'pointer'
+              // }}
+              onClick={() => {
+                navigate(`/drug_store_admin/${id}/staff`);
+              }}
+            >
+              พนักงานร้านยา
+            </button>
+            <button
+              className="back-button"
+              // style={{
+              //   padding: '8px 20px',
+              //   borderRadius: 5,
+              //   background: '#6c757d',
+              //   color: '#fff',
+              //   border: 'none',
+              //   cursor: 'pointer'
+              // }}
+              onClick={() => {
+                navigate(`/drug_store_admin/${id}/edit`);
+              }}
+            >
+              แก้ไข
+            </button>
             <button className="back-button" onClick={() => navigate(-1)}>กลับ</button>
           </div>
         </>
