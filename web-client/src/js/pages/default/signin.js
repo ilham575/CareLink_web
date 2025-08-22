@@ -21,6 +21,7 @@ function LoginPage() {
     }
   }, [location, navigate]);
 
+
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -31,26 +32,32 @@ function LoginPage() {
         body: JSON.stringify({
           identifier: username,
           password: password
-        })
+        }),
+        credentials: 'include', // <<== สำคัญ! เพื่อรับ refresh token จาก httpOnly cookie
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // ได้ JWT และ user.id
-        const jwt = data.jwt;
+        // ได้ Access Token + User
+        const accessToken = data.accessToken || data.jwt; // ถ้า backend ยังใช้ชื่อ jwt
         const userId = data.user.id;
+
+        // เก็บ Access Token และเวลาที่ได้
+        localStorage.setItem('jwt', accessToken);
+        localStorage.setItem('jwt_issued_at', Date.now().toString());
         localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('jwt', jwt);
+
         // ดึง user พร้อม role
         const userRes = await fetch(`http://localhost:1337/api/users/${userId}?populate=role`, {
-          headers: { 'Authorization': `Bearer ${jwt}` }
+          headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         const userData = await userRes.json();
 
         const role = userData.role?.name || '';
+        localStorage.setItem('role', role);
+
         setError('');
-        localStorage.setItem('role', role); // เพิ่มบรรทัดนี้
 
         // route ตาม role
         if (role === 'admin') {
@@ -70,13 +77,10 @@ function LoginPage() {
           return;
         }
 
-        // ถ้าไม่ match role
         toast.error('ไม่พบ role นี้ในระบบ', { autoClose: 2500 });
 
       } else {
-        // ปรับ error handling ให้แสดงข้อความที่อ่านง่าย
         let errorMsg = data.error?.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
-        // ถ้ามี error หลายอัน ให้รวมข้อความ
         if (Array.isArray(data.error?.details?.errors)) {
           errorMsg = data.error.details.errors.map(e => e.message).join('\n');
         }

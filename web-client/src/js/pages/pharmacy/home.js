@@ -4,6 +4,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import '../../../css/pages/default/home.css';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
+import Footer from '../../components/footer';
 
 function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front }) {
   const navigate = useNavigate();
@@ -130,6 +131,7 @@ function PharmacyHome() {
           ))
         )}
       </main>
+      <Footer />
     </div>
   );
 }

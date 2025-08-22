@@ -18,6 +18,7 @@ function HomeHeader({ pharmacyName, onSearch }) {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('jwt');
     localStorage.removeItem('role');
+    localStorage.removeItem('jwt_issued_at');
     setIsLoggedIn(false);
     navigate('/login');
   };

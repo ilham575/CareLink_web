@@ -14,6 +14,7 @@ import CustomerHome from './js/pages/customer/home';
 import RequireRole from './js/components/RequireRole';
 import DrugStoresDetailPharmacist from './js/pages/pharmacy/DrugStoresDetail_pharmacist';
 import DrugStoresDetailAdmin from './js/pages/admin/DrugStoresDetail_admin';
+import Staff from './js/components/middle_page/staffhome';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/drug_store/:id" element={<DrugStoreDetail />} />
           <Route path="/drug_store_pharmacy/:id" element={<DrugStoresDetailPharmacist />} />
           <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
+          <Route path="/drug_store_staff" element={<Staff />} />
           <Route path="/signup" element={<Signup />} />
           <Route
             path="/adminHome"

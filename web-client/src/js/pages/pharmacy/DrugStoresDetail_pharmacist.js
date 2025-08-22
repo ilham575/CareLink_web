@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/pharmacyDetail.css';
+import Footer from '../../components/footer';
 
 function getImageUrl(photo) {
   if (!photo) return null;
@@ -159,30 +160,14 @@ function DrugStoresDetail_pharmacist() {
           <div className="bottom-button" style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
             <button
               className="back-button"
-              // style={{
-              //   padding: '8px 20px',
-              //   borderRadius: 5,
-              //   background: '#6c757d',
-              //   color: '#fff',
-              //   border: 'none',
-              //   cursor: 'pointer'
-              // }}
               onClick={() => {
-                navigate(`/drug_store_admin/${id}/staff`);
+                navigate('/drug_store_staff'); // เปลี่ยน path ตรงนี้
               }}
             >
               พนักงานร้านยา
             </button>
             <button
               className="back-button"
-              // style={{
-              //   padding: '8px 20px',
-              //   borderRadius: 5,
-              //   background: '#6c757d',
-              //   color: '#fff',
-              //   border: 'none',
-              //   cursor: 'pointer'
-              // }}
               onClick={() => {
                 navigate(`/drug_store_admin/${id}/edit`);
               }}
@@ -195,6 +180,7 @@ function DrugStoresDetail_pharmacist() {
       ) : (
         <div>ไม่พบข้อมูลร้านยา</div>
       )}
+      <Footer />
     </div>
   );
 }

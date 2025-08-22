@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
+import Footer from '../../components/footer';
 import '../../../css/pages/default/pharmacyDetail.css';
 
 function getImageUrl(photo) {
@@ -163,7 +164,9 @@ function DrugStoresDetail_admin() {
       ) : (
         <div>ไม่พบข้อมูลร้านยา</div>
       )}
+      <Footer />
     </div>
+    
   );
 }
 
