@@ -16,6 +16,20 @@
       "relation": "oneToOne",
       "target": "plugin::users-permissions.user",
       "inversedBy": "staff_profile"
+    },
+    "position": {
+      "type": "string",
+      "required": true
+    },
+    "profileimage": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
     }
   }
 }

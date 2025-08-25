@@ -64,7 +64,7 @@ function Home() {
       // inject pharmacists array เข้าแต่ละร้าน
       const pharmaciesWithPharmacists = drugStores.map(store => {
         const pps = store.pharmacy_profiles || store.attributes?.pharmacy_profiles?.data || [];
-        const pharmacists = (pps.data || pps) // รองรับได้ทั้ง 2 แบบ (เผื่อโครงสร้างเปลี่ยน)
+        const pharmacists = (pps.data || pps)
           .map(profile => profileIdToUser[profile.id])
           .filter(u => !!u); // remove null
         return {

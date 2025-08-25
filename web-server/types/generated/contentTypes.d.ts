@@ -531,6 +531,10 @@ export interface ApiStaffProfileStaffProfile
       'api::staff-profile.staff-profile'
     > &
       Schema.Attribute.Private;
+    position: Schema.Attribute.String & Schema.Attribute.Required;
+    profileimage: Schema.Attribute.Media<
+      'images' | 'files' | 'videos' | 'audios'
+    >;
     publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &

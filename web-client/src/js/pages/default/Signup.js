@@ -1,7 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import '../../../css/pages/default/signup.css';
 import HomeHeader from '../../components/HomeHeader';
-// import logo from '../../../images/image 3.png';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
@@ -19,11 +18,6 @@ function Signup() {
   });
   const fileInputRef = useRef();
   const navigate = useNavigate();
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm(f => ({ ...f, [name]: value }));
-  };
 
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -52,7 +46,7 @@ function Signup() {
       });
       const registerData = await registerRes.json();
 
-      if (!registerRes.ok) {
+      if (!registerRes.ok || !registerData.user) {
         toast.error(registerData.error?.message || "สมัครไม่สำเร็จ");
         return;
       }
@@ -76,14 +70,21 @@ function Signup() {
         }
       }
 
-      // 3. Patch user (full_name, phone, profileimage, role)
-      const targetRoleId = 3; // ตรวจสอบ role id ที่แท้จริงอีกทีใน Strapi
+      // 3. Get role ID for 'Admin'
+      const roleRes = await fetch('http://localhost:1337/api/users-permissions/roles', {
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      const roleData = await roleRes.json();
+      const adminRole = roleData.roles.find(r => r.name === 'admin');
+      const targetRoleId = adminRole?.id;
+
+      // 4. Patch user (full_name, phone, profileimage, role)
       const patchUser = {
         full_name: `${form.firstName} ${form.lastName}`,
         phone: form.phone,
         confirmed: true,
         ...(profileImageId ? { profileimage: profileImageId } : {}),
-        role: targetRoleId,
+        ...(targetRoleId ? { role: targetRoleId } : {}),
       };
       const patchRes = await fetch(`http://localhost:1337/api/users/${userId}`, {
         method: 'PUT',
@@ -100,7 +101,7 @@ function Signup() {
         return;
       }
 
-      // 4. Create admin_profile (เชื่อม user กับ profile image)
+      // 5. Create admin_profile
       const adminProfileRes = await fetch('http://localhost:1337/api/admin-profiles', {
         method: 'POST',
         headers: {
