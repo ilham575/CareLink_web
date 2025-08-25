@@ -60,10 +60,8 @@ function PharmacyHome() {
     if (!token) {
       setPharmacies([]);
       setLoading(false);
-      console.log("No token found, ไม่สามารถดึงข้อมูลร้านยาได้");
       return;
     }
-    console.log("token", token);
     fetch('http://localhost:1337/api/drug-stores?populate=*', {
       headers: {
         Authorization: 'Bearer ' + token
@@ -71,25 +69,10 @@ function PharmacyHome() {
     })
       .then(res => res.json())
       .then(data => {
-        console.log("response from api", data);
-        if (Array.isArray(data.data)) {
-          if (data.data.length === 0) {
-            console.log("ไม่มีข้อมูลร้านยาของเภสัชกรนี้");
-          } else {
-            console.log("ร้านยาที่ดึงได้ (pharmacies):", data.data.map(store => ({
-              id: store.id,
-              name_th: store.name_th,
-              pharmacists: store.pharmacists
-            })));
-          }
-        } else {
-          console.log("ข้อมูลร้านยาไม่ถูกต้องหรือไม่มีข้อมูล");
-        }
         setPharmacies(Array.isArray(data.data) ? data.data : []);
         setLoading(false);
       })
       .catch((err) => {
-        console.log("เกิดข้อผิดพลาดในการดึงข้อมูลร้านยา", err);
         setLoading(false);
       });
   }, [token]);

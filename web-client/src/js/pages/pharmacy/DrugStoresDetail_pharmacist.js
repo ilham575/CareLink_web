@@ -16,34 +16,62 @@ function DrugStoresDetail_pharmacist() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [pharmacy, setPharmacy] = useState(null);
-  const [pharmacists, setPharmacists] = useState([]);
+  const [pharmacist, setPharmacist] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`http://localhost:1337/api/drug-stores/${id}?populate=pharmacy_profiles,photo_front,photo_in,photo_staff`).then(res => res.json()),
-      fetch('http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user').then(res => res.json())
-    ]).then(([storeRes, profileRes]) => {
-      const store = storeRes.data;
-      setPharmacy(store ? (store.attributes || store) : null);
+    const fetchData = async () => {
+      try {
+        // 1. ดึงข้อมูลร้าน
+        const storeRes = await fetch(`http://localhost:1337/api/drug-stores/${id}?populate=primary_pharmacist,photo_front,photo_in,photo_staff`);
+        const storeJson = await storeRes.json();
+        const store = storeJson.data;
+        setPharmacy(store ? (store.attributes || store) : null);
 
-      const profilesFromStore = Array.isArray(store.pharmacy_profiles)
-        ? store.pharmacy_profiles
-        : (store.pharmacy_profiles?.data || []);
+        // 2. ดึง pharmacy-profiles ทั้งหมด
+        let pharmacistProfile = store?.primary_pharmacist;
+        let pharmacistDocumentId = null;
+        if (pharmacistProfile?.data) {
+          pharmacistDocumentId = pharmacistProfile.data.attributes?.documentId
+            || pharmacistProfile.data.documentId
+            || null;
+          pharmacistProfile = pharmacistProfile.data;
+        } else if (pharmacistProfile?.attributes) {
+          pharmacistDocumentId = pharmacistProfile.attributes.documentId || null;
+        } else if (pharmacistProfile?.documentId) {
+          pharmacistDocumentId = pharmacistProfile.documentId;
+        }
 
-      const allProfiles = profileRes.data || [];
+        if (pharmacistDocumentId) {
+          const profileRes = await fetch('http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user');
+          const profileJson = await profileRes.json();
+          const allProfiles = profileJson.data || [];
+          const matchedProfile = allProfiles.find(
+            p => String(p?.attributes?.documentId || p?.documentId) === String(pharmacistDocumentId)
+          );
+          let pharmacistUser = null;
+          const userField = matchedProfile?.attributes?.users_permissions_user || matchedProfile?.users_permissions_user;
+          if (userField) {
+            if (Array.isArray(userField?.data)) {
+              pharmacistUser = userField.data[0] || null;
+            } else if (userField?.data) {
+              pharmacistUser = userField.data || null;
+            } else {
+              pharmacistUser = userField;
+            }
+          }
+          setPharmacist(pharmacistUser);
+        } else {
+          setPharmacist(null);
+        }
+      } catch (e) {
+        setPharmacist(null);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      const pharmacistsArr = profilesFromStore
-        .map(profile => {
-          const found = allProfiles.find(p => p.documentId === profile.documentId);
-          return found?.users_permissions_user || null;
-        })
-        .filter(u => !!u);
-
-      setPharmacists(pharmacistsArr);
-
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    fetchData();
   }, [id]);
 
   return (
@@ -108,20 +136,19 @@ function DrugStoresDetail_pharmacist() {
               <p>เบอร์โทรศัพท์ร้านยา: {pharmacy.phone_store || '-'}</p>
               <div style={{ marginTop: 12 }}>
                 <p style={{ fontWeight: 'bold', marginBottom: 4 }}>ข้อมูลเภสัชกรประจำร้านยา:</p>
-                <ul>
-                  {pharmacists.length > 0
-                    ? pharmacists.map((u, idx) => (
-                      <li key={u.id || idx}>
-                        {u.full_name ? `ชื่อเภสัชกร : ${u.full_name}` : '-'}
-                        <br />
-                        <span style={{ color: '#555', fontSize: '0.95em' }}>
-                          {u.phone ? `เบอร์โทรศัพท์ : ${u.phone}` : ''}
-                        </span>
-                      </li>
-                    ))
-                    : <li>ไม่พบข้อมูลเภสัชกร</li>
-                  }
-                </ul>
+                {pharmacist ? (
+                  <ul>
+                    <li>
+                      {pharmacist.full_name ? `ชื่อเภสัชกร : ${pharmacist.full_name}` : '-'}
+                      <br />
+                      <span style={{ color: '#555', fontSize: '0.95em' }}>
+                        {pharmacist.phone ? `เบอร์โทรศัพท์ : ${pharmacist.phone}` : ''}
+                      </span>
+                    </li>
+                  </ul>
+                ) : (
+                  <p>ไม่พบข้อมูลเภสัชกร</p>
+                )}
               </div>
             </div>
 
@@ -161,7 +188,7 @@ function DrugStoresDetail_pharmacist() {
             <button
               className="back-button"
               onClick={() => {
-                navigate('/drug_store_staff'); // เปลี่ยน path ตรงนี้
+                navigate(`/drug_store_staff/${id}`); // เปลี่ยน path ตรงนี้
               }}
             >
               พนักงานร้านยา

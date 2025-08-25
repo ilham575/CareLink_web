@@ -123,7 +123,7 @@ function AdminHome() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between' , marginBottom: 20 }}>
           <h2 style={{ margin: 0 }}>ร้านยาของฉัน:</h2>
           <button
-            className="detail-button"
+            className="staffpage-add-btn"
             style={{
               padding: '8px 16px',
               width: 120,

@@ -453,6 +453,10 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
       Schema.Attribute.Required;
     photo_staff: Schema.Attribute.Media<'images' | 'files'> &
       Schema.Attribute.Required;
+    primary_pharmacist: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::pharmacy-profile.pharmacy-profile'
+    >;
     publishedAt: Schema.Attribute.DateTime;
     time_close: Schema.Attribute.Time & Schema.Attribute.Required;
     time_open: Schema.Attribute.Time & Schema.Attribute.Required;
@@ -488,6 +492,10 @@ export interface ApiPharmacyProfilePharmacyProfile
     > &
       Schema.Attribute.Private;
     pharmacy_license_no: Schema.Attribute.String & Schema.Attribute.Required;
+    primary_drug_store: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::drug-store.drug-store'
+    >;
     profileimage: Schema.Attribute.Media<
       'images' | 'files' | 'videos' | 'audios'
     >;

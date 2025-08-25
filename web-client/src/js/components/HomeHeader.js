@@ -23,7 +23,12 @@ function HomeHeader({ pharmacyName, onSearch }) {
     navigate('/login');
   };
 
-  const isPharmacyDetail = location.pathname.startsWith('/pharmacy/');
+  // จะเป็น true ถ้า path เริ่มต้นด้วย /drug_store/ หรือ /drug_store_pharmacy/
+  const isPharmacyDetail =
+    location.pathname.startsWith('/drug_store/') ||
+    location.pathname.startsWith('/drug_store_pharmacy/') ||
+    location.pathname.startsWith('/drug_store_admin/') ||
+    location.pathname.startsWith('/drug_store_staff/');
   const isSignup = location.pathname === '/signup';
 
   if (isSignup) {
@@ -66,7 +71,7 @@ function HomeHeader({ pharmacyName, onSearch }) {
       />
       {isPharmacyDetail ? (
         <div className="detail-title">
-          {"ร้านยา " + (pharmacyName || 'ชื่อร้านยา')}
+          {(pharmacyName || 'ชื่อร้านยา')}
         </div>
       ) : (
         <div className="search-bar-container">

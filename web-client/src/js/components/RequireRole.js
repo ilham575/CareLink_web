@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 // ฟังก์ชันตรวจสอบหมดอายุของ jwt
 function isJwtExpired(token) {
@@ -79,11 +79,8 @@ function RequireRole({ role, children }) {
   }, [jwt, issuedAt, navigate]);
 
   // ตรวจสอบ role และการหมดอายุ
-  if (!jwt || userRole !== role || isJwtExpired(jwt)) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return children;
+  const hasRole = jwt && (Array.isArray(role) ? role.includes(userRole) : userRole === role) && !isJwtExpired(jwt);
+  return hasRole ? <Outlet /> : <Navigate to="/login" state={{ from: location }} replace />;
 }
 
 export default RequireRole;

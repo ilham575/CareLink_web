@@ -36,6 +36,12 @@
       "relation": "manyToMany",
       "target": "api::drug-store.drug-store",
       "mappedBy": "pharmacy_profiles"
+    },
+    "primary_drug_store": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::drug-store.drug-store",
+      "mappedBy": "primary_pharmacist"
     }
   }
 }

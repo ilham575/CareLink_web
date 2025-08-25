@@ -85,6 +85,12 @@
       "relation": "manyToMany",
       "target": "api::pharmacy-profile.pharmacy-profile",
       "inversedBy": "drug_stores"
+    },
+    "primary_pharmacist": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::pharmacy-profile.pharmacy-profile",
+      "inversedBy": "primary_drug_store"
     }
   }
 }
