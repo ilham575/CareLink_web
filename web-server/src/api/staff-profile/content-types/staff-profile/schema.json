@@ -30,6 +30,12 @@
         "videos",
         "audios"
       ]
+    },
+    "time_start": {
+      "type": "time"
+    },
+    "time_end": {
+      "type": "time"
     }
   }
 }
