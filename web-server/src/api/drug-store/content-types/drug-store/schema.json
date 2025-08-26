@@ -91,6 +91,12 @@
       "relation": "oneToOne",
       "target": "api::pharmacy-profile.pharmacy-profile",
       "inversedBy": "primary_drug_store"
+    },
+    "staff_profiles": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::staff-profile.staff-profile",
+      "inversedBy": "drug_stores"
     }
   }
 }

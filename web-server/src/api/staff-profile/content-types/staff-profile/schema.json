@@ -36,6 +36,12 @@
     },
     "time_end": {
       "type": "time"
+    },
+    "drug_stores": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::drug-store.drug-store",
+      "mappedBy": "staff_profiles"
     }
   }
 }

@@ -458,6 +458,10 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
       'api::pharmacy-profile.pharmacy-profile'
     >;
     publishedAt: Schema.Attribute.DateTime;
+    staff_profiles: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::staff-profile.staff-profile'
+    >;
     time_close: Schema.Attribute.Time & Schema.Attribute.Required;
     time_open: Schema.Attribute.Time & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
@@ -525,6 +529,10 @@ export interface ApiStaffProfileStaffProfile
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    drug_stores: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::drug-store.drug-store'
+    >;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
