@@ -168,7 +168,27 @@ body {
     box-shadow: var(--shadow-md);
 }
 
-@media (max-width: 900px) {
+.pharmacy-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+/* Responsive for 3 buttons in pharmacy-actions */
+@media (max-width: 1000px) {
+    .pharmacy-actions {
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+    .pharmacy-actions .detail-button {
+        width: 100%;
+        margin-top: 0;
+    }
+}
+
+@media (max-width: 1000px) {
     .main-content {
         padding: 16px 2vw;
         max-width: 100vw;

@@ -1,0 +1,199 @@
+.app-header {
+  background: linear-gradient(90deg, var(--color-primary) 60%, var(--color-secondary) 100%);
+  padding: 18px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  box-shadow: var(--shadow-md);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.app-logo {
+  width: 70px;
+  height: 70px;
+  margin-right: 18px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  cursor: pointer;
+}
+
+.signup-title {
+  font-size: 1.5em;
+  font-weight: 600;
+  color: #fff;
+  margin-left: 16px;
+}
+
+.detail-title {
+  font-size: 1.3em;
+  font-weight: 600;
+  color: #fff;
+  margin-left: 16px;
+}
+
+.search-bar-container {
+  background: rgba(255,255,255,0.15);
+  border-radius: 24px;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+  margin-right: 24px;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s;
+}
+
+.search-bar-container:focus-within {
+  background: rgba(255,255,255,0.25);
+}
+
+.search-icon {
+  margin-right: 10px;
+  font-size: 1.3em;
+}
+
+.search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  color: white;
+  font-size: 1.1em;
+  width: 100%;
+  font-family: var(--font-main);
+  transition: color 0.2s;
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.profile-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  margin-left: 1px;
+  margin-right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 18px;
+  color: #555;
+  overflow: hidden;
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.home-button {
+  background: linear-gradient(90deg, var(--color-primary-dark) 60%, var(--color-accent) 100%);
+  color: white;
+  border: none;
+  padding: 12px 28px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 1.08em;
+  font-family: var(--font-main);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.home-button:hover {
+  background: linear-gradient(90deg, var(--color-accent) 60%, var(--color-primary-dark) 100%);
+  box-shadow: var(--shadow-md);
+}
+
+/* ให้ avatar กับปุ่มอยู่แถวเดียวกันเสมอ */
+.profile-and-btn-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Responsive ปรับขนาดและเว้นระยะ */
+@media (max-width: 600px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px 10px;
+    gap: 10px;
+  }
+  .app-logo {
+    width: 55px;
+    height: 55px;
+    margin-right: 0;
+    margin-bottom: 8px;
+  }
+  .search-bar-container {
+    margin-right: 0;
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 8px;
+  }
+  .profile-and-btn-row {
+    width: 100%;
+    gap: 8px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+  .profile-avatar {
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+  .home-button {
+    width: 100%;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+  .signup-title,
+  .detail-title {
+    margin-left: 0;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+    text-align: left;
+  }
+}
+
+@media (max-width: 750px) {
+  .app-header {
+    padding: 8px 4px;
+    gap: 6px;
+  }
+  .app-logo {
+    width: 42px;
+    height: 42px;
+    margin-bottom: 6px;
+  }
+  .search-bar-container {
+    padding: 7px 10px;
+    font-size: 0.95em;
+    margin-bottom: 6px;
+  }
+  .profile-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
+  .home-button {
+    padding: 8px 10px;
+    font-size: 0.98em;
+    margin-bottom: 6px;
+  }
+  .signup-title,
+  .detail-title {
+    font-size: 1em;
+    margin-bottom: 6px;
+  }
+}

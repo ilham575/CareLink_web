@@ -9,43 +9,80 @@ import Footer from '../../components/footer';
 function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front }) {
   const navigate = useNavigate();
 
+  // รูปภาพร้านยา
   const getImageUrl = (photo) => {
     if (!photo) return null;
     if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
     if (photo.url) return photo.url;
     return null;
   };
-
   const imageUrl = getImageUrl(photo_front);
 
+  // ปุ่ม handler
   const handleClick = () => {
     navigate(`/drug_store_pharmacy/${id}`);
+  };
+  const handleDrugList = () => {
+    navigate(`/drug_store_pharmacy/${id}/drugs`);
+  };
+  const handleFollowUp = () => {
+    navigate(`/drug_store_pharmacy/${id}/followup-customers`);
   };
 
   return (
     <div className="pharmacy-item">
+      {/* รูปภาพร้านยา */}
       <div className="pharmacy-image-placeholder" style={{ padding: 0, background: 'none' }}>
         {imageUrl ? (
           <img
             src={imageUrl.startsWith('/') ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}` : imageUrl}
             alt="รูปภาพร้านยา"
-            style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: 5, display: 'block' }}
+            style={{
+              width: '100%',
+              height: '100px',
+              objectFit: 'cover',
+              borderRadius: 5,
+              display: 'block'
+            }}
           />
         ) : (
           'รูปภาพร้านยา'
         )}
       </div>
+
+      {/* ข้อมูลร้านยา */}
       <div className="pharmacy-details">
         <p>ชื่อร้านยา: {name_th || 'ไม่พบข้อมูล'}</p>
         <p>ที่อยู่: {address || 'ไม่พบข้อมูล'}</p>
         <p>
-          เวลาเปิดทำการ: {formatTime(time_open) || '-'} - {formatTime(time_close) || '-'} เบอร์โทรศัพท์: {phone_store || '-'}
+          เวลาเปิดทำการ: {time_open || '-'} - {time_close || '-'} เบอร์โทรศัพท์: {phone_store || '-'}
         </p>
       </div>
-      <button className="detail-button" onClick={handleClick}>กด<br />เพื่อดูรายละเอียด</button>
+
+      {/* ปุ่มทั้ง 3 ปุ่มอยู่แถวเดียวกัน (responsive) */}
+      <div
+        className="pharmacy-actions"
+        style={{
+          display: 'flex',
+          gap: 8,
+          marginTop: 8,
+          flexWrap: 'wrap'
+        }}
+      >
+        <button className="detail-button" onClick={handleClick}>
+          กด<br />เพื่อดูรายละเอียด
+        </button>
+        <button className="detail-button" onClick={handleDrugList}>
+          รายการยา
+        </button>
+        <button className="detail-button" onClick={handleFollowUp}>
+          ลูกค้าที่ติดตามอาการ
+        </button>
+      </div>
     </div>
   );
 }
+
 
 function PharmacyHome() {
   const location = useLocation();
