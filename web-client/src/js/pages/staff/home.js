@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
+import Footer from '../../components/footer';
 
 function StaffHome() {
   const location = useLocation();
@@ -15,6 +16,7 @@ function StaffHome() {
       <ToastContainer />
       <HomeHeader isLoggedIn={true}/>
       <h2>Page 3 (Role: nurse)</h2>
+      <Footer />
     </>
   );
 }

@@ -29,3 +29,50 @@
   /* Font */
   --font-main: 'Prompt', 'Kanit', 'Arial', sans-serif;
 }
+
+.signup-form-flex {
+  display: flex;
+  gap: 20px;
+}
+
+.signup-form-left, .signup-form-right {
+  flex: 1;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.signup-upload-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #ccc;
+  padding: 20px;
+  cursor: pointer;
+}
+
+.form-actions {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.time-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.time-input {
+  flex: 1;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.time-separator {
+  font-size: 14px;
+  color: #555;
+}

@@ -16,6 +16,8 @@ import DrugStoresDetailPharmacist from './js/pages/pharmacy/DrugStoresDetail_pha
 import DrugStoresDetailAdmin from './js/pages/admin/DrugStoresDetail_admin';
 import StaffPage from './js/components/middle_page/staffPage';
 import FormStaffPage from './js/components/middle_page/formStaffPage';
+import 'antd/dist/reset.css';  // สำหรับ Ant Design v5 ขึ้นไป (2024)
+
 
 function App() {
   return (

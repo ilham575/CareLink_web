@@ -188,7 +188,8 @@ function DrugStoresDetail_pharmacist() {
             <button
               className="back-button"
               onClick={() => {
-                navigate(`/drug_store_staff/${id}`); // เปลี่ยน path ตรงนี้
+                // ส่ง documentId แทน id
+                navigate(`/drug_store_staff/${pharmacy?.documentId || pharmacy?.attributes?.documentId || id}`);
               }}
             >
               พนักงานร้านยา

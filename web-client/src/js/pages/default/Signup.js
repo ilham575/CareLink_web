@@ -30,6 +30,11 @@ function Signup() {
     fileInputRef.current.click();
   };
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(f => ({ ...f, [name]: value }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
