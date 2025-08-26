@@ -70,7 +70,6 @@ module.exports = ({ env }) => {
       useNullAsDefault: true,
     },
   };
-  console.log('🔑 DB_PASSWORD:', env('DATABASE_PASSWORD'))
   return {
     connection: {
       client,
