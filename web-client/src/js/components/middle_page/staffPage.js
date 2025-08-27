@@ -66,106 +66,81 @@ function StaffPage({ id }) {
 
           const log = (...args) => console.log("[DeleteStaff]", ...args);
 
-          const safeDeleteStaffById = async (sid) => {
-            if (!sid) return;
-            log("DELETE staff-profile id:", sid);
+          console.log("💡 DEBUG staffId:", staffId);
+          
+
+          const removeRelation = async () => {
+            if (!staffId) return;
+            log("🔗 PATCH null relation for staff:", staffId);
             const res = await fetch(
-              `http://localhost:1337/api/staff-profiles/${sid}`,
+              `http://localhost:1337/api/staff-profiles/${staffId}`,
+              {
+                method: "PUT",
+                headers: {
+                  ...authHeaders,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  data: {
+                    users_permissions_user: null, // ตัดความสัมพันธ์ก่อน
+                  },
+                }),
+              }
+            );
+            log("PATCH relation status:", res.status);
+            if (!res.ok) {
+              throw new Error("ตัดความสัมพันธ์กับ user ไม่สำเร็จ");
+            }
+          };
+
+          const deleteStaffProfile = async () => {
+            if (!staffId) return;
+            log("🗑️ DELETE staff-profile id:", staffId);
+            const res = await fetch(
+              `http://localhost:1337/api/staff-profiles/${staffId}`,
               { method: "DELETE", headers: authHeaders }
             );
-            const text = await res.text().catch(() => "");
-            log("DELETE staff-profile resp:", res.status, text || "<empty>");
+            log("DELETE staff-profile resp:", res.status);
             if (!res.ok && res.status !== 404) {
-              throw new Error("ลบ staff-profile ไม่สำเร็จ (" + res.status + ")");
+              throw new Error("ลบ staff-profile ไม่สำเร็จ");
             }
           };
 
-          const getStaffById = async (sid) => {
-            if (!sid) return null;
+          const deleteUser = async () => {
+            if (!userId) return;
+            log("🗑️ DELETE user id:", userId);
+            try {
+              const res = await fetch(
+                `http://localhost:1337/api/users/${userId}`,
+                { method: "DELETE", headers: authHeaders }
+              );
+              const text = await res.text().catch(() => "");
+              log("DELETE user resp:", res.status, text || "<empty>");
+            } catch (e) {
+              log("DELETE user error (ignored):", e?.message);
+            }
+          };
+
+          const refreshList = async () => {
+            if (!documentId) return;
             const res = await fetch(
-              `http://localhost:1337/api/staff-profiles/${sid}?_=${Date.now()}`,
+              `http://localhost:1337/api/staff-profiles?filters[drug_stores][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage&_=${Date.now()}`,
               { headers: authHeaders }
             );
-            log("GET staff-profile by id:", sid, "=>", res.status);
-            if (!res.ok) return null;
-            const js = await res.json().catch(() => null);
-            return js?.data || null;
-          };
-
-          const findAndDeleteRelated = async () => {
-            const qs = new URLSearchParams();
-            if (documentId) {
-              // เกี่ยวกับร้านนี้
-              qs.append("filters[$or][0][documentId][$eq]", documentId);
-              qs.append("filters[$or][1][drug_stores][documentId][$eq]", documentId);
-            }
-            if (userId) {
-              // หรือเกี่ยวกับ user นี้
-              qs.append("filters[$or][2][users_permissions_user][id][$eq]", String(userId));
-            }
-            // เก็บกวาดพวกกำพร้าในร้านนี้ (ไม่มี user แล้ว)
-            if (documentId) {
-              qs.append("filters[$or][3][users_permissions_user][$null]", "true");
-              qs.append("filters[$and][0][drug_stores][documentId][$eq]", documentId);
-            }
-            qs.append("pagination[pageSize]", "100");
-            qs.append("fields[0]", "id");
-
-            const url = `http://localhost:1337/api/staff-profiles?${qs.toString()}&_=${Date.now()}`;
-            log("FALLBACK query:", url);
-            const res = await fetch(url, { headers: authHeaders });
-            log("FALLBACK status:", res.status);
-            if (!res.ok) return;
-            const js = await res.json().catch(() => null);
-            const items = Array.isArray(js?.data) ? js.data : [];
-            log("FALLBACK found:", items.map((x) => x?.id));
-            for (const it of items) {
-              if (it?.id) await safeDeleteStaffById(it.id);
-            }
+            const js = await res.json().catch(() => ({}));
+            const newList = Array.isArray(js?.data) ? js.data : [];
+            log("🔄 REFRESH list count:", newList.length);
+            setStaffList(newList);
           };
 
           try {
-            log("BEGIN delete", { staffId, staffDocumentId, userId, documentId });
+            log("🚀 BEGIN delete", { staffId, staffDocumentId, userId });
 
-            // 1) ลบ staff-profile ตัวที่กด
-            await safeDeleteStaffById(staffId);
+            await removeRelation();        // ✅ 1. ตัด relation
+            await deleteStaffProfile();    // ✅ 2. ลบ staff-profile
+            await deleteUser();            // ✅ 3. ลบ user-permission
 
-            // 2) ลบ user
-            if (userId) {
-              log("DELETE user id:", userId);
-              try {
-                const resUser = await fetch(
-                  `http://localhost:1337/api/users/${userId}`,
-                  { method: "DELETE", headers: authHeaders }
-                );
-                const text = await resUser.text().catch(() => "");
-                log("DELETE user resp:", resUser.status, text || "<empty>");
-                // ไม่ throw ถ้า 404
-              } catch (e) {
-                log("DELETE user error (ignored):", e?.message);
-              }
-            }
-
-            // 3) ตรวจซ้ำ ถ้ายังอยู่ ลบซ้ำ
-            const still = await getStaffById(staffId);
-            if (still) {
-              log("still exists -> delete again:", staffId);
-              await safeDeleteStaffById(staffId);
-            }
-
-            // 4) กวาดลบตัวที่ยังค้าง (เกี่ยวกับร้านนี้/ผู้ใช้นี้ หรือกำพร้า)
-            await findAndDeleteRelated();
-
-            // 5) รีเฟรช (no-store)
-            if (documentId) {
-              const listRes = await fetch(
-                `http://localhost:1337/api/staff-profiles?filters[drug_stores][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage&_=${Date.now()}`,
-                { headers: authHeaders }
-              );
-              const js = await listRes.json().catch(() => ({}));
-              log("REFRESH list count:", Array.isArray(js?.data) ? js.data.length : null);
-              setStaffList(Array.isArray(js?.data) ? js.data : []);
-            }
+            await refreshList();           // ✅ 4. รีเฟรช
 
             Modal.success({ content: "ลบพนักงานและบัญชีผู้ใช้สำเร็จ" });
             resolve();
@@ -217,7 +192,7 @@ function StaffPage({ id }) {
               const staffName = user?.full_name || 'พนักงาน';
 
               return (
-                <div className="staff-card" key={staff.id}>
+                <div className="staff-card staff-card-hover" key={staff.id}>
                   <div className="staff-card-image staff-card-image-box">
                     {profileImg ? (
                       <img

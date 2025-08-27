@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import '../../../css/pages/default/signup.css';
 import HomeHeader from '../../components/HomeHeader';
 import { ToastContainer, toast } from 'react-toastify';
@@ -106,12 +106,30 @@ function Signup() {
         return;
       }
 
-      // 5. Create admin_profile
+      // 5. Login ใหม่เพื่อรับ JWT ของ role admin
+      const loginRes = await fetch('http://localhost:1337/api/auth/local', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: form.username,
+          password: form.password,
+        }),
+      });
+      const loginData = await loginRes.json();
+
+      if (!loginRes.ok || !loginData.jwt) {
+        toast.error(loginData.error?.message || "เข้าสู่ระบบไม่สำเร็จหลังสมัคร");
+        return;
+      }
+
+      const adminJwt = loginData.jwt;
+
+      // 6. Create admin_profile (ใช้ JWT ใหม่)
       const adminProfileRes = await fetch('http://localhost:1337/api/admin-profiles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${jwt}`,
+          'Authorization': `Bearer ${adminJwt}`,
         },
         body: JSON.stringify({
           data: {

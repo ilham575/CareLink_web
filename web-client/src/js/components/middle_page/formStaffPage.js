@@ -30,7 +30,7 @@ function FormStaffPage() {
 
   useEffect(() => {
     if (!documentId) {
-      toast.error("ไม่พบ documentId ของพนักงาน");
+      // Do not fetch staff data if documentId is not provided (adding a new staff member)
       return;
     }
 
@@ -212,12 +212,121 @@ function FormStaffPage() {
     }
   };
 
+  const createStaffProfile = async () => {
+    try {
+      const token = localStorage.getItem('jwt');
+
+      const formatTime = (time) => {
+        if (!time) return null;
+        return `${time}:00.000`;
+      };
+
+      // 1. สมัคร user โดยใช้เฉพาะฟิลด์ที่ Strapi รองรับ
+      const userData = {
+        username: form.username,
+        password: form.password,
+        email: `${form.username}@example.com`, // จำเป็นต้องมีอีเมล
+      };
+
+      const userRes = await fetch(`http://localhost:1337/api/auth/local/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!userRes.ok) {
+        const userError = await userRes.json();
+        throw new Error(userError?.error?.message || "เกิดข้อผิดพลาดในการสร้างบัญชีผู้ใช้");
+      }
+
+      const user = await userRes.json();
+      const userId = user?.user?.id;
+
+      if (!userId) {
+        throw new Error("ไม่สามารถดึง ID ของผู้ใช้ที่สร้างใหม่ได้");
+      }
+
+      // 2. PATCH อัปเดตฟิลด์ custom ที่ Strapi ไม่อนุญาตใน register
+      const patchRes = await fetch(`http://localhost:1337/api/users/${userId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          full_name: `${form.firstName} ${form.lastName}`.trim(),
+          phone: form.phone,
+        }),
+      });
+
+      if (!patchRes.ok) {
+        const patchErr = await patchRes.json();
+        console.error("❌ Update user fields failed:", patchErr);
+        throw new Error("สร้างผู้ใช้สำเร็จ แต่ไม่สามารถอัปเดตชื่อหรือเบอร์โทรได้");
+      }
+
+      // 3. สร้าง staff-profile
+      const staffData = {
+        data: {
+          position: form.position,
+          users_permissions_user: userId,
+          drug_stores: pharmacyId,
+          time_start: formatTime(form.timeStart),
+          time_end: formatTime(form.timeEnd),
+        },
+      };
+
+      const staffRes = await fetch(`http://localhost:1337/api/staff-profiles`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(staffData),
+      });
+
+      if (!staffRes.ok) {
+        const staffError = await staffRes.json();
+        throw new Error(staffError?.error?.message || "เกิดข้อผิดพลาดในการสร้างข้อมูลพนักงาน");
+      }
+
+      const staff = await staffRes.json();
+      const staffId = staff?.data?.id;
+
+      // 4. อัปโหลดรูปภาพถ้ามี
+      if (form.profileImage && staffId) {
+        const formData = new FormData();
+        formData.append("files", form.profileImage);
+        formData.append("ref", "api::staff-profile.staff-profile");
+        formData.append("refId", staffId);
+        formData.append("field", "profileimage");
+
+        const uploadRes = await fetch(`http://localhost:1337/api/upload`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          toast.warning("สร้างข้อมูลพนักงานสำเร็จ แต่อัพโหลดรูปภาพไม่สำเร็จ");
+        }
+      }
+
+      toast.success("เพิ่มพนักงานสำเร็จ");
+    } catch (err) {
+      toast.error(err.message || "เกิดข้อผิดพลาดในการเพิ่มพนักงาน");
+    }
+  };
+
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (documentId) {
       updateStaffProfile();
     } else {
-      toast.error("ไม่พบ documentId ของพนักงาน");
+      createStaffProfile();
     }
   };
 
@@ -242,7 +351,14 @@ function FormStaffPage() {
               <input type="text" name="phone" value={form.phone} onChange={handleChange} />
 
               <label>USERNAME<span className="required">*</span></label>
-              <input type="text" name="username" value={form.username} onChange={handleChange} required disabled />
+              <input
+                type="text"
+                name="username"
+                value={form.username}
+                onChange={handleChange}
+                required
+                disabled={!!documentId} // Disable only when editing an existing staff member
+              />
 
               <label>PASSWORD</label>
               <input type="password" name="password" value={form.password} onChange={handleChange} placeholder="เปลี่ยนรหัสผ่านใหม่หากต้องการ" />
