@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 # ติดตั้ง dependencies
 RUN npm install
 
-# คัดลอกไฟล์ทั้งหมดในโฟลเดอร์ web-server
+# คัดลอก source code ที่เหลือ (หลังจาก install dependenciesเพื่อใช้ cache)
 COPY . .
 
 # เปิดพอร์ตที่ Strapi ใช้

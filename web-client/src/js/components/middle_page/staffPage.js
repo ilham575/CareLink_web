@@ -64,16 +64,10 @@ function StaffPage({ id }) {
             "Cache-Control": "no-store",
           };
 
-          const log = (...args) => console.log("[DeleteStaff]", ...args);
-
-          console.log("💡 DEBUG staffId:", staffId);
-          
-
           const removeRelation = async () => {
             if (!staffId) return;
-            log("🔗 PATCH null relation for staff:", staffId);
             const res = await fetch(
-              `http://localhost:1337/api/staff-profiles/${staffId}`,
+              `http://localhost:1337/api/staff-profiles/${staffDocumentId}`,
               {
                 method: "PUT",
                 headers: {
@@ -87,7 +81,6 @@ function StaffPage({ id }) {
                 }),
               }
             );
-            log("PATCH relation status:", res.status);
             if (!res.ok) {
               throw new Error("ตัดความสัมพันธ์กับ user ไม่สำเร็จ");
             }
@@ -95,12 +88,10 @@ function StaffPage({ id }) {
 
           const deleteStaffProfile = async () => {
             if (!staffId) return;
-            log("🗑️ DELETE staff-profile id:", staffId);
             const res = await fetch(
-              `http://localhost:1337/api/staff-profiles/${staffId}`,
+              `http://localhost:1337/api/staff-profiles/${staffDocumentId}`,
               { method: "DELETE", headers: authHeaders }
             );
-            log("DELETE staff-profile resp:", res.status);
             if (!res.ok && res.status !== 404) {
               throw new Error("ลบ staff-profile ไม่สำเร็จ");
             }
@@ -108,16 +99,13 @@ function StaffPage({ id }) {
 
           const deleteUser = async () => {
             if (!userId) return;
-            log("🗑️ DELETE user id:", userId);
             try {
               const res = await fetch(
                 `http://localhost:1337/api/users/${userId}`,
                 { method: "DELETE", headers: authHeaders }
               );
               const text = await res.text().catch(() => "");
-              log("DELETE user resp:", res.status, text || "<empty>");
             } catch (e) {
-              log("DELETE user error (ignored):", e?.message);
             }
           };
 
@@ -129,13 +117,10 @@ function StaffPage({ id }) {
             );
             const js = await res.json().catch(() => ({}));
             const newList = Array.isArray(js?.data) ? js.data : [];
-            log("🔄 REFRESH list count:", newList.length);
             setStaffList(newList);
           };
 
           try {
-            log("🚀 BEGIN delete", { staffId, staffDocumentId, userId });
-
             await removeRelation();        // ✅ 1. ตัด relation
             await deleteStaffProfile();    // ✅ 2. ลบ staff-profile
             await deleteUser();            // ✅ 3. ลบ user-permission

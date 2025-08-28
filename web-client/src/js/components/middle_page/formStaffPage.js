@@ -248,7 +248,28 @@ function FormStaffPage() {
         throw new Error("ไม่สามารถดึง ID ของผู้ใช้ที่สร้างใหม่ได้");
       }
 
-      // 2. PATCH อัปเดตฟิลด์ custom ที่ Strapi ไม่อนุญาตใน register
+      // 2. ดึง role id ของ 'staff' และอัปเดต user ให้มี role เป็น staff
+      // 2.1 Get role ID for 'staff'
+      const roleRes = await fetch('http://localhost:1337/api/users-permissions/roles', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const roleData = await roleRes.json();
+      const staffRole = roleData.roles.find(r => r.name === 'staff');
+      const targetRoleId = staffRole?.id;
+
+      if (targetRoleId) {
+        // 2.2 Update user role to 'staff'
+        await fetch(`http://localhost:1337/api/users/${userId}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ role: targetRoleId }),
+        });
+      }
+
+      // 3. PATCH อัปเดตฟิลด์ custom ที่ Strapi ไม่อนุญาตใน register
       const patchRes = await fetch(`http://localhost:1337/api/users/${userId}`, {
         method: "PUT",
         headers: {
