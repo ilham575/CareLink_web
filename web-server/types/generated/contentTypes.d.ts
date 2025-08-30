@@ -553,6 +553,7 @@ export interface ApiStaffProfileStaffProfile
       'oneToOne',
       'plugin::users-permissions.user'
     >;
+    working_days: Schema.Attribute.JSON;
   };
 }
 

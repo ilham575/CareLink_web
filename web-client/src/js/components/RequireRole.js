@@ -80,6 +80,7 @@ function RequireRole({ role, children }) {
 
   // ตรวจสอบ role และการหมดอายุ
   const hasRole = jwt && (Array.isArray(role) ? role.includes(userRole) : userRole === role) && !isJwtExpired(jwt);
+  
   return hasRole ? <Outlet /> : <Navigate to="/login" state={{ from: location }} replace />;
 }
 

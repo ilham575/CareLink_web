@@ -16,12 +16,15 @@ import DrugStoresDetailPharmacist from './js/pages/pharmacy/DrugStoresDetail_pha
 import DrugStoresDetailAdmin from './js/pages/admin/DrugStoresDetail_admin';
 import StaffPage from './js/components/middle_page/staffPage';
 import FormStaffPage from './js/components/middle_page/formStaffPage';
+import CustomerPage from './js/components/middle_page/customerPage';
+import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
 import 'antd/dist/reset.css';  // สำหรับ Ant Design v5 ขึ้นไป (2024)
 
 
 function App() {
   return (
     <Router>
+      {/* <button onClick={() => toast.success("Toast ทดสอบ")}>ทดสอบ Toast</button> */}
       <div className="App">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -41,17 +44,24 @@ function App() {
 
           <Route element={<RequireRole role="staff" />}>
             <Route path="/staffHome" element={<StaffHome />} />
+            <Route path='/drug_store_staff_detail/:id' element={<DrugStoresDetailStaff />} />
           </Route>
 
           <Route element={<RequireRole role="customer" />}>
             <Route path="/customerHome" element={<CustomerHome />} />
           </Route>
+
           <Route element={<RequireRole role={['admin', 'pharmacy']} />}>
             <Route path="/drug_store_staff/:id" element={<StaffPage />} />
             <Route path="/form_staff" element={<FormStaffPage />} />
           </Route>
+
           <Route element={<RequireRole role={['admin', 'pharmacy', 'staff']} />}>
             <Route path="/form_staff/:id" element={<FormStaffPage />} />
+          </Route>
+
+          <Route element={<RequireRole role={['pharmacy', 'staff']} />}>
+            <Route path="/drug_store_pharmacy/:id/followup-customers" element={<CustomerPage />} />
           </Route>
         </Routes>
       </div>

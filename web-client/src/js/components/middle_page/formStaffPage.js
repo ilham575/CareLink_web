@@ -1,9 +1,9 @@
 import React, { useRef, useState, useEffect } from "react";
 import Footer from "../footer";
 import HomeHeader from "../HomeHeader";
-import { ToastContainer, toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import "../../../css/theme.css";
 
 function FormStaffPage() {
@@ -24,9 +24,11 @@ function FormStaffPage() {
     profileImage: null,
     timeStart: "", // Add timeStart field
     timeEnd: "",   // Add timeEnd field
+    workDays: [], // Add workDays field
   });
   const [originalStaff, setOriginalStaff] = useState(null);
   const fileInputRef = useRef();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!documentId) {
@@ -77,6 +79,7 @@ function FormStaffPage() {
           profileImage: null,
           timeStart: staffRaw.time_start?.split(':').slice(0, 2).join(':') || "",
           timeEnd: staffRaw.time_end?.split(':').slice(0, 2).join(':') || "",
+          workDays: staffRaw.working_days || [], // Initialize workDays
         });
 
         const imageUrl =
@@ -108,6 +111,16 @@ function FormStaffPage() {
 
   const handleUploadClick = () => fileInputRef.current.click();
 
+  const handleCheckboxChange = (e) => {
+    const { value, checked } = e.target;
+    setForm((f) => {
+      const workDays = checked
+        ? [...f.workDays, value]
+        : f.workDays.filter((day) => day !== value);
+      return { ...f, workDays };
+    });
+  };
+
   const updateStaffProfile = async () => {
     try {
       const token = localStorage.getItem('jwt');
@@ -133,6 +146,7 @@ function FormStaffPage() {
           users_permissions_user: userId,
           time_start: formatTime(form.timeStart),
           time_end: formatTime(form.timeEnd),
+          working_days: form.workDays, // Include workDays in the update
         },
       };
 
@@ -207,6 +221,7 @@ function FormStaffPage() {
       }
 
       toast.success("แก้ไขข้อมูลพนักงานสำเร็จ");
+      navigate(-1, { state: { toastMessage: "แก้ไขข้อมูลพนักงานสำเร็จ" } });
     } catch (err) {
       toast.error(err.message || "เกิดข้อผิดพลาดในการแก้ไขข้อมูลพนักงาน");
     }
@@ -296,6 +311,7 @@ function FormStaffPage() {
           drug_stores: pharmacyId,
           time_start: formatTime(form.timeStart),
           time_end: formatTime(form.timeEnd),
+          working_days: form.workDays, // Include workDays in the creation
         },
       };
 
@@ -336,6 +352,7 @@ function FormStaffPage() {
       }
 
       toast.success("เพิ่มพนักงานสำเร็จ");
+      navigate(-1, { state: { toastMessage: "เพิ่มพนักงานสำเร็จ" } });
     } catch (err) {
       toast.error(err.message || "เกิดข้อผิดพลาดในการเพิ่มพนักงาน");
     }
@@ -344,6 +361,13 @@ function FormStaffPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // ตรวจสอบว่าเวลาเริ่มงานต้องก่อนเวลาเลิกงาน
+    if (form.timeStart && form.timeEnd && form.timeStart >= form.timeEnd) {
+      toast.error("เวลาเริ่มงานต้องก่อนเวลาเลิกงาน");
+      return;
+    }
+
     if (documentId) {
       updateStaffProfile();
     } else {
@@ -407,6 +431,23 @@ function FormStaffPage() {
                     className="time-input"
                     placeholder="เวลาหยุดงาน"
                   />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>เลือกวันทำงาน</label>
+                <div className="workdays-checkbox-group">
+                  {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].map((day) => (
+                    <label key={day} className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        value={day}
+                        checked={form.workDays.includes(day)}
+                        onChange={handleCheckboxChange}
+                      />
+                      {day}
+                    </label>
+                  ))}
                 </div>
               </div>
             </div>

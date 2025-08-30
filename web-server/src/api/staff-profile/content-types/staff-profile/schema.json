@@ -42,6 +42,10 @@
       "relation": "manyToMany",
       "target": "api::drug-store.drug-store",
       "mappedBy": "staff_profiles"
+    },
+    "working_days": {
+      "type": "json",
+      "required": false
     }
   }
 }

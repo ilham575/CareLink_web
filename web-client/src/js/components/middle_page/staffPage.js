@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Footer from "../footer";
 import HomeHeader from "../HomeHeader";
 import "../../../css/pages/default/staffPage.css";
@@ -6,10 +6,11 @@ import "../../../css/component/StaffCard.css";
 import { formatTime } from "../../utils/time";
 import React, { useEffect, useState } from "react";
 import { Modal } from "antd";   // <<-- import Modal จาก antd
-import { toast } from "react-toastify"; // <<-- Add this import
+import { toast, ToastContainer } from "react-toastify"; // <<-- Add ToastContainer import
 import "react-toastify/dist/ReactToastify.css"; // <<-- Add this import for toast styles
 
 function StaffPage({ id }) {
+  const location = useLocation();
   const navigate = useNavigate();
   const params = useParams();
   const [pharmacy, setPharmacy] = useState(null);
@@ -46,6 +47,12 @@ function StaffPage({ id }) {
         });
     }
   }, [documentId]);
+
+  useEffect(() => {
+    if (location.state?.toastMessage) {
+      toast.success(location.state.toastMessage);
+    }
+  }, [location.state]);
 
   // แก้เป็นใช้ Antd Modal.confirm
   // แก้เฉพาะฟังก์ชัน deleteStaff ให้ robust ขึ้น
@@ -141,6 +148,7 @@ function StaffPage({ id }) {
 
   return (
     <div className="staffpage-bg">
+      <ToastContainer />
       <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
       <main className="staffpage-main">
         <div className="staffpage-container">
@@ -204,6 +212,12 @@ function StaffPage({ id }) {
                       <b>เวลาทำงาน:</b>{" "}
                       {staff.time_start && staff.time_end
                         ? `${formatTime(staff.time_start)} - ${formatTime(staff.time_end)}`
+                        : '…'}
+                    </div>
+                    <div>
+                      <b>วันทำงาน:</b>{" "}
+                      {staff.working_days && staff.working_days.length > 0
+                        ? staff.working_days.join(", ")
                         : '…'}
                     </div>
                   </div>
