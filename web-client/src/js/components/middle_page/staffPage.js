@@ -21,7 +21,7 @@ function StaffPage({ id }) {
 
   useEffect(() => {
     if (documentId) {
-      fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`)
+      fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`) // Updated endpoint to "drug-stores"
         .then(res => res.json())
         .then(json => {
           const store = Array.isArray(json.data) ? json.data[0] : json.data;
@@ -34,7 +34,7 @@ function StaffPage({ id }) {
     if (documentId) {
       const token = localStorage.getItem('jwt');
       fetch(
-        `http://localhost:1337/api/staff-profiles?filters[drug_stores][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage`,
+        `http://localhost:1337/api/staff-profiles?filters[drug_store][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage`,
         {
           headers: {
             Authorization: token ? `Bearer ${token}` : "",

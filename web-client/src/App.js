@@ -18,6 +18,7 @@ import StaffPage from './js/components/middle_page/staffPage';
 import FormStaffPage from './js/components/middle_page/formStaffPage';
 import CustomerPage from './js/components/middle_page/customerPage';
 import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
+import FormCustomerPage from './js/components/middle_page/formcustomerPage';
 import 'antd/dist/reset.css';  // สำหรับ Ant Design v5 ขึ้นไป (2024)
 
 
@@ -62,6 +63,8 @@ function App() {
 
           <Route element={<RequireRole role={['pharmacy', 'staff']} />}>
             <Route path="/drug_store_pharmacy/:id/followup-customers" element={<CustomerPage />} />
+            <Route path="/form_customer" element={<FormCustomerPage />} />
+            <Route path="/form_customer/:id" element={<FormCustomerPage />} />
           </Route>
         </Routes>
       </div>

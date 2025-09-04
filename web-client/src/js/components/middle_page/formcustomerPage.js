@@ -1,14 +1,14 @@
 import Footer from "../footer";
 import HomeHeader from "../HomeHeader";
 
-function CustomerPage({id}) {
+function FormCustomerPage() {
   return (
     <div>
         <HomeHeader />
-        <h1>Customer Page</h1>
+        <h1>Form Customer Page</h1>
         <Footer />
     </div>
   );
 }
 
-export default CustomerPage;
+export default FormCustomerPage;

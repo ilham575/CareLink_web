@@ -74,22 +74,28 @@
       "type": "string",
       "required": true
     },
-    "admin_profile": {
+    "admin_profiles": {
       "type": "relation",
-      "relation": "oneToOne",
+      "relation": "oneToMany",
       "target": "api::admin-profile.admin-profile",
       "mappedBy": "users_permissions_user"
     },
-    "pharmacy_profile": {
+    "pharmacy_profiles": {
       "type": "relation",
-      "relation": "oneToOne",
+      "relation": "oneToMany",
       "target": "api::pharmacy-profile.pharmacy-profile",
       "mappedBy": "users_permissions_user"
     },
-    "staff_profile": {
+    "staff_profiles": {
       "type": "relation",
-      "relation": "oneToOne",
+      "relation": "oneToMany",
       "target": "api::staff-profile.staff-profile",
+      "mappedBy": "users_permissions_user"
+    },
+    "customer_profiles": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::customer-profile.customer-profile",
       "mappedBy": "users_permissions_user"
     }
   }
