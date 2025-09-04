@@ -2,11 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
-import Footer from '../../components/footer';
 import '../../../css/pages/default/pharmacyDetail.css';
 
 function getImageUrl(photo) {
   if (!photo) return null;
+
+  // ✅ mock (string จาก localStorage)
+  if (typeof photo === "string") return photo;
+
+  // ✅ API (object จาก Strapi)
   if (photo.formats?.medium?.url) return photo.formats.medium.url;
   if (photo.url) return photo.url;
   return null;
@@ -22,49 +26,26 @@ function DrugStoresDetail_admin() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. ดึงข้อมูลร้าน
-        const storeRes = await fetch(`http://localhost:1337/api/drug-stores/${id}?populate=primary_pharmacist,photo_front,photo_in,photo_staff`);
-        const storeJson = await storeRes.json();
+        // ✅ 1. หาจาก mock (localStorage)
+        const mockPharmacies = JSON.parse(localStorage.getItem("mock_pharmacies") || "[]");
+        const mockFound = mockPharmacies.find(p => String(p.id) === String(id));
+
+        if (mockFound) {
+          setPharmacy(mockFound);
+          setPharmacist(null);
+          setLoading(false);
+          return;
+        }
+
+        // ✅ 2. ถ้าไม่เจอ mock → ดึงจาก API
+        const res = await fetch(
+          `http://localhost:1337/api/drug-stores/${id}?populate=primary_pharmacist,photo_front,photo_in,photo_staff`
+        );
+        const storeJson = await res.json();
         const store = storeJson.data;
         setPharmacy(store ? (store.attributes || store) : null);
-
-        // 2. ดึง pharmacy-profiles ทั้งหมด
-        let pharmacistProfile = store?.primary_pharmacist;
-        let pharmacistDocumentId = null;
-        if (pharmacistProfile?.data) {
-          pharmacistDocumentId = pharmacistProfile.data.attributes?.documentId
-            || pharmacistProfile.data.documentId
-            || null;
-          pharmacistProfile = pharmacistProfile.data;
-        } else if (pharmacistProfile?.attributes) {
-          pharmacistDocumentId = pharmacistProfile.attributes.documentId || null;
-        } else if (pharmacistProfile?.documentId) {
-          pharmacistDocumentId = pharmacistProfile.documentId;
-        }
-
-        if (pharmacistDocumentId) {
-          const profileRes = await fetch('http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user');
-          const profileJson = await profileRes.json();
-          const allProfiles = profileJson.data || [];
-          const matchedProfile = allProfiles.find(
-            p => String(p?.attributes?.documentId || p?.documentId) === String(pharmacistDocumentId)
-          );
-          let pharmacistUser = null;
-          const userField = matchedProfile?.attributes?.users_permissions_user || matchedProfile?.users_permissions_user;
-          if (userField) {
-            if (Array.isArray(userField?.data)) {
-              pharmacistUser = userField.data[0] || null;
-            } else if (userField?.data) {
-              pharmacistUser = userField.data || null;
-            } else {
-              pharmacistUser = userField;
-            }
-          }
-          setPharmacist(pharmacistUser);
-        } else {
-          setPharmacist(null);
-        }
-      } catch (e) {
+        setPharmacist(null); // TODO: ดึง pharmacist จาก API ถ้ามี
+      } catch (err) {
         setPharmacist(null);
       } finally {
         setLoading(false);
@@ -75,86 +56,106 @@ function DrugStoresDetail_admin() {
   }, [id]);
 
   return (
-    <div className="detail-container">
-      <HomeHeader pharmacyName={pharmacy?.name_th} />
+    <div className="detail-container" style={{ padding: 20 }}>
+      <HomeHeader pharmacyName={pharmacy?.name_th || "รายละเอียดร้านยา"} />
+
       {loading ? (
         <div>กำลังโหลดข้อมูล...</div>
       ) : pharmacy ? (
         <>
-          <div className="image-row">
-            <div className="image-box" style={{ padding: 0, background: 'none' }}>
-              {getImageUrl(pharmacy.photo_front) ? (
-                <img
-                  src={getImageUrl(pharmacy.photo_front).startsWith('/')
-                    ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_front)}`
-                    : getImageUrl(pharmacy.photo_front)
-                  }
-                  alt="รูปด้านนอกร้านยา"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
-                />
-              ) : (
-                'รูปด้านนอกร้านยา'
-              )}
-            </div>
-            <div className="image-box" style={{ padding: 0, background: 'none' }}>
-              {getImageUrl(pharmacy.photo_in) ? (
-                <img
-                  src={getImageUrl(pharmacy.photo_in).startsWith('/')
-                    ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_in)}`
-                    : getImageUrl(pharmacy.photo_in)
-                  }
-                  alt="รูปด้านในร้านยา"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
-                />
-              ) : (
-                'รูปด้านในร้านยา'
-              )}
-            </div>
-            <div className="image-box" style={{ padding: 0, background: 'none' }}>
-              {getImageUrl(pharmacy.photo_staff) ? (
-                <img
-                  src={getImageUrl(pharmacy.photo_staff).startsWith('/')
-                    ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_staff)}`
-                    : getImageUrl(pharmacy.photo_staff)
-                  }
-                  alt="รูปเภสัชกรและพนักงาน"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
-                />
-              ) : (
-                'รูปเภสัชกรและพนักงาน'
-              )}
-            </div>
+          {/* ✅ แถวรูปภาพ */}
+          <div
+            className="image-row"
+            style={{
+              display: "flex",
+              gap: 20,
+              marginBottom: 20,
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            {["photo_front", "photo_in", "photo_staff"].map((key, idx) => (
+              <div
+                key={idx}
+                className="image-box"
+                style={{
+                  width: 250,
+                  height: 250, // ✅ ทำให้เป็นจตุรัส
+                  borderRadius: 16,
+                  background: "#f0f0f0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}
+              >
+                {getImageUrl(pharmacy[key]) ? (
+                  <img
+                    src={getImageUrl(pharmacy[key])}
+                    alt={key}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      borderRadius: 16,
+                    }}
+                  />
+                ) : (
+                  <div className="img-placeholder">
+                    {key === "photo_front"
+                      ? "รูปด้านนอกร้านยา"
+                      : key === "photo_in"
+                      ? "รูปด้านในร้านยา"
+                      : "รูปเภสัชกรและพนักงาน"}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
 
-          <div className="info-service-row">
-            <div className="left-info">
-              <p>ชื่อร้านยา: {pharmacy.name_th || '-'}</p>
-              <p>ที่อยู่: {pharmacy.address || '-'}</p>
+          {/* ✅ ข้อมูลร้านยา */}
+          <div
+            className="info-service-row"
+            style={{
+              display: "flex",
+              gap: 40,
+              marginTop: 30, // ✅ เพิ่มระยะห่างจากแถวรูป
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              className="left-info"
+              style={{
+                flex: 1,
+                minWidth: 300,
+                background: "#f3fff3",
+                padding: 16,
+                borderRadius: 12,
+              }}
+            >
+              <p>ชื่อร้านยา: {pharmacy.name_th || "-"}</p>
+              <p>ที่อยู่: {pharmacy.address || "-"}</p>
               <p>
                 เวลาทำการ: {formatTime(pharmacy.time_open)} - {formatTime(pharmacy.time_close)}
               </p>
-              <p>เบอร์โทรศัพท์ร้านยา: {pharmacy.phone_store || '-'}</p>
-              <div style={{ marginTop: 12 }}>
-                <p style={{ fontWeight: 'bold', marginBottom: 4 }}>ข้อมูลเภสัชกรประจำร้านยา:</p>
-                {pharmacist ? (
-                  <ul>
-                    <li>
-                      {pharmacist.full_name ? `ชื่อเภสัชกร : ${pharmacist.full_name}` : '-'}
-                      <br />
-                      <span style={{ color: '#555', fontSize: '0.95em' }}>
-                        {pharmacist.phone ? `เบอร์โทรศัพท์ : ${pharmacist.phone}` : ''}
-                      </span>
-                    </li>
-                  </ul>
-                ) : (
-                  <p>ไม่พบข้อมูลเภสัชกร</p>
-                )}
-              </div>
+              <p>เบอร์โทรศัพท์ร้านยา: {pharmacy.phone_store || "-"}</p>
+              <p>ชื่อ-นามสกุลเภสัชกร: {pharmacist?.full_name || "-"}</p>
+              <p>เบอร์โทรศัพท์เภสัชกร: {pharmacist?.phone || "-"}</p>
             </div>
 
-            <div className="right-service">
-              <div className="service-box">
-                <p className="section-title">การให้บริการ</p>
+            {/* ✅ การให้บริการ */}
+            <div
+              className="right-service"
+              style={{
+                flex: 1,
+                minWidth: 300,
+                background: "#e6f9ff",
+                padding: 16,
+                borderRadius: 12,
+              }}
+            >
+              <div className="service-box" style={{ marginBottom: 20 }}>
+                <p className="section-title" style={{ fontWeight: "bold" }}>การให้บริการ</p>
                 <ul>
                   <li>จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ</li>
                   <li>ให้คำปรึกษาทางเภสัชกรรม</li>
@@ -162,13 +163,23 @@ function DrugStoresDetail_admin() {
                   <li>รับฝากยาและจัดส่งยา</li>
                 </ul>
               </div>
+
+              {/* ✅ Google Map */}
               <div className="map-box">
-                <p className="section-title">GOOGLE MAP</p>
-                <div className="map-placeholder">
+                <p className="section-title" style={{ fontWeight: "bold" }}>GOOGLE MAP</p>
+                <div
+                  className="map-placeholder"
+                  style={{
+                    background: "#d9ffd9",
+                    padding: 12,
+                    borderRadius: 8,
+                    textAlign: "center",
+                  }}
+                >
                   {pharmacy.link_gps ? (
                     <a
                       href={
-                        pharmacy.link_gps.startsWith('http')
+                        pharmacy.link_gps.startsWith("http")
                           ? pharmacy.link_gps
                           : `https://${pharmacy.link_gps}`
                       }
@@ -178,22 +189,35 @@ function DrugStoresDetail_admin() {
                       ดูแผนที่
                     </a>
                   ) : (
-                    '<LINK GOOGLE MAP>'
+                    "<LINK GOOGLE MAP>"
                   )}
                 </div>
               </div>
             </div>
           </div>
-          <div className="bottom-button">
-            <button className="back-button" onClick={() => navigate(-1)}>กลับ</button>
+
+          {/* ✅ ปุ่มกลับ */}
+          <div className="bottom-button" style={{ marginTop: 30, textAlign: "center" }}>
+            <button
+              className="back-button"
+              style={{
+                background: "#006d77",
+                color: "#fff",
+                padding: "10px 20px",
+                borderRadius: 8,
+                border: "none",
+                cursor: "pointer",
+              }}
+              onClick={() => navigate(-1)}
+            >
+              กลับ
+            </button>
           </div>
         </>
       ) : (
         <div>ไม่พบข้อมูลร้านยา</div>
       )}
-      <Footer />
     </div>
-    
   );
 }
 

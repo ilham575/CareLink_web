@@ -15,77 +15,34 @@ function DrugStoreDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [pharmacy, setPharmacy] = useState(null);
-  const [pharmacist, setPharmacist] = useState(null);
+  const [pharmacists, setPharmacists] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // 1. ดึงข้อมูลร้าน
-        const res = await fetch(`http://localhost:1337/api/drug-stores/${id}?populate=*`);
-        const json = await res.json();
-        const store = json.data;
-        setPharmacy(store); // แก้ตรงนี้
+    Promise.all([
+      fetch(`http://localhost:1337/api/drug-stores/${id}?populate=pharmacy_profiles,photo_front,photo_in,photo_staff`).then(res => res.json()),
+      fetch('http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user').then(res => res.json())
+    ]).then(([storeRes, profileRes]) => {
+      const store = storeRes.data;
+      setPharmacy(store ? (store.attributes || store) : null);
 
-        // 2. ถ้ามี primary_pharmacist → ดึงข้อมูล pharmacy-profiles ทั้งหมด แล้วเทียบ documentId
-        let pharmacistProfile = store?.primary_pharmacist;
-        // รองรับหลายรูปแบบ
-        let pharmacistDocumentId = null;
-        if (pharmacistProfile?.data) {
-          // กรณี populate แบบ relational
-          pharmacistDocumentId = pharmacistProfile.data.attributes?.documentId
-            || pharmacistProfile.data.documentId
-            || null;
-          pharmacistProfile = pharmacistProfile.data;
-        } else if (pharmacistProfile?.attributes) {
-          pharmacistDocumentId = pharmacistProfile.attributes.documentId || null;
-        } else if (pharmacistProfile?.documentId) {
-          pharmacistDocumentId = pharmacistProfile.documentId;
-        }
-        if (!pharmacistDocumentId) {
-          // console.log('primary_pharmacist structure:', pharmacistProfile);
-        }
-        if (pharmacistDocumentId) {
-          const pharmacistRes = await fetch(`http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user`);
-          const pharmacistJson = await pharmacistRes.json();
-          let profiles = pharmacistJson.data || [];
-          // console.log('Raw profiles:', profiles);
-          // if (profiles.length > 0) {
-          //   console.log('ตัวอย่าง profile:', profiles[0]);
-          // }
-          const filteredProfiles = profiles.filter(p => p && p.documentId);
-          // console.log('Filtered profiles:', filteredProfiles);
-          const allDocIds = filteredProfiles.map(p => p.documentId);
-          // console.log('pharmacistDocumentId:', pharmacistDocumentId);
-          // console.log('All pharmacy-profiles documentIds:', allDocIds);
-          // จุดที่ map (matching) documentId
-          const matchedProfile = filteredProfiles.find(
-            p => String(p.documentId) === String(pharmacistDocumentId)
-          );
-          // console.log('Matched profile:', matchedProfile);
-          let pharmacistUser = null;
-          if (matchedProfile?.users_permissions_user) {
-            const userData = matchedProfile.users_permissions_user;
-            if (Array.isArray(userData?.data)) {
-              pharmacistUser = userData.data[0] || null;
-            } else if (userData?.data) {
-              pharmacistUser = userData.data || null;
-            } else {
-              pharmacistUser = userData;
-            }
-          }
-          setPharmacist(pharmacistUser);
-        } else {
-          setPharmacist(null);
-        }
-      } catch (err) {
-        console.error('เกิดข้อผิดพลาดขณะโหลดข้อมูล:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      const profilesFromStore = Array.isArray(store.pharmacy_profiles)
+        ? store.pharmacy_profiles
+        : (store.pharmacy_profiles?.data || []);
 
-    fetchData();
+      const allProfiles = profileRes.data || [];
+
+      const pharmacistsArr = profilesFromStore
+        .map(profile => {
+          const found = allProfiles.find(p => p.documentId === profile.documentId);
+          return found?.users_permissions_user || null;
+        })
+        .filter(u => !!u);
+
+      setPharmacists(pharmacistsArr);
+
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [id]);
 
   return (
@@ -148,22 +105,22 @@ function DrugStoreDetail() {
                 เวลาทำการ: {formatTime(pharmacy.time_open)} - {formatTime(pharmacy.time_close)}
               </p>
               <p>เบอร์โทรศัพท์ร้านยา: {pharmacy.phone_store || '-'}</p>
-
               <div style={{ marginTop: 12 }}>
                 <p style={{ fontWeight: 'bold', marginBottom: 4 }}>ข้อมูลเภสัชกรประจำร้านยา:</p>
-                {pharmacist ? (
-                  <ul>
-                    <li>
-                      {pharmacist.full_name ? `ชื่อเภสัชกร : ${pharmacist.full_name}` : '-'}
-                      <br />
-                      <span style={{ color: '#555', fontSize: '0.95em' }}>
-                        {pharmacist.phone ? `เบอร์โทรศัพท์ : ${pharmacist.phone}` : ''}
-                      </span>
-                    </li>
-                  </ul>
-                ) : (
-                  <p>ไม่พบข้อมูลเภสัชกร</p>
-                )}
+                <ul>
+                  {pharmacists.length > 0
+                    ? pharmacists.map((u, idx) => (
+                      <li key={u.id || idx}>
+                        {u.full_name ? `ชื่อเภสัชกร : ${u.full_name}` : '-'}
+                        <br />
+                        <span style={{ color: '#555', fontSize: '0.95em' }}>
+                          {u.phone ? `เบอร์โทรศัพท์ : ${u.phone}` : ''}
+                        </span>
+                      </li>
+                    ))
+                    : <li>ไม่พบข้อมูลเภสัชกร</li>
+                  }
+                </ul>
               </div>
             </div>
 
@@ -182,7 +139,11 @@ function DrugStoreDetail() {
                 <div className="map-placeholder">
                   {pharmacy.link_gps ? (
                     <a
-                      href={pharmacy.link_gps.startsWith('http') ? pharmacy.link_gps : `https://${pharmacy.link_gps}`}
+                      href={
+                        pharmacy.link_gps.startsWith('http')
+                          ? pharmacy.link_gps
+                          : `https://${pharmacy.link_gps}`
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                     >

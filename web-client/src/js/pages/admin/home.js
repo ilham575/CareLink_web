@@ -4,30 +4,35 @@ import { ToastContainer, toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/home.css';
-import Footer from '../../components/footer';
 
-function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front, pharmacists }) {
+function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front, pharmacists, onDelete }) {
   const navigate = useNavigate();
 
   const getImageUrl = (photo) => {
     if (!photo) return null;
+
+    // ✅ ถ้าเป็น string URL (จาก mock localStorage)
+    if (typeof photo === "string") {
+      return photo;
+    }
+
+    // ✅ ถ้าเป็น object จาก API Strapi
     if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
     if (photo.url) return photo.url;
+
     return null;
   };
 
   const imageUrl = getImageUrl(photo_front);
-
-  const handleClick = () => {
-    navigate(`/drug_store_admin/${id}`);
-  };
 
   return (
     <div className="pharmacy-item">
       <div className="pharmacy-image-placeholder" style={{ padding: 0, background: 'none' }}>
         {imageUrl ? (
           <img
-            src={imageUrl.startsWith('/') ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}` : imageUrl}
+            src={imageUrl.startsWith('/')
+              ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}`
+              : imageUrl}
             alt="รูปภาพร้านยา"
             style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: 5, display: 'block' }}
           />
@@ -35,12 +40,40 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
           'รูปภาพร้านยา'
         )}
       </div>
+
       <div className="pharmacy-details">
         <p>ชื่อร้านยา: {name_th || 'ไม่พบข้อมูล'}</p>
         <p>ที่อยู่: {address || 'ไม่พบข้อมูล'}</p>
-        <p>เวลาเปิดทำการ: {time_open || '-'} - {time_close || '-'} เบอร์โทรศัพท์: {phone_store || '-'}</p>
+        <p>
+          เวลาเปิดทำการ: {time_open || '-'} - {time_close || '-'} เบอร์โทรศัพท์: {phone_store || '-'}
+        </p>
       </div>
-      <button className="detail-button" onClick={handleClick}>กด<br />เพื่อดูรายละเอียด</button>
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+        <button
+          className="detail-button"
+          style={{ background: '#2196F3' }}
+          onClick={() => navigate(`/drug_store_admin/${id}`)}
+        >
+          รายละเอียดร้านยา
+        </button>
+
+        <button
+          className="detail-button"
+          style={{ background: '#4CAF50' }}
+         // onClick={() => alert("TODO: ไปหน้าเภสัชกรประจำร้านยา")}
+        >
+          เภสัชกร<br />ประจำร้านยา
+        </button>
+
+        <button
+          className="detail-button"
+          style={{ background: '#f44336' }}
+          onClick={() => onDelete(id)}
+        >
+          กดเพื่อลบร้านยา
+        </button>
+      </div>
     </div>
   );
 }
@@ -50,8 +83,8 @@ function AdminHome() {
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
+  const navigate = useNavigate();
 
-  // ดึง jwt ที่ login ปัจจุบัน (อย่าลืมเซ็ตใน localStorage ด้วย!)
   const jwt = localStorage.getItem('jwt');
 
   useEffect(() => {
@@ -61,55 +94,67 @@ function AdminHome() {
   }, [location.state]);
 
   useEffect(() => {
-    fetch('http://localhost:1337/api/drug-stores?populate=*', {
-      headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
-    })
-      .then(res => res.json())
-      .then(drugStoresRes => {
+    const loadData = async () => {
+      try {
+        // ✅ mock pharmacies จาก localStorage
+        const mockPharmacies = JSON.parse(localStorage.getItem("mock_pharmacies") || "[]");
+
+        // ✅ fetch จาก API จริง
+        const res = await fetch('http://localhost:1337/api/drug-stores?populate=*', {
+          headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
+        });
+        const drugStoresRes = await res.json();
         const drugStores = drugStoresRes.data || [];
 
-        const pharmaciesWithPharmacists = drugStores.map(store => {
+        // ✅ แปลง API → pharmacies
+        const pharmaciesFromAPI = drugStores.map(store => {
           const attrs = store.attributes || {};
-          const ap = attrs.admin_profile?.data || null;
-          let pharmacists = [];
-          if (ap && ap.attributes?.users_permissions_user?.data) {
-            const user = ap.attributes.users_permissions_user.data;
-            pharmacists = [{
-              ...user.attributes,
-              id: user.id
-            }];
-          }
-          const result = {
+          return {
             id: store.id,
             name_th: store.name_th,
             address: store.address,
             time_open: formatTime(store.time_open),
             time_close: formatTime(store.time_close),
             phone_store: store.phone_store,
-            photo_front:
-              (store.photo_front && store.photo_front.formats) ? store.photo_front
-              : (attrs.photo_front?.data?.attributes || store.photo_front || null),
-            pharmacists,
-            createdBy: store.createdBy
-              ? (typeof store.createdBy === "object"
-                  ? (store.createdBy.id
-                      ? { ...store.createdBy, id: store.createdBy.id }
-                      : store.createdBy)
-                  : { id: store.createdBy })
-              : (attrs.createdBy?.data
-                  ? { ...attrs.createdBy.data.attributes, id: attrs.createdBy.data.id }
-                  : null),
+            photo_front: (store.photo_front && store.photo_front.formats) ? store.photo_front : (attrs.photo_front?.data?.attributes || store.photo_front || null),
+            pharmacists: [],
           };
-          return result;
         });
 
-        setPharmacies(pharmaciesWithPharmacists);
+        // ✅ รวม API + mock
+        setPharmacies([...pharmaciesFromAPI, ...mockPharmacies]);
         setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         setLoading(false);
-      });
+      }
+    };
+
+    loadData();
   }, [jwt]);
+
+  // ✅ ฟังก์ชันลบร้านยา (รวม mock + api)
+  const handleDelete = async (id) => {
+    if (!window.confirm("คุณต้องการลบร้านยานี้หรือไม่?")) return;
+    try {
+      // ลบจาก localStorage
+      let mockPharmacies = JSON.parse(localStorage.getItem("mock_pharmacies") || "[]");
+      mockPharmacies = mockPharmacies.filter(p => p.id !== id);
+      localStorage.setItem("mock_pharmacies", JSON.stringify(mockPharmacies));
+
+      // ลบจาก state
+      setPharmacies(prev => prev.filter(p => p.id !== id));
+
+      // ลองลบจาก API (ถ้า id เป็นของ API จริง)
+      await fetch(`http://localhost:1337/api/drug-stores/${id}`, {
+        method: "DELETE",
+        headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
+      });
+
+      toast.success("ลบร้านยาเรียบร้อยแล้ว!");
+    } catch (err) {
+      toast.error("เกิดข้อผิดพลาดในการลบ");
+    }
+  };
 
   const filteredPharmacies = pharmacies.filter(pharmacy =>
     pharmacy.name_th?.toLowerCase().includes(searchText.toLowerCase())
@@ -123,14 +168,13 @@ function AdminHome() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between' , marginBottom: 20 }}>
           <h2 style={{ margin: 0 }}>ร้านยาของฉัน:</h2>
           <button
-            className="staffpage-add-btn"
+            className="detail-button"
             style={{
               padding: '8px 16px',
               width: 120,
             }}
             onClick={() => {
-              // ไปหน้าสร้างร้านยาใหม่
-              console.log("ไปหน้าสร้างร้านยาใหม่");
+              navigate("/add_drug_store_admin");
             }}
           >
             เพิ่มร้านยา
@@ -144,11 +188,16 @@ function AdminHome() {
           </div>
         ) : (
           filteredPharmacies.map(pharmacy => {
-            return <PharmacyItem {...pharmacy} key={pharmacy.id} />;
+            return (
+              <PharmacyItem
+                {...pharmacy}
+                key={pharmacy.id}
+                onDelete={handleDelete}
+              />
+            );
           })
         )}
       </main>
-      <Footer />
     </div>
   );
 }

@@ -16,6 +16,7 @@ import DrugStoresDetailPharmacist from './js/pages/pharmacy/DrugStoresDetail_pha
 import DrugStoresDetailAdmin from './js/pages/admin/DrugStoresDetail_admin';
 import StaffPage from './js/components/middle_page/staffPage';
 import FormStaffPage from './js/components/middle_page/formStaffPage';
+import AddPharmacyAdmin from './js/pages/admin/AddPharmacy_admin';
 import 'antd/dist/reset.css';  // สำหรับ Ant Design v5 ขึ้นไป (2024)
 
 
@@ -29,10 +30,15 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/drug_store/:id" element={<DrugStoreDetail />} />
 
-          <Route element={<RequireRole role="admin" />}>
+          {/* <Route element={<RequireRole role="admin" />}>
             <Route path="/adminHome" element={<AdminHome />} />
             <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
-          </Route>
+          </Route> */}
+          <Route path="/adminHome" element={<AdminHome />} />
+          <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
+          <Route path="/add_drug_store_admin" element={<AddPharmacyAdmin />} />
+
+
 
           <Route element={<RequireRole role="pharmacy" />}>
             <Route path="/pharmacyHome" element={<PharmacyHome />} />
