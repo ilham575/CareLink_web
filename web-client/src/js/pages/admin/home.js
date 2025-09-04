@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
+import { db } from '../../db';   // ✅ import db.js
 import '../../../css/pages/default/home.css';
 
 function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front, pharmacists, onDelete }) {
@@ -10,16 +11,9 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
 
   const getImageUrl = (photo) => {
     if (!photo) return null;
-
-    // ✅ ถ้าเป็น string URL (จาก mock localStorage)
-    if (typeof photo === "string") {
-      return photo;
-    }
-
-    // ✅ ถ้าเป็น object จาก API Strapi
+    if (typeof photo === "string") return photo;
     if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
     if (photo.url) return photo.url;
-
     return null;
   };
 
@@ -61,7 +55,7 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
         <button
           className="detail-button"
           style={{ background: '#4CAF50' }}
-         // onClick={() => alert("TODO: ไปหน้าเภสัชกรประจำร้านยา")}
+          onClick={() => navigate(`/add_pharmacy_admin/${id}`)}
         >
           เภสัชกร<br />ประจำร้านยา
         </button>
@@ -96,8 +90,8 @@ function AdminHome() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // ✅ mock pharmacies จาก localStorage
-        const mockPharmacies = JSON.parse(localStorage.getItem("mock_pharmacies") || "[]");
+        // ✅ ดึง mock pharmacies จาก IndexedDB
+        const mockPharmacies = await db.pharmacies.toArray();
 
         // ✅ fetch จาก API จริง
         const res = await fetch('http://localhost:1337/api/drug-stores?populate=*', {
@@ -106,7 +100,6 @@ function AdminHome() {
         const drugStoresRes = await res.json();
         const drugStores = drugStoresRes.data || [];
 
-        // ✅ แปลง API → pharmacies
         const pharmaciesFromAPI = drugStores.map(store => {
           const attrs = store.attributes || {};
           return {
@@ -121,10 +114,10 @@ function AdminHome() {
           };
         });
 
-        // ✅ รวม API + mock
         setPharmacies([...pharmaciesFromAPI, ...mockPharmacies]);
         setLoading(false);
       } catch (err) {
+        console.error("loadData error:", err);
         setLoading(false);
       }
     };
@@ -132,19 +125,16 @@ function AdminHome() {
     loadData();
   }, [jwt]);
 
-  // ✅ ฟังก์ชันลบร้านยา (รวม mock + api)
   const handleDelete = async (id) => {
     if (!window.confirm("คุณต้องการลบร้านยานี้หรือไม่?")) return;
     try {
-      // ลบจาก localStorage
-      let mockPharmacies = JSON.parse(localStorage.getItem("mock_pharmacies") || "[]");
-      mockPharmacies = mockPharmacies.filter(p => p.id !== id);
-      localStorage.setItem("mock_pharmacies", JSON.stringify(mockPharmacies));
+      // ✅ ลบจาก IndexedDB
+      await db.pharmacies.delete(id);
 
       // ลบจาก state
       setPharmacies(prev => prev.filter(p => p.id !== id));
 
-      // ลองลบจาก API (ถ้า id เป็นของ API จริง)
+      // ลบจาก API ถ้ามี
       await fetch(`http://localhost:1337/api/drug-stores/${id}`, {
         method: "DELETE",
         headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
@@ -174,7 +164,7 @@ function AdminHome() {
               width: 120,
             }}
             onClick={() => {
-              navigate("/add_drug_store_admin");
+              navigate("/add_store_admin");
             }}
           >
             เพิ่มร้านยา
@@ -187,15 +177,13 @@ function AdminHome() {
             ไม่พบข้อมูลร้านยา
           </div>
         ) : (
-          filteredPharmacies.map(pharmacy => {
-            return (
-              <PharmacyItem
-                {...pharmacy}
-                key={pharmacy.id}
-                onDelete={handleDelete}
-              />
-            );
-          })
+          filteredPharmacies.map(pharmacy => (
+            <PharmacyItem
+              {...pharmacy}
+              key={pharmacy.id}
+              onDelete={handleDelete}
+            />
+          ))
         )}
       </main>
     </div>
