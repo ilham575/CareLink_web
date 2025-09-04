@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Footer from "../footer";
 import HomeHeader from "../HomeHeader";
 import "../../../css/pages/default/staffPage.css";
@@ -6,10 +6,11 @@ import "../../../css/component/StaffCard.css";
 import { formatTime } from "../../utils/time";
 import React, { useEffect, useState } from "react";
 import { Modal } from "antd";   // <<-- import Modal จาก antd
-import { toast } from "react-toastify"; // <<-- Add this import
+import { toast, ToastContainer } from "react-toastify"; // <<-- Add ToastContainer import
 import "react-toastify/dist/ReactToastify.css"; // <<-- Add this import for toast styles
 
 function StaffPage({ id }) {
+  const location = useLocation();
   const navigate = useNavigate();
   const params = useParams();
   const [pharmacy, setPharmacy] = useState(null);
@@ -20,7 +21,7 @@ function StaffPage({ id }) {
 
   useEffect(() => {
     if (documentId) {
-      fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`)
+      fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`) // Updated endpoint to "drug-stores"
         .then(res => res.json())
         .then(json => {
           const store = Array.isArray(json.data) ? json.data[0] : json.data;
@@ -33,7 +34,7 @@ function StaffPage({ id }) {
     if (documentId) {
       const token = localStorage.getItem('jwt');
       fetch(
-        `http://localhost:1337/api/staff-profiles?filters[drug_stores][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage`,
+        `http://localhost:1337/api/staff-profiles?filters[drug_store][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage`,
         {
           headers: {
             Authorization: token ? `Bearer ${token}` : "",
@@ -46,6 +47,12 @@ function StaffPage({ id }) {
         });
     }
   }, [documentId]);
+
+  useEffect(() => {
+    if (location.state?.toastMessage) {
+      toast.success(location.state.toastMessage);
+    }
+  }, [location.state]);
 
   // แก้เป็นใช้ Antd Modal.confirm
   // แก้เฉพาะฟังก์ชัน deleteStaff ให้ robust ขึ้น
@@ -64,16 +71,10 @@ function StaffPage({ id }) {
             "Cache-Control": "no-store",
           };
 
-          const log = (...args) => console.log("[DeleteStaff]", ...args);
-
-          console.log("💡 DEBUG staffId:", staffId);
-          
-
           const removeRelation = async () => {
             if (!staffId) return;
-            log("🔗 PATCH null relation for staff:", staffId);
             const res = await fetch(
-              `http://localhost:1337/api/staff-profiles/${staffId}`,
+              `http://localhost:1337/api/staff-profiles/${staffDocumentId}`,
               {
                 method: "PUT",
                 headers: {
@@ -87,7 +88,6 @@ function StaffPage({ id }) {
                 }),
               }
             );
-            log("PATCH relation status:", res.status);
             if (!res.ok) {
               throw new Error("ตัดความสัมพันธ์กับ user ไม่สำเร็จ");
             }
@@ -95,12 +95,10 @@ function StaffPage({ id }) {
 
           const deleteStaffProfile = async () => {
             if (!staffId) return;
-            log("🗑️ DELETE staff-profile id:", staffId);
             const res = await fetch(
-              `http://localhost:1337/api/staff-profiles/${staffId}`,
+              `http://localhost:1337/api/staff-profiles/${staffDocumentId}`,
               { method: "DELETE", headers: authHeaders }
             );
-            log("DELETE staff-profile resp:", res.status);
             if (!res.ok && res.status !== 404) {
               throw new Error("ลบ staff-profile ไม่สำเร็จ");
             }
@@ -108,16 +106,13 @@ function StaffPage({ id }) {
 
           const deleteUser = async () => {
             if (!userId) return;
-            log("🗑️ DELETE user id:", userId);
             try {
               const res = await fetch(
                 `http://localhost:1337/api/users/${userId}`,
                 { method: "DELETE", headers: authHeaders }
               );
               const text = await res.text().catch(() => "");
-              log("DELETE user resp:", res.status, text || "<empty>");
             } catch (e) {
-              log("DELETE user error (ignored):", e?.message);
             }
           };
 
@@ -129,13 +124,10 @@ function StaffPage({ id }) {
             );
             const js = await res.json().catch(() => ({}));
             const newList = Array.isArray(js?.data) ? js.data : [];
-            log("🔄 REFRESH list count:", newList.length);
             setStaffList(newList);
           };
 
           try {
-            log("🚀 BEGIN delete", { staffId, staffDocumentId, userId });
-
             await removeRelation();        // ✅ 1. ตัด relation
             await deleteStaffProfile();    // ✅ 2. ลบ staff-profile
             await deleteUser();            // ✅ 3. ลบ user-permission
@@ -156,6 +148,7 @@ function StaffPage({ id }) {
 
   return (
     <div className="staffpage-bg">
+      <ToastContainer />
       <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
       <main className="staffpage-main">
         <div className="staffpage-container">
@@ -219,6 +212,12 @@ function StaffPage({ id }) {
                       <b>เวลาทำงาน:</b>{" "}
                       {staff.time_start && staff.time_end
                         ? `${formatTime(staff.time_start)} - ${formatTime(staff.time_end)}`
+                        : '…'}
+                    </div>
+                    <div>
+                      <b>วันทำงาน:</b>{" "}
+                      {staff.working_days && staff.working_days.length > 0
+                        ? staff.working_days.join(", ")
                         : '…'}
                     </div>
                   </div>

@@ -20,7 +20,7 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
 
   // ปุ่ม handler
   const handleClick = () => {
-    navigate(`/drug_store_pharmacy/${id}`);
+    navigate(`/drug_store_pharmacy/${id}`); // Updated route for pharmacy details
   };
   const handleDrugList = () => {
     navigate(`/drug_store_pharmacy/${id}/drugs`);

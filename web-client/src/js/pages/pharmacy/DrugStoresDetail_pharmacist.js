@@ -4,6 +4,7 @@ import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/pharmacyDetail.css';
 import Footer from '../../components/footer';
+import { toast } from 'react-toastify';
 
 function getImageUrl(photo) {
   if (!photo) return null;
@@ -188,7 +189,15 @@ function DrugStoresDetail_pharmacist() {
             <button
               className="back-button"
               onClick={() => {
-                // ส่ง documentId แทน id
+                const token = localStorage.getItem('jwt');
+
+                if (!token) {
+                  toast.error("กรุณาเข้าสู่ระบบก่อนเข้าถึงข้อมูลพนักงานร้านยา");
+                  navigate('/login');
+                  return;
+                }
+
+                // นำทางโดยตรงไปยังหน้าพนักงานร้านยา
                 navigate(`/drug_store_staff/${pharmacy?.documentId || pharmacy?.attributes?.documentId || id}`);
               }}
             >

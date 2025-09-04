@@ -13,9 +13,9 @@
   "attributes": {
     "users_permissions_user": {
       "type": "relation",
-      "relation": "oneToOne",
+      "relation": "manyToOne",
       "target": "plugin::users-permissions.user",
-      "inversedBy": "staff_profile"
+      "inversedBy": "staff_profiles"
     },
     "position": {
       "type": "string",
@@ -37,11 +37,15 @@
     "time_end": {
       "type": "time"
     },
-    "drug_stores": {
+    "drug_store": {
       "type": "relation",
-      "relation": "manyToMany",
+      "relation": "manyToOne",
       "target": "api::drug-store.drug-store",
-      "mappedBy": "staff_profiles"
+      "inversedBy": "staff_profiles"
+    },
+    "working_days": {
+      "type": "json",
+      "required": false
     }
   }
 }

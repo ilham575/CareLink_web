@@ -94,9 +94,9 @@
     },
     "staff_profiles": {
       "type": "relation",
-      "relation": "manyToMany",
+      "relation": "oneToMany",
       "target": "api::staff-profile.staff-profile",
-      "inversedBy": "drug_stores"
+      "mappedBy": "drug_store"
     }
   }
 }

@@ -1,0 +1,33 @@
+{
+  "kind": "collectionType",
+  "collectionName": "customer_profiles",
+  "info": {
+    "singularName": "customer-profile",
+    "pluralName": "customer-profiles",
+    "displayName": "customer_profile"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "users_permissions_user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "customer_profiles"
+    },
+    "Follow_up_appointment_date": {
+      "type": "date"
+    },
+    "congenital_disease": {
+      "type": "text"
+    },
+    "Allergic_drugs": {
+      "type": "text"
+    },
+    "Customers_symptoms": {
+      "type": "text"
+    }
+  }
+}

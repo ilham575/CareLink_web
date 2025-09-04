@@ -406,7 +406,43 @@ export interface ApiAdminProfileAdminProfile
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     users_permissions_user: Schema.Attribute.Relation<
-      'oneToOne',
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
+export interface ApiCustomerProfileCustomerProfile
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'customer_profiles';
+  info: {
+    displayName: 'customer_profile';
+    pluralName: 'customer-profiles';
+    singularName: 'customer-profile';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    Allergic_drugs: Schema.Attribute.Text;
+    congenital_disease: Schema.Attribute.Text;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    Customers_symptoms: Schema.Attribute.Text;
+    Follow_up_appointment_date: Schema.Attribute.Date;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::customer-profile.customer-profile'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    users_permissions_user: Schema.Attribute.Relation<
+      'manyToOne',
       'plugin::users-permissions.user'
     >;
   };
@@ -459,7 +495,7 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
     >;
     publishedAt: Schema.Attribute.DateTime;
     staff_profiles: Schema.Attribute.Relation<
-      'manyToMany',
+      'oneToMany',
       'api::staff-profile.staff-profile'
     >;
     time_close: Schema.Attribute.Time & Schema.Attribute.Required;
@@ -508,7 +544,7 @@ export interface ApiPharmacyProfilePharmacyProfile
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     users_permissions_user: Schema.Attribute.Relation<
-      'oneToOne',
+      'manyToOne',
       'plugin::users-permissions.user'
     >;
   };
@@ -529,8 +565,8 @@ export interface ApiStaffProfileStaffProfile
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    drug_stores: Schema.Attribute.Relation<
-      'manyToMany',
+    drug_store: Schema.Attribute.Relation<
+      'manyToOne',
       'api::drug-store.drug-store'
     >;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
@@ -550,9 +586,10 @@ export interface ApiStaffProfileStaffProfile
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     users_permissions_user: Schema.Attribute.Relation<
-      'oneToOne',
+      'manyToOne',
       'plugin::users-permissions.user'
     >;
+    working_days: Schema.Attribute.JSON;
   };
 }
 
@@ -1013,8 +1050,8 @@ export interface PluginUsersPermissionsUser
     draftAndPublish: false;
   };
   attributes: {
-    admin_profile: Schema.Attribute.Relation<
-      'oneToOne',
+    admin_profiles: Schema.Attribute.Relation<
+      'oneToMany',
       'api::admin-profile.admin-profile'
     >;
     blocked: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
@@ -1023,6 +1060,10 @@ export interface PluginUsersPermissionsUser
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    customer_profiles: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::customer-profile.customer-profile'
+    >;
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMaxLength<{
@@ -1040,8 +1081,8 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
-    pharmacy_profile: Schema.Attribute.Relation<
-      'oneToOne',
+    pharmacy_profiles: Schema.Attribute.Relation<
+      'oneToMany',
       'api::pharmacy-profile.pharmacy-profile'
     >;
     phone: Schema.Attribute.String & Schema.Attribute.Required;
@@ -1052,8 +1093,8 @@ export interface PluginUsersPermissionsUser
       'manyToOne',
       'plugin::users-permissions.role'
     >;
-    staff_profile: Schema.Attribute.Relation<
-      'oneToOne',
+    staff_profiles: Schema.Attribute.Relation<
+      'oneToMany',
       'api::staff-profile.staff-profile'
     >;
     updatedAt: Schema.Attribute.DateTime;
@@ -1079,6 +1120,7 @@ declare module '@strapi/strapi' {
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
       'api::admin-profile.admin-profile': ApiAdminProfileAdminProfile;
+      'api::customer-profile.customer-profile': ApiCustomerProfileCustomerProfile;
       'api::drug-store.drug-store': ApiDrugStoreDrugStore;
       'api::pharmacy-profile.pharmacy-profile': ApiPharmacyProfilePharmacyProfile;
       'api::staff-profile.staff-profile': ApiStaffProfileStaffProfile;
