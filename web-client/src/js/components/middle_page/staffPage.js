@@ -15,20 +15,28 @@ function StaffPage({ id }) {
   const params = useParams();
   const [pharmacy, setPharmacy] = useState(null);
   const [staffList, setStaffList] = useState([]);
-
+  
   // ใช้ documentId จาก params หรือ props แทน id
   const documentId = params.documentId || id || params.id;
 
   useEffect(() => {
     if (documentId) {
-      fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`) // Updated endpoint to "drug-stores"
+      // *** ดึงทุกร้าน ***
+      fetch(`http://localhost:1337/api/drug-stores`)
         .then(res => res.json())
         .then(json => {
-          const store = Array.isArray(json.data) ? json.data[0] : json.data;
+          // หา record ที่ documentId ตรงกับที่ต้องการ
+          const store = Array.isArray(json.data)
+            ? json.data.find(item =>
+                (item.documentId || item.attributes?.documentId) === documentId
+              )
+            : null;
+
           setPharmacy(store?.attributes || store || null);
         });
     }
   }, [documentId]);
+
 
   useEffect(() => {
     if (documentId) {

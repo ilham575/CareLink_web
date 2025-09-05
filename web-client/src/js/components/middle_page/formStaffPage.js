@@ -35,22 +35,47 @@ function FormStaffPage() {
   const fileInputRef = useRef();
   const navigate = useNavigate();
 
-  // ===== 1. ดึง user สำหรับเลือก =====
+  // ===== 1. ดึง user สำหรับเลือก (แก้ไขแล้ว) =====
+  // ===== 1. ดึง user สำหรับเลือก (แก้ไขแล้ว) =====
   useEffect(() => {
     if (!documentId && pharmacyId) {
       (async () => {
         const token = localStorage.getItem('jwt');
+        
+        // หา internal ID ของร้าน
+        const drugStoreRes = await fetch(
+          `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const drugStoreJson = await drugStoreRes.json();
+        
+        // *** แก้ไข: หาร้านที่ตรงกับ documentId แทนการใช้ [0] ***
+        const targetStore = drugStoreJson.data?.find(store => store.documentId === pharmacyId);
+        
+        if (!targetStore) {
+          return;
+        }
+        
+        const drugStoreInternalId = targetStore.id;
+        
+        if (!drugStoreInternalId) {
+          return;
+        }
+
         const usersRes = await fetch(
           'http://localhost:1337/api/users?filters[role][name][$eq]=staff',
           { headers: { Authorization: `Bearer ${token}` } }
         );
         let users = await usersRes.json();
         if (!Array.isArray(users)) users = [];
+        
+        // ใช้ internal ID ในการ filter
         const staffRes = await fetch(
-          `http://localhost:1337/api/staff-profiles?filters[drug_store][documentId][$eq]=${pharmacyId}`,
+          `http://localhost:1337/api/staff-profiles?filters[drug_store]=${drugStoreInternalId}&populate=users_permissions_user`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const staffProfiles = await staffRes.json();
+        
         const staffUserIds = Array.isArray(staffProfiles.data)
           ? staffProfiles.data.map(profile =>
               profile.users_permissions_user?.id ||
@@ -58,7 +83,9 @@ function FormStaffPage() {
               null
             ).filter(Boolean)
           : [];
+          
         const selectableUsers = users.filter(u => !staffUserIds.includes(u.id));
+        
         setExistingUsers(selectableUsers);
       })();
     }
@@ -220,10 +247,11 @@ function FormStaffPage() {
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const json = await res.json();
-    return json.data?.[0]?.id;
+    return json.data?.[0]?.documentId;
   };
 
-  // ===== 6. Create staff-profile =====
+  // ===== 6. Create staff-profile (แก้ไขแล้ว) =====
+  // ===== 6. Create staff-profile (Debug ครอบคลุม) =====
   const createStaffProfile = async () => {
     try {
       const token = localStorage.getItem('jwt');
@@ -250,7 +278,7 @@ function FormStaffPage() {
           body: JSON.stringify(userData),
         });
 
-        if (!userRes.ok) throw new Error("เกิดข้อผิดพลาดในการสร้างบัญชีผู้ใช้");
+        if (!userRes.ok) throw new Error("เกิดข้อผิดพลาดในการสร้างบัชชีผู้ใช้");
         const user = await userRes.json();
 
         userId = user?.user?.id;
@@ -266,10 +294,48 @@ function FormStaffPage() {
         });
       }
 
-      const checkRes = await fetch(
-        `http://localhost:1337/api/staff-profiles?filters[users_permissions_user]=${userId}&filters[drug_store][documentId][$eq]=${pharmacyId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // *** ลอง URL หลายแบบ ***
+      // วิธีที่ 1: แบบเดิม
+      const url1 = `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`;
+      
+      const drugStoreRes1 = await fetch(url1, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const drugStoreJson1 = await drugStoreRes1.json();
+
+      // วิธีที่ 2: ลอง encode URI
+      const url2 = `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${encodeURIComponent(pharmacyId)}`;
+      
+      const drugStoreRes2 = await fetch(url2, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const drugStoreJson2 = await drugStoreRes2.json();
+
+      // วิธีที่ 3: ดึงทุกร้านแล้วหาเอง
+      const url3 = `http://localhost:1337/api/drug-stores`;
+      
+      const drugStoreRes3 = await fetch(url3, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const drugStoreJson3 = await drugStoreRes3.json();
+      
+      // *** ใช้วิธีที่ 3 (ดึงทุกร้านแล้วหาเอง) เพื่อความแน่ใจ ***
+      const targetStore = drugStoreJson3.data?.find(store => {
+        return store.documentId === pharmacyId;
+      });
+      
+      if (!targetStore) {
+        toast.error(`ไม่พบร้านยาที่มี documentId: ${pharmacyId}`);
+        return null;
+      }
+      
+      const drugStoreInternalId = targetStore.id;
+      // ตรวจสอบ duplicate อีกรอบ
+      const checkUrl = `http://localhost:1337/api/staff-profiles?filters[users_permissions_user]=${userId}&filters[drug_store]=${drugStoreInternalId}`;
+      
+      const checkRes = await fetch(checkUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const checkData = await checkRes.json();
 
       if (checkData.data?.length > 0) {
@@ -277,13 +343,16 @@ function FormStaffPage() {
         return null;
       }
 
-      const drugStoreId = await getDrugStoreIdFromDocumentId(pharmacyId);
-
+      // *** สร้าง staff profile ***
       const staffData = {
         data: {
           position: form.position,
-          users_permissions_user: userId,
-          drug_store: drugStoreId,
+          users_permissions_user: {
+            connect: [userId]
+          },
+          drug_store: {
+            connect: [drugStoreInternalId]
+          },
           time_start: form.timeStart ? `${form.timeStart}:00.000` : null,
           time_end: form.timeEnd ? `${form.timeEnd}:00.000` : null,
           working_days: form.workDays,
@@ -296,17 +365,42 @@ function FormStaffPage() {
         body: JSON.stringify(staffData),
       });
 
-      if (!staffRes.ok) throw new Error("เกิดข้อผิดพลาดในการสร้างข้อมูลพนักงาน");
-      const staff = await staffRes.json();
+      if (!staffRes.ok) {
+        const errorText = await staffRes.text();
+        throw new Error("เกิดข้อผิดพลาดในการสร้างข้อมูลพนักงาน: " + errorText);
+      }
 
+      const staff = await staffRes.json();
       const newDocumentId = staff?.data?.documentId;
       if (!newDocumentId) {
         throw new Error("ไม่พบ documentId ของ staff profile ที่สร้าง");
       }
 
-      if (!newDocumentId) {
-        toast.error("สร้าง staff-profile ไม่สำเร็จ กรุณาลองใหม่");
-        return null;
+      // ดึงข้อมูล staff พร้อม populate
+      const verifyUrl = `http://localhost:1337/api/staff-profiles/${newDocumentId}?populate=drug_store,users_permissions_user`;
+      
+      const verifyRes = await fetch(verifyUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (verifyRes.ok) {
+        const verifyData = await verifyRes.json();
+        
+        const linkedDrugStore = verifyData.data?.drug_store;
+        if (linkedDrugStore) {
+          if (linkedDrugStore.documentId !== pharmacyId) {
+            // ลบ staff profile ที่สร้างผิด
+            await fetch(`http://localhost:1337/api/staff-profiles/${newDocumentId}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            toast.error('สร้าง staff ไปผิดร้าน! ได้ลบออกแล้ว กรุณาลองใหม่');
+            return null;
+          } 
+        } else {
+          console.error('Debug - ERROR: No drug_store relation found!');
+        }
       }
 
       toast.success("เพิ่มพนักงานสำเร็จ");
