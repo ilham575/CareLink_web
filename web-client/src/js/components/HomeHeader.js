@@ -84,6 +84,7 @@ function HomeHeader({ pharmacyName, onSearch }) {
     localStorage.removeItem('jwt');
     localStorage.removeItem('role');
     localStorage.removeItem('jwt_issued_at');
+    localStorage.removeItem('user_documentId');
     setIsLoggedIn(false);
     navigate('/login');
   };

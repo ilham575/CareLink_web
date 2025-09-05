@@ -22,39 +22,35 @@ function FormStaffPage() {
     password: "",
     userId: "",
     position: "",
-    profileImage: null,
+    profileImage: null, // file object
     timeStart: "",
     timeEnd: "",
     workDays: [],
   });
-  const [profileImage, setProfileImage] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null); // preview ชั่วคราว
+  const [uploadedImageUrl, setUploadedImageUrl] = useState(null); // รูปจริงจาก Strapi
   const [isNewUser, setIsNewUser] = useState(true);
   const [existingUsers, setExistingUsers] = useState([]);
   const [originalStaff, setOriginalStaff] = useState(null);
   const fileInputRef = useRef();
   const navigate = useNavigate();
 
-  // ดึง user เดิมที่ยังไม่เป็น staff ร้านนี้
-  // useEffect ดึง user staff เฉพาะคนที่ยังไม่ได้เป็น staff ร้านนี้
+  // ===== 1. ดึง user สำหรับเลือก =====
   useEffect(() => {
     if (!documentId && pharmacyId) {
       (async () => {
         const token = localStorage.getItem('jwt');
-        // 1. users ที่ role เป็น staff
         const usersRes = await fetch(
           'http://localhost:1337/api/users?filters[role][name][$eq]=staff',
           { headers: { Authorization: `Bearer ${token}` } }
         );
         let users = await usersRes.json();
         if (!Array.isArray(users)) users = [];
-
-        // 2. staff-profiles ร้านนี้
         const staffRes = await fetch(
           `http://localhost:1337/api/staff-profiles?filters[drug_store][documentId][$eq]=${pharmacyId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const staffProfiles = await staffRes.json();
-        // staff-profiles ที่ร้านนี้
         const staffUserIds = Array.isArray(staffProfiles.data)
           ? staffProfiles.data.map(profile =>
               profile.users_permissions_user?.id ||
@@ -62,15 +58,13 @@ function FormStaffPage() {
               null
             ).filter(Boolean)
           : [];
-
-        // 3. filter users ที่ยังไม่มี staff-profile ในร้านนี้
         const selectableUsers = users.filter(u => !staffUserIds.includes(u.id));
         setExistingUsers(selectableUsers);
       })();
     }
   }, [pharmacyId, documentId]);
 
-  // โหลดข้อมูลเดิมกรณีแก้ไข
+  // ===== 2. โหลดข้อมูล staff-profile เดิม =====
   useEffect(() => {
     if (!documentId) return;
     const token = localStorage.getItem('jwt');
@@ -95,22 +89,36 @@ function FormStaffPage() {
           password: "",
           userId: user.id || "",
           position: staffRaw.position || "",
-          profileImage: null,
+          profileImage: null, // reset ฟิลด์ไฟล์
           timeStart: staffRaw.time_start?.split(':').slice(0, 2).join(':') || "",
           timeEnd: staffRaw.time_end?.split(':').slice(0, 2).join(':') || "",
           workDays: staffRaw.working_days || [],
         });
-        const profileImg = staffRaw.profileimage || {};
-        const imageUrl = profileImg.formats?.thumbnail?.url || profileImg.url || null;
+
+        // รูปจริงจาก Strapi
+        let imageUrl = null;
+        if (staffRaw.profileimage?.data) {
+          const imgAttr = staffRaw.profileimage.data.attributes;
+          imageUrl = imgAttr?.formats?.thumbnail?.url || imgAttr?.url || null;
+        }
+        if (!imageUrl && staffRaw.profileimage?.formats) {
+          imageUrl = staffRaw.profileimage.formats.thumbnail?.url || staffRaw.profileimage.url || null;
+        }
+        if (!imageUrl && typeof staffRaw.profileimage === "string") {
+          imageUrl = staffRaw.profileimage;
+        }
         if (imageUrl) {
           const base = process.env.REACT_APP_API_URL || "http://localhost:1337";
-          setProfileImage(imageUrl.startsWith("/") ? `${base}${imageUrl}` : imageUrl);
+          setUploadedImageUrl(imageUrl.startsWith("/") ? `${base}${imageUrl}` : imageUrl);
+        } else {
+          setUploadedImageUrl(null);
         }
+        setImagePreviewUrl(null); // reset preview
       })
       .catch(() => toast.error("ไม่พบข้อมูลพนักงาน"));
   }, [documentId]);
 
-  // ฟังก์ชัน input ต่างๆ
+  // ===== 3. Input/Preview image =====
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm(f => ({ ...f, [name]: value }));
@@ -118,7 +126,7 @@ function FormStaffPage() {
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setForm(f => ({ ...f, profileImage: e.target.files[0] }));
-      setProfileImage(URL.createObjectURL(e.target.files[0]));
+      setImagePreviewUrl(URL.createObjectURL(e.target.files[0])); // preview
     }
   };
   const handleUploadClick = () => fileInputRef.current.click();
@@ -132,103 +140,197 @@ function FormStaffPage() {
     }));
   };
 
-  // เวลาสร้างใหม่
+  // ===== 4. Unlink รูปเก่า (ถ้ามี) ก่อน upload ใหม่ =====
+  const unlinkOldProfileImage = async (staffId, token) => {
+    await fetch(`http://localhost:1337/api/staff-profiles/${staffId}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ data: { profileimage: null } }),
+    });
+  };
+
+  // ===== 5. Upload รูปใหม่แล้ว patch ใส่ staff-profile =====
+  const uploadProfileImageAndUpdateStaff = async (profileImage, _documentId) => {
+    const token = localStorage.getItem('jwt');
+    if (!profileImage || !_documentId) return;
+    // หา staffId จาก documentId
+    const profileRes = await fetch(
+      `http://localhost:1337/api/staff-profiles?filters[documentId][$eq]=${_documentId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const profileJson = await profileRes.json();
+    const staff = profileJson?.data?.[0];
+    const staffId = profileJson?.data?.[0]?.id;
+    if (!staffId) {
+      toast.error("ไม่พบ staff-profile ที่จะอัพเดตรูป");
+      return;
+    }
+    // unlink รูปเก่า
+    await unlinkOldProfileImage(staffId, token);
+    // upload file
+    const formData = new FormData();
+    formData.append("files", profileImage);
+    const uploadRes = await fetch(`http://localhost:1337/api/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const uploadJson = await uploadRes.json();
+    if (!Array.isArray(uploadJson) || !uploadJson[0]?.id) {
+      toast.error("อัพโหลดรูปไม่สำเร็จ");
+      return;
+    }
+    const imageId = uploadJson[0].id;
+    // patch profileimage
+    const patchRes = await fetch(
+      `http://localhost:1337/api/staff-profiles/${staffId}`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ data: { profileimage: imageId } }),
+      }
+    );
+    if (!patchRes.ok) {
+      toast.error("อัพเดตรูปใน staff-profile ไม่สำเร็จ");
+      return;
+    }
+    // ดึง url จริงมาแสดงใหม่
+    const profileAfter = await fetch(
+      `http://localhost:1337/api/staff-profiles/${staffId}?populate=profileimage`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const afterJson = await profileAfter.json();
+    let imageUrl = null;
+    if (afterJson?.data?.attributes?.profileimage?.data) {
+      const imgAttr = afterJson.data.attributes.profileimage.data.attributes;
+      imageUrl = imgAttr?.formats?.thumbnail?.url || imgAttr?.url || null;
+    }
+    if (imageUrl) {
+      const base = process.env.REACT_APP_API_URL || "http://localhost:1337";
+      setUploadedImageUrl(imageUrl.startsWith("/") ? `${base}${imageUrl}` : imageUrl);
+    }
+    setImagePreviewUrl(null); // ลบ preview ออก
+    toast.success("อัพโหลดรูปสำเร็จ");
+  };
+
+  const getDrugStoreIdFromDocumentId = async (documentId) => {
+    const token = localStorage.getItem('jwt');
+    const res = await fetch(
+      `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const json = await res.json();
+    return json.data?.[0]?.id;
+  };
+
+  // ===== 6. Create staff-profile =====
   const createStaffProfile = async () => {
     try {
       const token = localStorage.getItem('jwt');
       let userId = form.userId;
-      // กรณี user ใหม่
+
       if (isNewUser) {
-        // 1. Get role ID for 'staff'
         const roleRes = await fetch('http://localhost:1337/api/users-permissions/roles', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const roleData = await roleRes.json();
+
         const staffRole = roleData.roles.find(r => r.name === 'staff');
         const targetRoleId = staffRole?.id;
 
-        // 2. สร้าง user ใหม่ (ไม่ใส่ role)
         const userData = {
           username: form.username,
           password: form.password,
           email: `${form.username}@example.com`,
         };
+
         const userRes = await fetch(`http://localhost:1337/api/auth/local/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(userData),
         });
+
         if (!userRes.ok) throw new Error("เกิดข้อผิดพลาดในการสร้างบัญชีผู้ใช้");
         const user = await userRes.json();
+
         userId = user?.user?.id;
 
-        // 3. PATCH full_name, phone, และ role
         await fetch(`http://localhost:1337/api/users/${userId}`, {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             full_name: `${form.firstName} ${form.lastName}`.trim(),
             phone: form.phone,
-            role: targetRoleId, // อัพเดท role ที่นี่
+            role: targetRoleId,
           }),
         });
       }
-      // เช็คซ้ำก่อน
+
       const checkRes = await fetch(
         `http://localhost:1337/api/staff-profiles?filters[users_permissions_user]=${userId}&filters[drug_store][documentId][$eq]=${pharmacyId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const checkData = await checkRes.json();
+
       if (checkData.data?.length > 0) {
         toast.error("user นี้เป็น staff ของร้านนี้อยู่แล้ว");
-        return;
+        return null;
       }
-      // สร้าง staff-profile ใหม่
+
+      const drugStoreId = await getDrugStoreIdFromDocumentId(pharmacyId);
+
       const staffData = {
         data: {
           position: form.position,
           users_permissions_user: userId,
-          drug_store: pharmacyId,
+          drug_store: drugStoreId,
           time_start: form.timeStart ? `${form.timeStart}:00.000` : null,
           time_end: form.timeEnd ? `${form.timeEnd}:00.000` : null,
           working_days: form.workDays,
         },
       };
+
       const staffRes = await fetch(`http://localhost:1337/api/staff-profiles`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(staffData),
       });
+
       if (!staffRes.ok) throw new Error("เกิดข้อผิดพลาดในการสร้างข้อมูลพนักงาน");
       const staff = await staffRes.json();
-      const staffId = staff?.data?.id;
-      // อัพโหลดรูป
-      if (form.profileImage && staffId) {
-        const formData = new FormData();
-        formData.append("files", form.profileImage);
-        formData.append("ref", "api::staff-profile.staff-profile");
-        formData.append("refId", staffId);
-        formData.append("field", "profileimage");
-        await fetch(`http://localhost:1337/api/upload`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
+
+      const newDocumentId = staff?.data?.documentId;
+      if (!newDocumentId) {
+        throw new Error("ไม่พบ documentId ของ staff profile ที่สร้าง");
       }
+
+      if (!newDocumentId) {
+        toast.error("สร้าง staff-profile ไม่สำเร็จ กรุณาลองใหม่");
+        return null;
+      }
+
       toast.success("เพิ่มพนักงานสำเร็จ");
-      navigate(-1, { state: { toastMessage: "เพิ่มพนักงานสำเร็จ" } });
+      return newDocumentId;
     } catch (err) {
       toast.error(err.message || "เกิดข้อผิดพลาดในการเพิ่มพนักงาน");
+      return null;
     }
   };
 
-  // เวลาบันทึกแก้ไข
+  // ===== 7. Update staff-profile =====
   const updateStaffProfile = async () => {
     try {
       const token = localStorage.getItem('jwt');
       const staff = originalStaff;
       const userId = staff?.users_permissions_user?.id;
-      // อัปเดต staff-profile
+      const staffId = staff?.id;
+      const staffDocumentId = staff?.documentId;
+
+      if (!staffId) {
+        toast.error("เกิดข้อผิดพลาด: ไม่พบ staff id ที่จะ update");
+        return null;
+      }
+
       const staffData = {
         data: {
           position: form.position,
@@ -238,52 +340,146 @@ function FormStaffPage() {
           working_days: form.workDays,
         },
       };
-      await fetch(`http://localhost:1337/api/staff-profiles/${documentId}`, {
+
+      const staffUpdateRes = await fetch(`http://localhost:1337/api/staff-profiles/${staffDocumentId}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(staffData),
       });
-      // อัปเดต user (optional)
-      await fetch(`http://localhost:1337/api/users/${userId}`, {
+
+      if (!staffUpdateRes.ok) {
+        throw new Error("เกิดข้อผิดพลาดในการอัปเดตข้อมูล staff-profile");
+      }
+
+      const userData = {
+        full_name: `${form.firstName} ${form.lastName}`.trim(),
+        phone: form.phone,
+      };
+
+      const userUpdateRes = await fetch(`http://localhost:1337/api/users/${userId}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          full_name: `${form.firstName} ${form.lastName}`.trim(),
-          phone: form.phone,
-        }),
+        body: JSON.stringify(userData),
       });
-      // อัพโหลดรูป
-      if (form.profileImage && staff.id) {
-        const formData = new FormData();
-        formData.append("files", form.profileImage);
-        formData.append("ref", "api::staff-profile.staff-profile");
-        formData.append("refId", staff.id);
-        formData.append("field", "profileimage");
-        await fetch(`http://localhost:1337/api/upload`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
+
+      if (!userUpdateRes.ok) {
+        throw new Error("เกิดข้อผิดพลาดในการอัปเดตข้อมูล user");
       }
+
       toast.success("แก้ไขข้อมูลพนักงานสำเร็จ");
-      navigate(-1, { state: { toastMessage: "แก้ไขข้อมูลพนักงานสำเร็จ" } });
+
+      return staffDocumentId;
     } catch (err) {
       toast.error(err.message || "เกิดข้อผิดพลาดในการแก้ไขข้อมูลพนักงาน");
+      return null;
     }
   };
 
-  const handleSubmit = (e) => {
+  // ===== 8. SUBMIT =====
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (form.timeStart && form.timeEnd && form.timeStart >= form.timeEnd) {
       toast.error("เวลาเริ่มงานต้องก่อนเวลาเลิกงาน");
       return;
     }
-    if (documentId) {
-      updateStaffProfile();
-    } else {
-      createStaffProfile();
+
+    const token = localStorage.getItem("jwt");
+    let docId = documentId;
+    let uploadedImageId = null;
+
+    try {
+      // 1. ถ้ามีรูป → อัปโหลดรูปก่อน
+      if (form.profileImage) {
+        const formData = new FormData();
+        formData.append("files", form.profileImage);
+
+        const uploadRes = await fetch("http://localhost:1337/api/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+
+        const uploadJson = await uploadRes.json();
+        uploadedImageId = uploadJson?.[0]?.id;
+
+        if (!uploadedImageId) {
+          toast.error("อัปโหลดรูปภาพไม่สำเร็จ");
+          return;
+        }
+      }
+
+      // 2. ถ้าไม่มี docId → แสดงว่าเป็นการเพิ่ม
+      if (!docId) {
+        docId = await createStaffProfile();
+        if (!docId) {
+          toast.error("สร้างพนักงานไม่สำเร็จ");
+          return;
+        }
+      } else {
+        // 3. ถ้ามี docId → อัปเดตข้อมูล (ไม่รวมรูป)
+        const updated = await updateStaffProfile();
+        if (!updated) {
+          toast.error("อัปเดตพนักงานไม่สำเร็จ");
+          return;
+        }
+      }
+
+      // 4. ถ้ามีรูปที่อัปโหลด → PATCH ด้วย docId (ค้น internal id)
+      if (uploadedImageId && docId) {
+        const staffRes = await fetch(
+          `http://localhost:1337/api/staff-profiles?filters[documentId][$eq]=${docId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        const staffJson = await staffRes.json();
+        const internalId = staffJson?.data?.[0]?.id;
+
+        if (!internalId) {
+          toast.error("ไม่พบพนักงานจาก docId");
+          return;
+        }
+
+        const patchRes = await fetch(
+          `http://localhost:1337/api/staff-profiles/${docId}`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              data: {
+                profileimage: uploadedImageId,
+              },
+            }),
+          }
+        );
+
+        if (!patchRes.ok) {
+          toast.error("อัปเดตรูปภาพไม่สำเร็จ");
+          return;
+        }
+
+        toast.success("อัปโหลดและผูกรูปภาพสำเร็จ");
+      }
+
+      // 5. กลับหน้าก่อน พร้อม toast
+      navigate(-1, {
+        state: {
+          toastMessage: documentId
+            ? "แก้ไขข้อมูลพนักงานสำเร็จ"
+            : "เพิ่มพนักงานสำเร็จ",
+        },
+      });
+    } catch (err) {
+      console.error("เกิดข้อผิดพลาด:", err);
+      toast.error("เกิดข้อผิดพลาดระหว่างบันทึกข้อมูล");
     }
   };
+
 
   return (
     <div className="signup-page-container">
@@ -339,7 +535,7 @@ function FormStaffPage() {
                     value={form.username}
                     onChange={handleChange}
                     required
-                    disabled={!!documentId} // Disable when editing
+                    disabled={!!documentId}
                   />
                   <label>PASSWORD</label>
                   <input
@@ -347,7 +543,7 @@ function FormStaffPage() {
                     name="password"
                     value={form.password}
                     onChange={handleChange}
-                    required={isNewUser && !documentId} // Required only for new users
+                    required={isNewUser && !documentId}
                   />
                 </>
               )}
@@ -381,8 +577,10 @@ function FormStaffPage() {
             <div className="signup-form-right">
               <label>เพิ่มรูปภาพพนักงาน</label>
               <div className="signup-upload-box" onClick={handleUploadClick}>
-                {profileImage ? (
-                  <img src={profileImage} alt="profile" className="signup-profile-preview" />
+                {imagePreviewUrl ? (
+                  <img src={imagePreviewUrl} alt="profile" className="signup-profile-preview" />
+                ) : uploadedImageUrl ? (
+                  <img src={uploadedImageUrl} alt="profile" className="signup-profile-preview" />
                 ) : (
                   <span className="signup-upload-icon">&#8682;</span>
                 )}
