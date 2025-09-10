@@ -12,6 +12,7 @@ function AddPharmacyAdmin() {
     address: "",
     phone_store: "",
     time_open: "",
+    time_close: "",
     link_gps: "",
     type: "",
     photo_front: null,
@@ -34,34 +35,46 @@ function AddPharmacyAdmin() {
   const handleNext = () => setStep(2);
   const handleBack = () => setStep(1);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // ✅ สร้าง object mock
-    const mockPharmacy = {
-      id: Date.now(), // unique id
-      name_th: formData.name_th,
-      name_en: formData.name_en,
-      license_number: formData.license_number,
-      license_doc: formData.license_doc,
-      address: formData.address,
-      phone_store: formData.phone_store,
-      time_open: formData.time_open,
-      time_close: "20:00", // mock เวลาเปิด-ปิด
-      link_gps: formData.link_gps,
-      type: formData.type,
-      photo_front: formData.photo_front ? URL.createObjectURL(formData.photo_front) : null,
-      photo_in: formData.photo_in ? URL.createObjectURL(formData.photo_in) : null,
-      photo_staff: formData.photo_staff ? URL.createObjectURL(formData.photo_staff) : null,
-    };
+    const form = new FormData();
+    // ใส่ข้อมูลใน data object
+    form.append("data[name_th]", formData.name_th);
+    form.append("data[name_en]", formData.name_en);
+    form.append("data[drug_regiter_no]", formData.license_number);
+    form.append("data[drug_business_no]", formData.license_doc);
+    form.append("data[address]", formData.address);
+    form.append("data[phone_store]", formData.phone_store);
+    form.append("data[time_open]", formData.time_open ? `${formData.time_open}:00.000` : "");
+    form.append("data[time_close]", formData.time_close ? `${formData.time_close}:00.000` : "21:00:00.000");
+    form.append("data[link_gps]", formData.link_gps);
+    // form.append("data[type]", formData.type);
 
-    // ✅ ดึง mock เดิมจาก localStorage แล้วเพิ่มใหม่เข้าไป
-    let mockPharmacies = JSON.parse(localStorage.getItem("mock_pharmacies") || "[]");
-    mockPharmacies.push(mockPharmacy);
-    localStorage.setItem("mock_pharmacies", JSON.stringify(mockPharmacies));
+    // ใส่ไฟล์ใน files object
+    if (formData.photo_front) form.append("files.photo_front", formData.photo_front);
+    if (formData.photo_in) form.append("files.photo_in", formData.photo_in);
+    if (formData.photo_staff) form.append("files.photo_staff", formData.photo_staff);
 
-    alert("บันทึกร้านขายยาเรียบร้อย!");
-    navigate("/adminhome"); // กลับไปหน้า home
+    try {
+      const token = localStorage.getItem("jwt");
+      const res = await fetch("http://localhost:1337/api/drug-stores", {
+        method: "POST",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
+        body: form,
+      });
+      if (res.ok) {
+        alert("บันทึกร้านขายยาเรียบร้อย!");
+        navigate("/adminhome");
+      } else {
+        const error = await res.json();
+        alert("เกิดข้อผิดพลาด: " + (error.message || JSON.stringify(error)));
+      }
+    } catch (err) {
+      alert("เกิดข้อผิดพลาด: " + err.message);
+    }
   };
 
   return (
@@ -138,6 +151,16 @@ function AddPharmacyAdmin() {
               type="time"
               name="time_open"
               value={formData.time_open}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+            />
+          </div>
+          <div>
+            <label className="block font-semibold mb-1">เวลาปิดทำการ*</label>
+            <input
+              type="time"
+              name="time_close"
+              value={formData.time_close}
               onChange={handleChange}
               className="w-full border rounded p-2"
             />
