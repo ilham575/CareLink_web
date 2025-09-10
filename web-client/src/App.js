@@ -34,13 +34,13 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/drug_store/:id" element={<DrugStoreDetail />} />
 
-          {/* <Route element={<RequireRole role="admin" />}>
+          <Route element={<RequireRole role="admin" />}>
             <Route path="/adminHome" element={<AdminHome />} />
             <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
-          </Route> */}
-          <Route path="/adminHome" element={<AdminHome />} />
+          </Route>
+          {/* <Route path="/adminHome" element={<AdminHome />} />
           <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
-          <Route path="/add_drug_store_admin" element={<AddPharmacyAdmin />} />
+          <Route path="/add_drug_store_admin" element={<AddPharmacyAdmin />} /> */}
 
 
 
@@ -59,6 +59,7 @@ function App() {
           </Route>
 
           <Route element={<RequireRole role={['admin', 'pharmacy']} />}>
+          <Route path="/add_drug_store_admin" element={<AddPharmacyAdmin />} /> 
             <Route path="/drug_store_staff/:id" element={<StaffPage />} />
             <Route path="/form_staff" element={<FormStaffPage />} />
           </Route>
