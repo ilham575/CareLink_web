@@ -114,14 +114,27 @@ function StaffPage({ id }) {
 
           const deleteUser = async () => {
             if (!userId) return;
+            // ตรวจสอบว่ามี staff-profile อื่นที่เชื่อมกับ userId นี้หรือไม่
+            const checkRes = await fetch(
+              `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userId}`,
+              { headers: authHeaders }
+            );
+            const checkJson = await checkRes.json().catch(() => ({}));
+            const relatedProfiles = Array.isArray(checkJson?.data) ? checkJson.data : [];
+            // ถ้ามีมากกว่า 1 record (หรือแม้แต่ 1 recordที่ไม่ใช่ staffDocumentId นี้) ให้ไม่ลบ user
+            const otherProfiles = relatedProfiles.filter(
+              profile => profile.id !== staffId
+            );
+            if (otherProfiles.length > 0) return; // ยังมี profile อื่นเชื่อม user นี้อยู่
+
+            // ถ้าไม่มี profile อื่นเชื่อม user นี้ ค่อยลบ
             try {
               const res = await fetch(
                 `http://localhost:1337/api/users/${userId}`,
                 { method: "DELETE", headers: authHeaders }
               );
-              const text = await res.text().catch(() => "");
-            } catch (e) {
-            }
+              await res.text().catch(() => "");
+            } catch (e) {}
           };
 
           const refreshList = async () => {
