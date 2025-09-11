@@ -18,6 +18,8 @@ import StaffPage from './js/components/middle_page/staffPage';
 import FormStaffPage from './js/components/middle_page/formStaffPage';
 
 import PharmacistDetail_admin from './js/pages/admin/PharmacistDetail_admin';
+import EditPharmacist_admin from "./js/pages/admin/EditPharmacist_admin";
+import EditStore_admin from "./js/pages/admin/EditStore_admin"
 
 
 // ✅ เปลี่ยนชื่อ import ให้เป็นมาตรฐาน
@@ -43,10 +45,12 @@ function App() {
           <Route element={<RequireRole role="admin" />}>
             <Route path="/adminHome" element={<AdminHome />} />
             <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
-            <Route path="/add_store_admin" element={< AddStore_admin />} />
+            <Route path="/add_store_admin" element={<AddStore_admin />} />
             <Route path="/add_pharmacy_admin" element={<AddPharmacy_admin />} />
             <Route path="/add_pharmacy_admin/:storeId" element={<AddPharmacy_admin />} />
             <Route path="/pharmacist_detail_admin/:storeId" element={<PharmacistDetail_admin />} />
+            <Route path="/edit_pharmacist_admin/:id" element={<EditPharmacist_admin />}/>
+            <Route path="/edit_store_admin/:id" element={<EditStore_admin />}/>
           </Route>
 
           {/* -------------------- PHARMACY -------------------- */}

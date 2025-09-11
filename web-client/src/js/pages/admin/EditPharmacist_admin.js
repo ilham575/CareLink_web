@@ -1,28 +1,34 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { db } from "../../db"; // ✅ ใช้ IndexedDB
+import { db } from "../../db";
 
-function AddPharmacy_admin() {
+function EditPharmacist_admin() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { storeId } = useParams();
+  const [formData, setFormData] = useState(null);
 
-  const [formData, setFormData] = useState({
-    firstname: "",
-    lastname: "",
-    license_number: "",
-    time_in: "",
-    time_out: "",
-    phone: "",
-    username: "",
-    password: "",
-    services: {
-      sell_products: false,
-      consulting: false,
-      wholesale: false,
-      delivery: false,
-    },
-    is_primary: false,
-  });
+  useEffect(() => {
+    const load = async () => {
+      const pharmacist = await db.pharmacists.get(parseInt(id, 10));
+      if (pharmacist) {
+        const [time_in, time_out] = pharmacist.working_time?.split(" - ") || ["", ""];
+        setFormData({
+          ...pharmacist,
+          time_in,
+          time_out,
+          services: pharmacist.services || {
+            sell_products: false,
+            consulting: false,
+            wholesale: false,
+            delivery: false,
+          },
+        });
+      }
+    };
+    load();
+  }, [id]);
+
+  if (!formData) return <div className="p-6">กำลังโหลดข้อมูล...</div>;
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -43,28 +49,20 @@ function AddPharmacy_admin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const pharmacist = {
-      storeId,
-      firstname: formData.firstname,
-      lastname: formData.lastname,
-      license_number: formData.license_number,
+    const updated = {
+      ...formData,
       working_time: `${formData.time_in} - ${formData.time_out}`,
-      phone: formData.phone,
-      username: formData.username,
-      password: formData.password,
-      services: formData.services,
-      is_primary: formData.is_primary,
     };
 
-    await db.pharmacists.add(pharmacist);
-    alert(`บันทึกเภสัชกรเรียบร้อย! (ร้าน ${storeId})`);
-    navigate("/adminhome");
+    await db.pharmacists.put(updated);
+    alert("อัปเดตข้อมูลเภสัชกรเรียบร้อย!");
+    navigate(`/pharmacist_detail_admin/${formData.storeId}`);
   };
 
   return (
     <div className="max-w-3xl mx-auto bg-white shadow-md rounded-lg p-6 mt-6">
       <h2 className="text-2xl font-bold text-green-700 mb-4">
-        เพิ่มเภสัชกรประจำร้านขายยา
+        แก้ไขข้อมูลเภสัชกร
       </h2>
 
       <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
@@ -92,10 +90,8 @@ function AddPharmacy_admin() {
           />
         </div>
 
-        <div className="md:col-span-2">
-          <label className="block font-semibold mb-1">
-            เลขที่ใบอนุญาตประกอบวิชาชีพเภสัชกรรม*
-          </label>
+        <div>
+          <label className="block font-semibold mb-1">เลขที่ใบอนุญาต*</label>
           <input
             type="text"
             name="license_number"
@@ -108,7 +104,7 @@ function AddPharmacy_admin() {
 
         {/* ✅ เบอร์โทรศัพท์เภสัชกร */}
         <div>
-          <label className="block font-semibold mb-1">เบอร์โทรศัพท์เภสัชกร*</label>
+          <label className="block font-semibold mb-1">เบอร์โทรศัพท์*</label>
           <input
             type="tel"
             name="phone"
@@ -171,66 +167,61 @@ function AddPharmacy_admin() {
 
         {/* Services */}
         <div className="md:col-span-2">
-          <label className="block font-semibold mb-2">การให้บริการ*</label>
-          <div className="space-y-3 p-4 bg-gray-100 rounded">
-            <label className="flex items-start gap-2">
+          <label className="block font-semibold mb-1">การให้บริการ*</label>
+          <div className="space-y-2 p-4 bg-gray-100 rounded">
+            <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 name="sell_products"
                 checked={formData.services.sell_products}
                 onChange={handleChange}
-                className="mt-1"
               />
               <span>จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ</span>
             </label>
-            <label className="flex items-start gap-2">
+            <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 name="consulting"
                 checked={formData.services.consulting}
                 onChange={handleChange}
-                className="mt-1"
               />
               <span>ให้คำปรึกษาทางเภสัชกรรม</span>
             </label>
-            <label className="flex items-start gap-2">
+            <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 name="wholesale"
                 checked={formData.services.wholesale}
                 onChange={handleChange}
-                className="mt-1"
               />
               <span>ขายปลีกและขายส่ง</span>
             </label>
-            <label className="flex items-start gap-2">
+            <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 name="delivery"
                 checked={formData.services.delivery}
                 onChange={handleChange}
-                className="mt-1"
               />
               <span>บริการจัดส่งกล่องยาสามัญประจำบ้าน</span>
             </label>
-            <label className="flex items-start gap-2">
+            <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 name="is_primary"
                 checked={formData.is_primary}
                 onChange={handleChange}
-                className="mt-1"
               />
-              <span>เป็นเภสัชกรประจำร้านนี้</span>
-            </label>
+            <span>เป็นเภสัชกรประจำร้านนี้</span>
+          </label>
           </div>
         </div>
         <div className="md:col-span-2 flex justify-end">
           <button
             type="submit"
-            className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
+            className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
           >
-            บันทึก
+            บันทึกการแก้ไข
           </button>
         </div>
       </form>
@@ -238,4 +229,4 @@ function AddPharmacy_admin() {
   );
 }
 
-export default AddPharmacy_admin;
+export default EditPharmacist_admin;
