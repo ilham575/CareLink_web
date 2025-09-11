@@ -6,21 +6,16 @@ import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/home.css';
 import Footer from '../../components/footer';
 
-function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front, pharmacists, onDelete }) {
+function PharmacyItem({ documentId, name_th, address, time_open, time_close, phone_store, photo_front, pharmacists, onDelete }) {
   const navigate = useNavigate();
 
   const getImageUrl = (photo) => {
     if (!photo) return null;
-
-    // ✅ ถ้าเป็น string URL (จาก mock localStorage)
     if (typeof photo === "string") {
       return photo;
     }
-
-    // ✅ ถ้าเป็น object จาก API Strapi
     if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
     if (photo.url) return photo.url;
-
     return null;
   };
 
@@ -54,7 +49,7 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
         <button
           className="detail-button"
           style={{ background: '#2196F3' }}
-          onClick={() => navigate(`/drug_store_admin/${id}`)}
+          onClick={() => navigate(`/drug_store_admin/${documentId}`)}
         >
           รายละเอียดร้านยา
         </button>
@@ -62,7 +57,6 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
         <button
           className="detail-button"
           style={{ background: '#4CAF50' }}
-         // onClick={() => alert("TODO: ไปหน้าเภสัชกรประจำร้านยา")}
         >
           เภสัชกร<br />ประจำร้านยา
         </button>
@@ -70,7 +64,7 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
         <button
           className="detail-button"
           style={{ background: '#f44336' }}
-          onClick={() => onDelete(id)}
+          onClick={() => onDelete(documentId)}
         >
           กดเพื่อลบร้านยา
         </button>
@@ -97,33 +91,24 @@ function AdminHome() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // ✅ mock pharmacies จาก localStorage
-        const mockPharmacies = JSON.parse(localStorage.getItem("mock_pharmacies") || "[]");
-
-        // ✅ fetch จาก API จริง
         const res = await fetch('http://localhost:1337/api/drug-stores?populate=*', {
           headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
         });
         const drugStoresRes = await res.json();
         const drugStores = drugStoresRes.data || [];
 
-        // ✅ แปลง API → pharmacies
-        const pharmaciesFromAPI = drugStores.map(store => {
-          const attrs = store.attributes || {};
-          return {
-            id: store.id,
-            name_th: store.name_th,
-            address: store.address,
-            time_open: formatTime(store.time_open),
-            time_close: formatTime(store.time_close),
-            phone_store: store.phone_store,
-            photo_front: (store.photo_front && store.photo_front.formats) ? store.photo_front : (attrs.photo_front?.data?.attributes || store.photo_front || null),
-            pharmacists: [],
-          };
-        });
+        const pharmaciesFromAPI = drugStores.map(store => ({
+          documentId: store.documentId,
+          name_th: store.name_th,
+          address: store.address,
+          time_open: formatTime(store.time_open),
+          time_close: formatTime(store.time_close),
+          phone_store: store.phone_store,
+          photo_front: (store.photo_front && store.photo_front.formats) ? store.photo_front : (store.attributes?.photo_front?.data?.attributes || store.photo_front || null),
+          pharmacists: [],
+        }));
 
-        // ✅ รวม API + mock
-        setPharmacies([...pharmaciesFromAPI, ...mockPharmacies]);
+        setPharmacies(pharmaciesFromAPI);
         setLoading(false);
       } catch (err) {
         setLoading(false);
@@ -133,26 +118,55 @@ function AdminHome() {
     loadData();
   }, [jwt]);
 
-  // ✅ ฟังก์ชันลบร้านยา (รวม mock + api)
-  const handleDelete = async (id) => {
+  const handleDelete = async (documentId) => {
     if (!window.confirm("คุณต้องการลบร้านยานี้หรือไม่?")) return;
     try {
-      // ลบจาก localStorage
-      let mockPharmacies = JSON.parse(localStorage.getItem("mock_pharmacies") || "[]");
-      mockPharmacies = mockPharmacies.filter(p => p.id !== id);
-      localStorage.setItem("mock_pharmacies", JSON.stringify(mockPharmacies));
-
-      // ลบจาก state
-      setPharmacies(prev => prev.filter(p => p.id !== id));
-
-      // ลองลบจาก API (ถ้า id เป็นของ API จริง)
-      await fetch(`http://localhost:1337/api/drug-stores/${id}`, {
-        method: "DELETE",
+      // ค้นหา record ที่มี documentId ตรงกัน
+      const resFind = await fetch('http://localhost:1337/api/drug-stores?filters[documentId][$eq]=' + documentId + '&populate=*', {
         headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
       });
-
-      toast.success("ลบร้านยาเรียบร้อยแล้ว!");
+      const findJson = await resFind.json();
+      const stores = findJson.data || [];
+      console.log('พบร้านยาที่จะลบ:', stores);
+      if (stores.length === 0) {
+        toast.error("ไม่พบร้านยานี้ในระบบ");
+        return;
+      }
+      // ลบแค่ร้านแรกที่เจอ (ไม่ใช้ id โดยตรง)
+      const storeToDelete = stores[0];
+      console.log('ลบร้านยาที่มี id:', storeToDelete.id);
+      // const deleteRes = await fetch(`http://localhost:1337/api/drug-stores/${documentId}`, {
+      //   method: "DELETE",
+      //   headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
+      // });
+      // const deleteJson = await deleteRes.json().catch(() => ({}));
+      // console.log('ผลลัพธ์การลบร้านยา:', deleteRes.status, deleteJson);
+      if (storeToDelete.ok) {
+        toast.success("ลบร้านยาเรียบร้อยแล้ว!");
+      } else {
+        toast.error("ลบไม่สำเร็จ กรุณาตรวจสอบ");
+      }
+      // reload ข้อมูลใหม่จาก API
+      setLoading(true);
+      const res = await fetch('http://localhost:1337/api/drug-stores?populate=*', {
+        headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
+      });
+      const drugStoresRes = await res.json();
+      const drugStores = drugStoresRes.data || [];
+      const pharmaciesFromAPI = drugStores.map(store => ({
+        documentId: store.documentId,
+        name_th: store.name_th,
+        address: store.address,
+        time_open: formatTime(store.time_open),
+        time_close: formatTime(store.time_close),
+        phone_store: store.phone_store,
+        photo_front: (store.photo_front && store.photo_front.formats) ? store.photo_front : (store.attributes?.photo_front?.data?.attributes || store.photo_front || null),
+        pharmacists: [],
+      }));
+      setPharmacies(pharmaciesFromAPI);
+      setLoading(false);
     } catch (err) {
+      console.error('เกิดข้อผิดพลาดในการลบ:', err);
       toast.error("เกิดข้อผิดพลาดในการลบ");
     }
   };
@@ -192,7 +206,7 @@ function AdminHome() {
             return (
               <PharmacyItem
                 {...pharmacy}
-                key={pharmacy.id}
+                key={pharmacy.documentId}
                 onDelete={handleDelete}
               />
             );

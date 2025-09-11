@@ -21,12 +21,34 @@ function AddPharmacyAdmin() {
     confirm: false,
   });
 
+  // เพิ่ม state เพื่อป้องกันการ submit ซ้ำ
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
     if (type === "checkbox") {
       setFormData({ ...formData, [name]: checked });
     } else if (type === "file") {
-      setFormData({ ...formData, [name]: files[0] });
+      // ตรวจสอบไฟล์ทันทีเมื่อเลือก
+      const file = files[0];
+      if (file) {
+        // ตรวจสอบประเภทไฟล์
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+          alert(`ไฟล์ ${file.name} ไม่ใช่รูปภาพที่ถูกต้อง\nรองรับเฉพาะ: JPEG, PNG, GIF, WebP`);
+          e.target.value = ''; // ล้างการเลือกไฟล์
+          return;
+        }
+        
+        // ตรวจสอบขนาดไฟล์
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+          alert(`ไฟล์ ${file.name} มีขนาดใหญ่เกินไป\nขนาดสูงสุด: 10MB\nขนาดไฟล์ปัจจุบัน: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+          e.target.value = ''; // ล้างการเลือกไฟล์
+          return;
+        }
+      }
+      setFormData({ ...formData, [name]: file });
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -37,43 +59,118 @@ function AddPharmacyAdmin() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const form = new FormData();
-    // ใส่ข้อมูลใน data object
-    form.append("data[name_th]", formData.name_th);
-    form.append("data[name_en]", formData.name_en);
-    form.append("data[drug_regiter_no]", formData.license_number);
-    form.append("data[drug_business_no]", formData.license_doc);
-    form.append("data[address]", formData.address);
-    form.append("data[phone_store]", formData.phone_store);
-    form.append("data[time_open]", formData.time_open ? `${formData.time_open}:00.000` : "");
-    form.append("data[time_close]", formData.time_close ? `${formData.time_close}:00.000` : "21:00:00.000");
-    form.append("data[link_gps]", formData.link_gps);
-    // form.append("data[type]", formData.type);
-
-    // ใส่ไฟล์ใน files object
-    if (formData.photo_front) form.append("files.photo_front", formData.photo_front);
-    if (formData.photo_in) form.append("files.photo_in", formData.photo_in);
-    if (formData.photo_staff) form.append("files.photo_staff", formData.photo_staff);
+    
+    // ป้องกันการ submit ซ้ำอย่างเข้มงวด
+    if (isSubmitting) {
+      console.log("กำลัง submit อยู่แล้ว ไม่สามารถ submit ซ้ำได้");
+      return;
+    }
+    
+    setIsSubmitting(true);
 
     try {
       const token = localStorage.getItem("jwt");
-      const res = await fetch("http://localhost:1337/api/drug-stores", {
+      if (!token) {
+        throw new Error("ไม่พบ token การยืนยันตัวตน กรุณาเข้าสู่ระบบใหม่");
+      }
+      
+      // ตรวจสอบข้อมูลที่จำเป็น
+      if (!formData.name_th || !formData.license_number || !formData.address || !formData.phone_store) {
+        throw new Error("กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน");
+      }
+      
+      // Step 1: สร้าง drug-store record ก่อน (ไม่มีรูป)
+      const storeData = {
+        data: {
+          name_th: formData.name_th.trim(),
+          name_en: formData.name_en.trim(),
+          drug_regiter_no: formData.license_number.trim(),
+          drug_business_no: formData.license_doc.trim(),
+          address: formData.address.trim(),
+          phone_store: formData.phone_store.trim(),
+          time_open: formData.time_open ? `${formData.time_open}:00.000` : "08:00:00.000",
+          time_close: formData.time_close ? `${formData.time_close}:00.000` : "21:00:00.000",
+          link_gps: formData.link_gps.trim(),
+          // type: formData.type || "type1", // เพิ่ม type กลับมาพร้อมค่าเริ่มต้น
+        }
+      };
+
+      const storeRes = await fetch("http://localhost:1337/api/drug-stores", {
         method: "POST",
         headers: {
-          Authorization: token ? `Bearer ${token}` : undefined,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: form,
+        body: JSON.stringify(storeData),
       });
-      if (res.ok) {
-        alert("บันทึกร้านขายยาเรียบร้อย!");
-        navigate("/adminhome");
-      } else {
-        const error = await res.json();
-        alert("เกิดข้อผิดพลาด: " + (error.message || JSON.stringify(error)));
+
+      if (!storeRes.ok) {
+        const error = await storeRes.json();
+        throw new Error(error.error?.message || error.message || "ไม่สามารถสร้างร้านยาได้");
       }
+
+      const createdStore = await storeRes.json();
+      const storeId = createdStore.data.id;
+
+      // Step 2: อัพโหลดรูปภาพทีละรูป (เฉพาะที่มีไฟล์)
+      const imageFields = [
+        { field: 'photo_front', file: formData.photo_front, displayName: 'รูปด้านหน้าร้าน' },
+        { field: 'photo_in', file: formData.photo_in, displayName: 'รูปด้านในร้าน' },
+        { field: 'photo_staff', file: formData.photo_staff, displayName: 'รูปเภสัชกรและพนักงาน' }
+      ];
+
+      let uploadErrors = [];
+
+      for (const { field, file, displayName } of imageFields) {
+        if (file) {
+          try {
+            // ตรวจสอบไฟล์อีกครั้งก่อนอัพโหลด
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            if (!validTypes.includes(file.type)) {
+              throw new Error(`${displayName}: ประเภทไฟล์ไม่ถูกต้อง`);
+            }
+
+            // สร้าง FormData ใหม่สำหรับแต่ละรูป
+            const formDataImg = new FormData();
+            formDataImg.append('files', file);
+            formDataImg.append('ref', 'api::drug-store.drug-store');
+            formDataImg.append('refId', storeId.toString());
+            formDataImg.append('field', field);
+
+            const uploadRes = await fetch("http://localhost:1337/api/upload", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                // ไม่ต้องใส่ Content-Type สำหรับ FormData
+              },
+              body: formDataImg,
+            });
+
+            if (!uploadRes.ok) {
+              const error = await uploadRes.json();
+              uploadErrors.push(`${displayName}: ${error.error?.message || 'ไม่ทราบสาเหตุ'}`);
+            }
+          } catch (uploadError) {
+            uploadErrors.push(`${displayName}: ${uploadError.message || 'เกิดข้อผิดพลาดในการอัพโหลด'}`);
+          }
+        }
+      }
+
+      // แสดงผลลัพธ์
+      if (uploadErrors.length > 0) {
+        alert(`บันทึกร้านยาสำเร็จ!\n\nแต่มีปัญหาในการอัพโหลดรูปภาพ:\n${uploadErrors.join('\n')}\n\nคุณสามารถแก้ไขรูปภาพได้ในภายหลัง`);
+      } else {
+        alert("บันทึกร้านขายยาเรียบร้อย!");
+      }
+      
+      // ป้องกันการนำทางซ้ำ
+      if (!isSubmitting) return;
+      navigate("/adminhome");
+
     } catch (err) {
       alert("เกิดข้อผิดพลาด: " + err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -207,15 +304,33 @@ function AddPharmacyAdmin() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block font-semibold mb-1">รูปด้านหน้าร้านยา*</label>
-              <input type="file" name="photo_front" onChange={handleChange} className="w-full" />
+              <input 
+                type="file" 
+                name="photo_front" 
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleChange} 
+                className="w-full" 
+              />
             </div>
             <div>
               <label className="block font-semibold mb-1">รูปด้านในร้านยา*</label>
-              <input type="file" name="photo_in" onChange={handleChange} className="w-full" />
+              <input 
+                type="file" 
+                name="photo_in" 
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleChange} 
+                className="w-full" 
+              />
             </div>
             <div>
               <label className="block font-semibold mb-1">รูปเภสัชกรและพนักงาน*</label>
-              <input type="file" name="photo_staff" onChange={handleChange} className="w-full" />
+              <input 
+                type="file" 
+                name="photo_staff" 
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleChange} 
+                className="w-full" 
+              />
             </div>
           </div>
 
@@ -243,13 +358,14 @@ function AddPharmacyAdmin() {
             <button
               type="submit"
               className={`py-2 px-6 rounded font-bold ${
-                formData.confirm
+                formData.confirm && !isSubmitting
                   ? "bg-green-600 text-white hover:bg-green-700"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
-              disabled={!formData.confirm}
+              disabled={!formData.confirm || isSubmitting}
+              style={{ pointerEvents: isSubmitting ? 'none' : 'auto' }}
             >
-              บันทึก
+              {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
             </button>
           </div>
         </form>

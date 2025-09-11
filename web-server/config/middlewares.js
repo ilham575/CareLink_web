@@ -16,7 +16,17 @@ module.exports = [
   'strapi::poweredBy',
   'strapi::logger',
   'strapi::query',
-  'strapi::body',
+  {
+    name: 'strapi::body',
+    config: {
+      formLimit: '256mb', // สำหรับ form data
+      jsonLimit: '256mb', // สำหรับ JSON data  
+      textLimit: '256mb', // สำหรับ text data
+      formidable: {
+        maxFileSize: 50 * 1024 * 1024, // 50MB สำหรับการอัพโหลดไฟล์
+      },
+    },
+  },
   'strapi::session',
   'strapi::favicon',
   'strapi::public',
