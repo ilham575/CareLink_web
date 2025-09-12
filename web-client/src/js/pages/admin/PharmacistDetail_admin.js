@@ -11,22 +11,37 @@ function PharmacistDetail_admin() {
   // ✅ โหลดข้อมูลร้าน + เภสัชกร
   useEffect(() => {
     const load = async () => {
+      // ✅ pharmacy.id เป็น number → แปลง storeId เป็น Number
       const foundPharmacy = await db.pharmacies.get(Number(storeId));
       setPharmacy(foundPharmacy);
 
-      const foundPharmacists = await db.pharmacists
-        .where("storeId")
-        .equals(storeId)
-        .toArray();
+      // ✅ โหลดเภสัชทั้งหมด แล้ว filter เอาคนที่มี storeIds รวมร้านนี้อยู่
+      const allPharmacists = await db.pharmacists.toArray();
+      const foundPharmacists = allPharmacists.filter((p) =>
+        p.storeIds?.includes(storeId) // storeId มาจาก useParams เป็น string → เก็บใน array ควรเก็บเป็น string เหมือนกัน
+      );
       setPharmacists(foundPharmacists);
     };
     load();
   }, [storeId]);
 
-  // ✅ ลบเภสัชกร
+  // ✅ ลบเภสัชกรออกจากร้านนี้ (ไม่ลบทั้ง record ถ้ายังอยู่ร้านอื่น)
   const handleDelete = async (id) => {
-    if (window.confirm("คุณต้องการลบเภสัชกรคนนี้หรือไม่?")) {
-      await db.pharmacists.delete(id);
+    if (window.confirm("คุณต้องการเอาเภสัชกรคนนี้ออกจากร้านนี้หรือไม่?")) {
+      const pharmacist = await db.pharmacists.get(Number(id));
+      if (!pharmacist) return;
+
+      // ลบ storeId ปัจจุบันออกจาก storeIds
+      const newStores = pharmacist.storeIds.filter((sid) => sid !== storeId);
+
+      if (newStores.length === 0) {
+        // ❌ ถ้าไม่เหลือร้าน → ลบ record ออกเลย
+        await db.pharmacists.delete(pharmacist.id);
+      } else {
+        // ✅ ถ้ายังมีร้านอื่นอยู่ → update storeIds
+        await db.pharmacists.update(pharmacist.id, { storeIds: newStores });
+      }
+
       setPharmacists((prev) => prev.filter((p) => p.id !== id));
     }
   };
@@ -105,6 +120,8 @@ function PharmacistDetail_admin() {
                     <li>บริการจัดส่งกล่องยาสามัญประจำบ้าน</li>
                   )}
                 </ul>
+
+        
               </div>
 
               {/* ✅ ปุ่มแก้ไข + ลบ */}
@@ -121,7 +138,7 @@ function PharmacistDetail_admin() {
                   onClick={() => handleDelete(pharmacist.id)}
                   className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
                 >
-                  ลบ
+                  เอาออกจากร้านนี้
                 </button>
               </div>
             </div>
