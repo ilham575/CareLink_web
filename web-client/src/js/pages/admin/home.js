@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
+import { db } from '../../db';   // ✅ import db.js
 import '../../../css/pages/default/home.css';
 import Footer from '../../components/footer';
 
@@ -11,9 +12,7 @@ function PharmacyItem({ documentId, name_th, address, time_open, time_close, pho
 
   const getImageUrl = (photo) => {
     if (!photo) return null;
-    if (typeof photo === "string") {
-      return photo;
-    }
+    if (typeof photo === "string") return photo;
     if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
     if (photo.url) return photo.url;
     return null;
@@ -57,6 +56,7 @@ function PharmacyItem({ documentId, name_th, address, time_open, time_close, pho
         <button
           className="detail-button"
           style={{ background: '#4CAF50' }}
+          onClick={() => navigate(`/add_pharmacy_admin/${documentId}`)}
         >
           เภสัชกร<br />ประจำร้านยา
         </button>
@@ -91,26 +91,34 @@ function AdminHome() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        // ✅ ดึง mock pharmacies จาก IndexedDB
+        const mockPharmacies = await db.pharmacies.toArray();
+
+        // ✅ fetch จาก API จริง
         const res = await fetch('http://localhost:1337/api/drug-stores?populate=*', {
           headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
         });
         const drugStoresRes = await res.json();
         const drugStores = drugStoresRes.data || [];
 
-        const pharmaciesFromAPI = drugStores.map(store => ({
-          documentId: store.documentId,
-          name_th: store.name_th,
-          address: store.address,
-          time_open: formatTime(store.time_open),
-          time_close: formatTime(store.time_close),
-          phone_store: store.phone_store,
-          photo_front: (store.photo_front && store.photo_front.formats) ? store.photo_front : (store.attributes?.photo_front?.data?.attributes || store.photo_front || null),
-          pharmacists: [],
-        }));
+        const pharmaciesFromAPI = drugStores.map(store => {
+          const attrs = store.attributes || {};
+          return {
+            id: store.id,
+            name_th: store.name_th,
+            address: store.address,
+            time_open: formatTime(store.time_open),
+            time_close: formatTime(store.time_close),
+            phone_store: store.phone_store,
+            photo_front: (store.photo_front && store.photo_front.formats) ? store.photo_front : (attrs.photo_front?.data?.attributes || store.photo_front || null),
+            pharmacists: [],
+          };
+        });
 
-        setPharmacies(pharmaciesFromAPI);
+        setPharmacies([...pharmaciesFromAPI, ...mockPharmacies]);
         setLoading(false);
       } catch (err) {
+        console.error("loadData error:", err);
         setLoading(false);
       }
     };
@@ -118,11 +126,18 @@ function AdminHome() {
     loadData();
   }, [jwt]);
 
-  const handleDelete = async (documentId) => {
+  const handleDelete = async (id) => {
     if (!window.confirm("คุณต้องการลบร้านยานี้หรือไม่?")) return;
     try {
-      // ค้นหา record ที่มี documentId ตรงกัน
-      const resFind = await fetch('http://localhost:1337/api/drug-stores?filters[documentId][$eq]=' + documentId + '&populate=*', {
+      // ✅ ลบจาก IndexedDB
+      await db.pharmacies.delete(id);
+
+      // ลบจาก state
+      setPharmacies(prev => prev.filter(p => p.id !== id));
+
+      // ลบจาก API ถ้ามี
+      const resFind = await fetch(`http://localhost:1337/api/drug-stores/${id}`, {
+        method: "DELETE",
         headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
       });
       const findJson = await resFind.json();
@@ -141,7 +156,7 @@ function AdminHome() {
       // });
       // const deleteJson = await deleteRes.json().catch(() => ({}));
       // console.log('ผลลัพธ์การลบร้านยา:', deleteRes.status, deleteJson);
-      if (storeToDelete.ok) {
+      if (resFind.ok) {
         toast.success("ลบร้านยาเรียบร้อยแล้ว!");
       } else {
         toast.error("ลบไม่สำเร็จ กรุณาตรวจสอบ");
@@ -189,7 +204,7 @@ function AdminHome() {
               width: 120,
             }}
             onClick={() => {
-              navigate("/add_drug_store_admin");
+              navigate("/add_store_admin");
             }}
           >
             เพิ่มร้านยา
@@ -202,15 +217,13 @@ function AdminHome() {
             ไม่พบข้อมูลร้านยา
           </div>
         ) : (
-          filteredPharmacies.map(pharmacy => {
-            return (
-              <PharmacyItem
-                {...pharmacy}
-                key={pharmacy.documentId}
-                onDelete={handleDelete}
-              />
-            );
-          })
+          filteredPharmacies.map(pharmacy => (
+            <PharmacyItem
+              {...pharmacy}
+              key={pharmacy.id}
+              onDelete={handleDelete}
+            />
+          ))
         )}
       </main>
       <Footer />

@@ -2,20 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
+import { db } from '../../db'; // ✅ import Dexie db
 import '../../../css/pages/default/pharmacyDetail.css';
 import Footer from '../../components/footer';
 
 function getImageUrl(photo) {
   if (!photo) return null;
-
-  // ✅ mock (string จาก localStorage)
   if (typeof photo === "string") return photo;
-
-  // ✅ API (object จาก Strapi)
   if (photo.formats?.medium?.url) return photo.formats.medium.url;
   if (photo.url) return photo.url;
   return null;
 }
+
+// ✅ แม็พ key → ป้ายภาษาไทย ให้ตรงกับ AddStore_admin
+const SERVICE_LABELS = {
+  sell_products: "จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ",
+  consulting: "ให้คำปรึกษาทางเภสัชกรรม",
+  health_check: "ตรวจสุขภาพเบื้องต้น",
+  delivery: "บริการจัดส่งยา/เวชภัณฑ์",
+};
 
 function DrugStoresDetail_admin() {
   const navigate = useNavigate();
@@ -27,26 +32,32 @@ function DrugStoresDetail_admin() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // ✅ 1. หาจาก mock (localStorage)
-        const mockPharmacies = JSON.parse(localStorage.getItem("mock_pharmacies") || "[]");
-        const mockFound = mockPharmacies.find(p => String(p.id) === String(id));
-
+        // ✅ 1) ลองดึงจาก IndexedDB (mock) ก่อน
+        const mockFound = await db.pharmacies.get(Number(id));
         if (mockFound) {
           setPharmacy(mockFound);
-          setPharmacist(null);
-          setLoading(false);
-          return;
+        } else {
+          // ✅ 2) ถ้าไม่เจอใน IndexedDB → ดึงจาก API (สำรอง)
+          const res = await fetch(
+            `http://localhost:1337/api/drug-stores/${id}?populate=primary_pharmacist,photo_front,photo_in,photo_staff`
+          );
+          const storeJson = await res.json();
+          const store = storeJson.data;
+          setPharmacy(store ? (store.attributes || store) : null);
         }
 
-        // ✅ 2. ถ้าไม่เจอ mock → ดึงจาก API
-        const res = await fetch(
-          `http://localhost:1337/api/drug-stores/${id}?populate=primary_pharmacist,photo_front,photo_in,photo_staff`
-        );
-        const storeJson = await res.json();
-        const store = storeJson.data;
-        setPharmacy(store ? (store.attributes || store) : null);
-        setPharmacist(null); // TODO: ดึง pharmacist จาก API ถ้ามี
+        // ✅ 3) ดึงเภสัชกรจาก IndexedDB ด้วย storeId
+        const foundPharmacists = await db.pharmacists.where("storeId").equals(id).toArray();
+        if (foundPharmacists.length > 0) {
+          setPharmacist({
+            full_name: `${foundPharmacists[0].firstname} ${foundPharmacists[0].lastname}`,
+            phone: foundPharmacists[0].phone,
+          });
+        } else {
+          setPharmacist(null);
+        }
       } catch (err) {
+        console.error("Error fetching data:", err);
         setPharmacist(null);
       } finally {
         setLoading(false);
@@ -55,6 +66,15 @@ function DrugStoresDetail_admin() {
 
     fetchData();
   }, [id]);
+
+  // ✅ เตรียมรายการบริการที่ติ๊กไว้จาก IndexedDB (ถ้ามี)
+  const enabledServiceLabels = React.useMemo(() => {
+    const services = pharmacy?.services;
+    if (!services || typeof services !== "object") return [];
+    return Object.entries(SERVICE_LABELS)
+      .filter(([key]) => services[key])
+      .map(([, label]) => label);
+  }, [pharmacy]);
 
   return (
     <div className="detail-container" style={{ padding: 20 }}>
@@ -81,7 +101,7 @@ function DrugStoresDetail_admin() {
                 className="image-box"
                 style={{
                   width: 250,
-                  height: 250, // ✅ ทำให้เป็นจตุรัส
+                  height: 250,
                   borderRadius: 16,
                   background: "#f0f0f0",
                   display: "flex",
@@ -120,7 +140,7 @@ function DrugStoresDetail_admin() {
             style={{
               display: "flex",
               gap: 40,
-              marginTop: 30, // ✅ เพิ่มระยะห่างจากแถวรูป
+              marginTop: 30,
               flexWrap: "wrap",
             }}
           >
@@ -137,11 +157,26 @@ function DrugStoresDetail_admin() {
               <p>ชื่อร้านยา: {pharmacy.name_th || "-"}</p>
               <p>ที่อยู่: {pharmacy.address || "-"}</p>
               <p>
-                เวลาทำการ: {formatTime(pharmacy.time_open)} - {formatTime(pharmacy.time_close)}
+                เวลาทำการ: {pharmacy.time_open ? formatTime(pharmacy.time_open) : "-"} น. -{" "}
+                {pharmacy.time_close ? formatTime(pharmacy.time_close) : "-"} น.
               </p>
               <p>เบอร์โทรศัพท์ร้านยา: {pharmacy.phone_store || "-"}</p>
-              <p>ชื่อ-นามสกุลเภสัชกร: {pharmacist?.full_name || "-"}</p>
-              <p>เบอร์โทรศัพท์เภสัชกร: {pharmacist?.phone || "-"}</p>
+
+              {/* ✅ ปุ่ม เภสัชกรประจำร้าน + แก้ไขร้านยา */}
+              <div className="flex gap-4 mt-3">
+                <button
+                  onClick={() => navigate(`/pharmacist_detail_admin/${id}`)}
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                >
+                  เภสัชกรประจำร้าน
+                </button>
+                <button
+                  onClick={() => navigate(`/edit_store_admin/${id}`)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                >
+                  แก้ไขร้านยา
+                </button>
+              </div>
             </div>
 
             {/* ✅ การให้บริการ */}
@@ -156,18 +191,28 @@ function DrugStoresDetail_admin() {
               }}
             >
               <div className="service-box" style={{ marginBottom: 20 }}>
-                <p className="section-title" style={{ fontWeight: "bold" }}>การให้บริการ</p>
-                <ul>
-                  <li>จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ</li>
-                  <li>ให้คำปรึกษาทางเภสัชกรรม</li>
-                  <li>ตรวจสุขภาพเบื้องต้น</li>
-                  <li>รับฝากยาและจัดส่งยา</li>
-                </ul>
+                <p className="section-title" style={{ fontWeight: "bold" }}>
+                  การให้บริการ
+                </p>
+
+                {enabledServiceLabels.length > 0 ? (
+                  <ul>
+                    {enabledServiceLabels.map((label, idx) => (
+                      <li key={idx}>{label}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <ul>
+                    <li>—</li>
+                  </ul>
+                )}
               </div>
 
               {/* ✅ Google Map */}
               <div className="map-box">
-                <p className="section-title" style={{ fontWeight: "bold" }}>GOOGLE MAP</p>
+                <p className="section-title" style={{ fontWeight: "bold" }}>
+                  GOOGLE MAP
+                </p>
                 <div
                   className="map-placeholder"
                   style={{
@@ -198,7 +243,10 @@ function DrugStoresDetail_admin() {
           </div>
 
           {/* ✅ ปุ่มกลับ */}
-          <div className="bottom-button" style={{ marginTop: 30, textAlign: "center" }}>
+          <div
+            className="bottom-button"
+            style={{ marginTop: 30, textAlign: "center" }}
+          >
             <button
               className="back-button"
               style={{
