@@ -467,8 +467,8 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    drug_business_no: Schema.Attribute.String & Schema.Attribute.Required;
-    drug_regiter_no: Schema.Attribute.String & Schema.Attribute.Required;
+    license_doc: Schema.Attribute.String & Schema.Attribute.Required;
+    license_number: Schema.Attribute.String & Schema.Attribute.Required;
     link_gps: Schema.Attribute.String & Schema.Attribute.Required;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -494,12 +494,15 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
       'api::pharmacy-profile.pharmacy-profile'
     >;
     publishedAt: Schema.Attribute.DateTime;
+    services: Schema.Attribute.JSON;
     staff_profiles: Schema.Attribute.Relation<
       'oneToMany',
       'api::staff-profile.staff-profile'
     >;
     time_close: Schema.Attribute.Time & Schema.Attribute.Required;
     time_open: Schema.Attribute.Time & Schema.Attribute.Required;
+    type: Schema.Attribute.Enumeration<['type1', 'type2', 'type3']> &
+      Schema.Attribute.DefaultTo<'type1'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;

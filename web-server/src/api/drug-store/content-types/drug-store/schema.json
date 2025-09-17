@@ -19,11 +19,11 @@
       "type": "string",
       "required": true
     },
-    "drug_regiter_no": {
+    "license_number": {
       "type": "string",
       "required": true
     },
-    "drug_business_no": {
+    "license_doc": {
       "type": "string",
       "required": true
     },
@@ -97,6 +97,18 @@
       "relation": "oneToMany",
       "target": "api::staff-profile.staff-profile",
       "mappedBy": "drug_store"
+    },
+    "services": {
+      "type": "json"
+    },
+    "type": {
+      "type": "enumeration",
+      "default": "type1",
+      "enum": [
+        "type1",
+        "type2",
+        "type3"
+      ]
     }
   }
 }
