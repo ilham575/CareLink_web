@@ -7,26 +7,34 @@ function EditPharmacist_admin() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState(null);
 
+  // ✅ helper สำหรับ parse id ให้ตรงชนิด
+  const safeId = isNaN(Number(id)) ? id : Number(id);
+
   useEffect(() => {
     const load = async () => {
-      const pharmacist = await db.pharmacists.get(parseInt(id, 10));
-      if (pharmacist) {
-        const [time_in, time_out] = pharmacist.working_time?.split(" - ") || ["", ""];
-        setFormData({
-          ...pharmacist,
-          time_in,
-          time_out,
-          services: pharmacist.services || {
-            sell_products: false,
-            consulting: false,
-            wholesale: false,
-            delivery: false,
-          },
-        });
+      try {
+        const pharmacist = await db.pharmacists.get(safeId);
+        if (pharmacist) {
+          const [time_in, time_out] =
+            pharmacist.working_time?.split(" - ") || ["", ""];
+          setFormData({
+            ...pharmacist,
+            time_in,
+            time_out,
+            services: pharmacist.services || {
+              sell_products: false,
+              consulting: false,
+              wholesale: false,
+              delivery: false,
+            },
+          });
+        }
+      } catch (err) {
+        console.error("Load pharmacist error:", err);
       }
     };
     load();
-  }, [id]);
+  }, [safeId]);
 
   if (!formData) return <div className="p-6">กำลังโหลดข้อมูล...</div>;
 
@@ -54,9 +62,18 @@ function EditPharmacist_admin() {
       working_time: `${formData.time_in} - ${formData.time_out}`,
     };
 
-    await db.pharmacists.put(updated);
-    alert("อัปเดตข้อมูลเภสัชกรเรียบร้อย!");
-    navigate(`/pharmacist_detail_admin/${formData.storeId}`);
+    try {
+      await db.pharmacists.put(updated);
+      alert("อัปเดตข้อมูลเภสัชกรเรียบร้อย!");
+      // ✅ ใช้ storeIds array แทน storeId เดี่ยว
+      if (updated.storeIds && updated.storeIds.length > 0) {
+        navigate(`/pharmacist_detail_admin/${updated.storeIds[0]}`);
+      } else {
+        navigate("/adminhome");
+      }
+    } catch (err) {
+      console.error("Update pharmacist error:", err);
+    }
   };
 
   return (
@@ -65,7 +82,10 @@ function EditPharmacist_admin() {
         แก้ไขข้อมูลเภสัชกร
       </h2>
 
-      <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
+      <form
+        className="grid grid-cols-1 md:grid-cols-2 gap-6"
+        onSubmit={handleSubmit}
+      >
         <div>
           <label className="block font-semibold mb-1">ชื่อ*</label>
           <input
@@ -212,10 +232,11 @@ function EditPharmacist_admin() {
                 checked={formData.is_primary}
                 onChange={handleChange}
               />
-            <span>เป็นเภสัชกรประจำร้านนี้</span>
-          </label>
+              <span>เป็นเภสัชกรประจำร้านนี้</span>
+            </label>
           </div>
         </div>
+
         <div className="md:col-span-2 flex justify-end">
           <button
             type="submit"

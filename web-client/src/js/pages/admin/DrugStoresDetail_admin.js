@@ -46,8 +46,11 @@ function DrugStoresDetail_admin() {
           setPharmacy(store ? (store.attributes || store) : null);
         }
 
-        // ✅ 3) ดึงเภสัชกรจาก IndexedDB ด้วย storeId
-        const foundPharmacists = await db.pharmacists.where("storeId").equals(id).toArray();
+        // ✅ 3) ดึงเภสัชกรจาก IndexedDB โดยเช็คว่า storeIds มี id นี้
+        const foundPharmacists = await db.pharmacists
+          .filter((p) => p.storeIds?.includes(String(id)))
+          .toArray();
+
         if (foundPharmacists.length > 0) {
           setPharmacist({
             full_name: `${foundPharmacists[0].firstname} ${foundPharmacists[0].lastname}`,
@@ -156,8 +159,12 @@ function DrugStoresDetail_admin() {
             >
               <p>ชื่อร้านยา: {pharmacy.name_th || "-"}</p>
               <p>ที่อยู่: {pharmacy.address || "-"}</p>
+              {/* ✅ แสดงเภสัชกร */}
+              <p>ชื่อ-นามสกุลเภสัชกร: {pharmacist?.full_name || "-"}</p>
+              <p>เบอร์โทรศัพท์เภสัชกร: {pharmacist?.phone || "-"}</p>
               <p>
-                เวลาทำการ: {pharmacy.time_open ? formatTime(pharmacy.time_open) : "-"} น. -{" "}
+                เวลาทำการ:{" "}
+                {pharmacy.time_open ? formatTime(pharmacy.time_open) : "-"} น. -{" "}
                 {pharmacy.time_close ? formatTime(pharmacy.time_close) : "-"} น.
               </p>
               <p>เบอร์โทรศัพท์ร้านยา: {pharmacy.phone_store || "-"}</p>
