@@ -71,7 +71,7 @@ function App() {
 
           {/* -------------------- STAFF MANAGEMENT -------------------- */}
           <Route element={<RequireRole role={['admin', 'pharmacy']} />}>
-          <Route path="/add_drug_store_admin" element={<AddPharmacyAdmin />} /> 
+            {/* <Route path="/add_drug_store_admin" element={<AddPharmacyAdmin />} />  */}
             <Route path="/drug_store_staff/:id" element={<StaffPage />} />
             <Route path="/form_staff" element={<FormStaffPage />} />
           </Route>
