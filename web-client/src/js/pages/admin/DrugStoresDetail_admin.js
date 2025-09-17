@@ -43,8 +43,6 @@ function DrugStoresDetail_admin() {
       }
 
       try {
-        console.log('🔄 กำลังโหลดข้อมูลร้านยา documentId:', id);
-
         // 1. ดึงข้อมูล user ปัจจุบัน (เหมือน home.js)
         const userRes = await fetch('http://localhost:1337/api/users/me', {
           headers: { Authorization: `Bearer ${jwt}` }
@@ -81,27 +79,15 @@ function DrugStoresDetail_admin() {
 
         const data = await res.json();
         const myDrugStores = data.data[0]?.drug_stores || [];
-        
-        console.log('✅ My Drug Stores:', myDrugStores);
-        console.log('🔍 Looking for documentId:', id);
 
         // 3. หาร้านยาที่ตรงกับ documentId ที่ส่งมา
         const store = myDrugStores.find(s => s.documentId === id);
 
         if (!store) {
-          console.log('❌ ไม่พบร้านยาที่มี documentId:', id);
-          console.log('Available stores:', myDrugStores.map(s => ({ id: s.id, documentId: s.documentId, name: s.name_th })));
           toast.error('ไม่พบร้านยาที่ต้องการ หรือคุณไม่มีสิทธิ์เข้าถึง');
           navigate(-1);
           return;
         }
-
-        console.log('✅ Found Store:', store);
-        console.log('🖼️ Store Photos:', {
-          photo_front: store.photo_front,
-          photo_in: store.photo_in,
-          photo_staff: store.photo_staff
-        });
         
         setPharmacy(store);
 
@@ -120,25 +106,19 @@ function DrugStoresDetail_admin() {
 
           if (pharmacistRes.ok) {
             const pharmacistData = await pharmacistRes.json();
-            console.log('✅ Pharmacist Data:', pharmacistData);
             setPharmacists(pharmacistData.data || []);
           } else {
-            console.log('⚠️ ไม่สามารถดึงข้อมูลเภสัชกรได้');
             setPharmacists([]);
           }
         } catch (pharmacistErr) {
-          console.error('Error fetching pharmacists:', pharmacistErr);
           setPharmacists([]);
         }
         */
         
         // ตั้งค่าเภสัชกรเป็น array ว่าง
         setPharmacists([]);
-        console.log('⏸️ ปิดการดึงข้อมูลเภสัชกรชั่วคราว');
 
-      } catch (err) {
-        console.error("❌ Error fetching data:", err);
-        
+      } catch (err) {        
         if (err.message.includes('401') || err.message.includes('403')) {
           toast.error('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
           localStorage.removeItem('jwt');
@@ -277,11 +257,17 @@ function DrugStoresDetail_admin() {
                 />
               ) : (
                 <div className="img-placeholder">
-                  {key === "photo_front"
-                    ? "รูปด้านนอกร้านยา"
-                    : key === "photo_in"
-                    ? "รูปด้านในร้านยา"
-                    : "รูปเภสัชกรและพนักงาน"}
+                  {(() => {
+                    let label;
+                    if (key === "photo_front") {
+                      label = "รูปด้านนอกร้านยา";
+                    } else if (key === "photo_in") {
+                      label = "รูปด้านในร้านยา";
+                    } else {
+                      label = "รูปเภสัชกรและพนักงาน";
+                    }
+                    return label;
+                  })()}
                 </div>
               )}
             </div>
@@ -310,9 +296,9 @@ function DrugStoresDetail_admin() {
           }}
         >
           <p><strong>ชื่อร้านยา:</strong> {pharmacy.name_th || "-"}</p>
-          {pharmacy.name_en && <p><strong>ชื่อภาษาอังกฤษ:</strong> {pharmacy.name_en}</p>}
+          {/* {pharmacy.name_en && <p><strong>ชื่อภาษาอังกฤษ:</strong> {pharmacy.name_en}</p>} */}
           <p><strong>ที่อยู่:</strong> {pharmacy.address || "-"}</p>
-          <p><strong>เลขที่ใบอนุญาต:</strong> {pharmacy.license_number || "-"}</p>
+          {/* <p><strong>เลขที่ใบอนุญาต:</strong> {pharmacy.license_number || "-"}</p> */}
           
           {/* ✅ แสดงเภสัชกร */}
           <p><strong>ชื่อ-นามสกุลเภสัชกร:</strong> {primaryPharmacist?.full_name || "-"}</p>
@@ -408,7 +394,7 @@ function DrugStoresDetail_admin() {
                   rel="noopener noreferrer"
                   style={{ color: '#0066cc', textDecoration: 'underline' }}
                 >
-                  ดูแผนที่ Google Maps
+                  แผนที่ร้านยา
                 </a>
               ) : (
                 <span style={{ color: '#666' }}>ไม่มีลิงก์แผนที่</span>

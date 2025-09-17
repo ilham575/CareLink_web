@@ -113,8 +113,13 @@ function AdminHome() {
         const userDocumentId = userData.documentId;
 
         // 2. ดึง admin_profile + drug_stores ที่ผูกกับ user.documentId
+        const query = new URLSearchParams({
+          'filters[users_permissions_user][documentId][$eq]': userDocumentId,
+          'populate[drug_stores][populate]': '*'
+        });
+
         const res = await fetch(
-          `http://localhost:1337/api/admin-profiles?populate=*&filters[users_permissions_user][documentId][$eq]=${userDocumentId}`,
+          `http://localhost:1337/api/admin-profiles?${query.toString()}`,
           {
             headers: { Authorization: `Bearer ${jwt}` }
           }

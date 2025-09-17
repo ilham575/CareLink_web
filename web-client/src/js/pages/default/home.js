@@ -50,39 +50,50 @@ function Home() {
 
   useEffect(() => {
     Promise.all([
-      fetch('http://localhost:1337/api/drug-stores?populate=pharmacy_profiles').then(res => res.json()),
-      fetch('http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user').then(res => res.json())
-    ]).then(([drugStoresRes, pharmacyProfilesRes]) => {
-      const drugStores = drugStoresRes.data || [];
-      const pharmacyProfiles = pharmacyProfilesRes.data || [];
-      // map profile id -> user
-      const profileIdToUser = {};
-      pharmacyProfiles.forEach(profile => {
-        profileIdToUser[profile.id] = profile.users_permissions_user || null;
-      });
+      fetch(
+        'http://localhost:1337/api/drug-stores?' +
+        'populate[photo_front]=true&' +      // ✅ ใช้ true หรือ *
+        'populate[pharmacy_profiles]=true'   // ✅ แยกเป็น key
+      ).then(res => res.json()),
+      fetch(
+        'http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user'
+      ).then(res => res.json())
+    ])
+      .then(([drugStoresRes, pharmacyProfilesRes]) => {
+        const drugStores = drugStoresRes.data || [];
+        const pharmacyProfiles = pharmacyProfilesRes.data || [];
 
-      // inject pharmacists array เข้าแต่ละร้าน
-      const pharmaciesWithPharmacists = drugStores.map(store => {
-        const pps = store.pharmacy_profiles || store.attributes?.pharmacy_profiles?.data || [];
-        const pharmacists = (pps.data || pps)
-          .map(profile => profileIdToUser[profile.id])
-          .filter(u => !!u); // remove null
-        return {
-          id: store.id,
-          name_th: store.name_th || store.attributes?.name_th,
-          address: store.address || store.attributes?.address,
-          time_open: store.time_open || store.attributes?.time_open,
-          time_close: store.time_close || store.attributes?.time_close,
-          phone_store: store.phone_store || store.attributes?.phone_store,
-          photo_front: (store.photo_front && store.photo_front.formats) ? store.photo_front : (store.attributes?.photo_front?.data?.attributes || null),
-          pharmacists,
-        };
-      });
+        const profileIdToUser = {};
+        pharmacyProfiles.forEach(profile => {
+          profileIdToUser[profile.id] =
+            profile.attributes?.users_permissions_user?.data?.attributes || null;
+        });
 
-      setPharmacies(pharmaciesWithPharmacists);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+        const pharmaciesWithPharmacists = drugStores.map(store => {
+          const attrs = store.attributes || {};
+          const pharmacists = (attrs.pharmacy_profiles?.data || [])
+            .map(profile => profileIdToUser[profile.id])
+            .filter(u => !!u);
+
+          return {
+            id: store.id,
+            name_th: attrs.name_th || store.name_th,
+            address: attrs.address || store.address,
+            time_open: attrs.time_open || store.time_open,
+            time_close: attrs.time_close || store.time_close,
+            phone_store: attrs.phone_store || store.phone_store,
+            photo_front: store.photo_front || attrs.photo_front || null, // ✅ fix ตรงนี้
+            pharmacists,
+          };
+        });
+
+        setPharmacies(pharmaciesWithPharmacists);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
+
+
 
   const filteredPharmacies = pharmacies.filter(pharmacy =>
     pharmacy.name_th?.toLowerCase().includes(searchText.toLowerCase())
