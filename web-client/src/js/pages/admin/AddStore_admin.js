@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { db } from "../../db"; // ✅ ใช้ IndexedDB
 
 function AddStore_admin() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false); // ✅ เพิ่ม loading state
   const [formData, setFormData] = useState({
     name_th: "",
     name_en: "",
@@ -64,40 +64,113 @@ function AddStore_admin() {
 
   const handleBack = () => setStep(1);
 
-  const fileToBase64 = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (err) => reject(err);
-      reader.readAsDataURL(file);
-    });
+  // ✅ ฟังก์ชันอัพโหลดรูปไป Strapi
+  const uploadImageToStrapi = async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('files', file);
 
+      const token = localStorage.getItem('jwt');
+      const response = await fetch('http://localhost:1337/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data[0]; // Strapi returns array of uploaded files
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
+  };
+
+  // ✅ ส่งข้อมูลไป Strapi API
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const photoFrontBase64 = formData.photo_front ? await fileToBase64(formData.photo_front) : null;
-    const photoInBase64 = formData.photo_in ? await fileToBase64(formData.photo_in) : null;
-    const photoStaffBase64 = formData.photo_staff ? await fileToBase64(formData.photo_staff) : null;
+    setIsSubmitting(true);
 
-    const mockPharmacy = {
-      name_th: formData.name_th,
-      name_en: formData.name_en,
-      license_number: formData.license_number,
-      license_doc: formData.license_doc,
-      address: formData.address,
-      phone_store: formData.phone_store,
-      time_open: formData.time_open,
-      time_close: formData.time_close,
-      link_gps: formData.link_gps,
-      type: formData.type,
-      photo_front: photoFrontBase64,
-      photo_in: photoInBase64,
-      photo_staff: photoStaffBase64,
-      services: formData.services,
-    };
+    try {
+      // อัพโหลดรูปภาพทั้งหมด
+      let photoFrontId = null;
+      let photoInId = null; 
+      let photoStaffId = null;
 
-    await db.pharmacies.add(mockPharmacy);
-    alert("บันทึกร้านขายยาเรียบร้อย!");
-    navigate("/adminhome");
+      if (formData.photo_front) {
+        const uploadedFront = await uploadImageToStrapi(formData.photo_front);
+        photoFrontId = uploadedFront.id;
+      }
+
+      if (formData.photo_in) {
+        const uploadedIn = await uploadImageToStrapi(formData.photo_in);
+        photoInId = uploadedIn.id;
+      }
+
+      if (formData.photo_staff) {
+        const uploadedStaff = await uploadImageToStrapi(formData.photo_staff);
+        photoStaffId = uploadedStaff.id;
+      }
+
+      // ✅ แปลงเวลาให้เป็นรูปแบบ HH:mm:ss.SSS
+      const formatTime = (time) => {
+        if (!time) return null;
+        return `${time}:00.000`;
+      };
+
+      // สร้างข้อมูลร้านยา
+      const pharmacyData = {
+        data: {
+          name_th: formData.name_th,
+          name_en: formData.name_en,
+          license_number: formData.license_number,
+          license_doc: formData.license_doc,
+          address: formData.address,
+          phone_store: formData.phone_store,
+          time_open: formatTime(formData.time_open),
+          time_close: formatTime(formData.time_close),
+          link_gps: formData.link_gps,
+          type: formData.type,
+          services: formData.services,
+          // เชื่อมโยงรูปภาพ
+          photo_front: photoFrontId,
+          photo_in: photoInId,
+          photo_staff: photoStaffId,
+        }
+      };
+
+      // ส่งข้อมูลร้านยาไป Strapi
+      const token = localStorage.getItem('jwt');
+      const response = await fetch('http://localhost:1337/api/drug-stores', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(pharmacyData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create pharmacy: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Pharmacy created:', result);
+
+      alert("บันทึกร้านขายยาเรียบร้อย!");
+      navigate("/adminhome");
+
+    } catch (error) {
+      console.error('Error creating pharmacy:', error);
+      alert(`เกิดข้อผิดพลาด: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -362,17 +435,18 @@ function AddStore_admin() {
               type="button"
               className="bg-gray-500 text-white font-bold py-2 px-6 rounded hover:bg-gray-600"
               onClick={handleBack}
+              disabled={isSubmitting}
             >
               ย้อนกลับ
             </button>
             <button
               type="submit"
               className={`py-2 px-6 rounded font-bold ${
-                formData.confirm ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                formData.confirm && !isSubmitting ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
-              disabled={!formData.confirm}
+              disabled={!formData.confirm || isSubmitting}
             >
-              บันทึก
+              {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
             </button>
           </div>
         </form>
