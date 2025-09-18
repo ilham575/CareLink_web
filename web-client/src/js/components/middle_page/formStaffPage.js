@@ -29,6 +29,8 @@ function FormStaffPage() {
   const [uploadedImageUrl, setUploadedImageUrl] = useState(null); // รูปจริงจาก Strapi
   const [isNewUser, setIsNewUser] = useState(true);
   const [existingUsers, setExistingUsers] = useState([]);
+  const [selectedUserStaffInfo, setSelectedUserStaffInfo] = useState([]); // เพิ่ม state สำหรับเก็บข้อมูล staff ของ user ที่เลือก
+  const [showStaffInfoPopup, setShowStaffInfoPopup] = useState(false); // เพิ่ม state สำหรับควบคุม popup
   const [originalStaff, setOriginalStaff] = useState(null);
   const fileInputRef = useRef();
   const navigate = useNavigate();
@@ -471,7 +473,7 @@ function FormStaffPage() {
       }
 
       // ดึงข้อมูล staff พร้อม populate
-      const verifyUrl = `http://localhost:1337/api/staff-profiles/${newDocumentId}?populate=drug_store,users_permissions_user`;
+      const verifyUrl = `http://localhost:1337/api/staff-profiles/${newDocumentId}?populate[0]=drug_store&populate[1]=users_permissions_user`;
       
       const verifyRes = await fetch(verifyUrl, {
         headers: { Authorization: `Bearer ${token}` }
@@ -748,6 +750,399 @@ function FormStaffPage() {
     return timeString.substring(0, 5); // แสดงแค่ HH:MM
   };
 
+  // ===== เพิ่ม: ฟังก์ชันดึงข้อมูล staff profiles ของ user ที่เลือก =====
+  const fetchUserStaffInfo = async (userId) => {
+    if (!userId) {
+      setSelectedUserStaffInfo([]);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('jwt');
+      
+      // *** แก้ไข: แยกการ populate ออกจากกัน ***
+      const response = await fetch(
+        `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate[0]=drug_store&populate[1]=users_permissions_user`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      const data = await response.json();
+      const staffProfiles = Array.isArray(data.data) ? data.data : [];
+      
+      // แปลงข้อมูลให้แสดงผลได้
+      const staffInfo = staffProfiles.map(profile => {
+        const drugStore = profile.drug_store;
+        let workScheduleText = 'ไม่มีข้อมูลเวลา';
+        
+        // แปลงตารางเวลาทำงาน
+        if (profile.work_schedule && Array.isArray(profile.work_schedule) && profile.work_schedule.length > 0) {
+          workScheduleText = profile.work_schedule
+            .filter(s => s.day && s.start_time && s.end_time)
+            .map(s => `${s.day}: ${s.start_time} - ${s.end_time}`)
+            .join(', ');
+        } else if (profile.working_days && Array.isArray(profile.working_days) && profile.working_days.length > 0) {
+          const startTime = profile.time_start ? formatTimeForDisplay(profile.time_start) : '';
+          const endTime = profile.time_end ? formatTimeForDisplay(profile.time_end) : '';
+          if (startTime && endTime) {
+            workScheduleText = profile.working_days.map(day => `${day}: ${startTime} - ${endTime}`).join(', ');
+          }
+        }
+        
+        return {
+          id: profile.id,
+          documentId: profile.documentId,
+          position: profile.position || 'ไม่ระบุตำแหน่ง',
+          pharmacyName: drugStore?.name_th || drugStore?.name_en || 'ไม่ทราบชื่อร้าน',
+          pharmacyId: drugStore?.documentId || '',
+          workSchedule: workScheduleText
+        };
+      });
+      
+      setSelectedUserStaffInfo(staffInfo);
+    } catch (error) {
+      console.error('Error fetching user staff info:', error);
+      setSelectedUserStaffInfo([]);
+    }
+  };
+
+  // ===== เพิ่ม: ฟังก์ชันจัดการเมื่อเลือก user =====
+  const handleUserSelection = (e) => {
+    const userId = e.target.value;
+    setForm(f => ({ ...f, userId }));
+    
+    // ดึงข้อมูล staff profiles ของ user ที่เลือก
+    fetchUserStaffInfo(userId);
+    
+    // ถ้าเลือก user แล้ว ให้ดึงข้อมูลส่วนตัวมาใส่ในฟอร์ม
+    if (userId) {
+      const selectedUser = existingUsers.find(u => u.id === parseInt(userId));
+      if (selectedUser) {
+        const nameParts = selectedUser.full_name ? selectedUser.full_name.split(' ') : ['', ''];
+        setForm(f => ({
+          ...f,
+          firstName: nameParts[0] || '',
+          lastName: nameParts.slice(1).join(' ') || '',
+          phone: selectedUser.phone || '',
+          username: selectedUser.username || ''
+        }));
+      }
+    } else {
+      // ถ้าไม่เลือก user ให้เคลียร์ข้อมูล
+      setForm(f => ({
+        ...f,
+        firstName: '',
+        lastName: '',
+        phone: '',
+        username: ''
+      }));
+      setShowStaffInfoPopup(false); // ปิด popup เมื่อไม่เลือก user
+    }
+  };
+
+  // ===== เพิ่ม: ฟังก์ชันเปิด/ปิด popup =====
+  const handleShowStaffInfo = () => {
+    if (selectedUserStaffInfo.length > 0) {
+      setShowStaffInfoPopup(true);
+    }
+  };
+
+  const handleClosePopup = () => {
+    setShowStaffInfoPopup(false);
+  };
+
+  // ===== เพิ่ม: Component Popup =====
+  const StaffInfoPopup = () => {
+    if (!showStaffInfoPopup) return null;
+
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+        padding: '20px'
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '15px',
+          padding: '25px',
+          maxWidth: '800px',
+          width: '100%',
+          maxHeight: '80%',
+          overflowY: 'auto',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+          position: 'relative'
+        }}>
+          {/* ปุ่มปิด */}
+          <button
+            onClick={handleClosePopup}
+            style={{
+              position: 'absolute',
+              top: '15px',
+              right: '15px',
+              background: '#ff4757',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '35px',
+              height: '35px',
+              fontSize: '18px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              boxShadow: '0 2px 8px rgba(255,71,87,0.3)'
+            }}
+          >
+            ✕
+          </button>
+
+          {/* หัวข้อ */}
+          <h3 style={{
+            margin: '0 0 20px 0',
+            fontSize: '24px',
+            color: '#2c5aa0',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingRight: '35px' // เผื่อปุ่มปิด
+          }}>
+            <span style={{ marginRight: '12px', fontSize: '28px' }}>👨‍💼</span>
+            ข้อมูลการทำงานปัจจุบัน
+          </h3>
+
+          {/* สรุปจำนวนร้านที่ทำงาน */}
+          <div style={{
+            backgroundColor: '#e6f3ff',
+            padding: '12px 20px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            textAlign: 'center',
+            border: '2px solid #b3d9ff'
+          }}>
+            <strong style={{ color: '#1976d2', fontSize: '16px' }}>
+              📊 พนักงานคนนี้ปัจจุบันทำงานอยู่ {selectedUserStaffInfo.length} ร้าน
+            </strong>
+          </div>
+
+          {/* รายการร้าน */}
+          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            {selectedUserStaffInfo.map((info, index) => (
+              <div key={info.id} style={{
+                marginBottom: index < selectedUserStaffInfo.length - 1 ? '25px' : '0',
+                padding: '20px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '15px',
+                border: '2px solid #e8f4fd',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                position: 'relative'
+              }}>
+                {/* หมายเลขร้าน */}
+                <div style={{
+                  position: 'absolute',
+                  top: '-12px',
+                  left: '20px',
+                  backgroundColor: '#4a90e2',
+                  color: 'white',
+                  padding: '6px 15px',
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 6px rgba(74,144,226,0.3)'
+                }}>
+                  ร้านที่ {index + 1}
+                </div>
+
+                {/* ข้อมูลร้านยา */}
+                <div style={{
+                  marginBottom: '18px',
+                  marginTop: '15px',
+                  padding: '15px',
+                  backgroundColor: 'white',
+                  borderRadius: '10px',
+                  borderLeft: '6px solid #2196f3'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '10px'
+                  }}>
+                    <span style={{ marginRight: '12px', fontSize: '24px' }}>🏪</span>
+                    <strong style={{ color: '#1976d2', fontSize: '18px' }}>ชื่อร้านยา:</strong>
+                  </div>
+                  <div style={{
+                    marginLeft: '36px',
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: '#1565c0'
+                  }}>
+                    {info.pharmacyName}
+                  </div>
+                  {info.pharmacyId && (
+                    <div style={{
+                      marginLeft: '36px',
+                      fontSize: '13px',
+                      color: '#666',
+                      marginTop: '6px',
+                      fontStyle: 'italic'
+                    }}>
+                      รหัสร้าน: {info.pharmacyId}
+                    </div>
+                  )}
+                </div>
+
+                {/* ตำแหน่งงาน */}
+                <div style={{
+                  marginBottom: '18px',
+                  padding: '15px',
+                  backgroundColor: 'white',
+                  borderRadius: '10px',
+                  borderLeft: '6px solid #4caf50'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '10px'
+                  }}>
+                    <span style={{ marginRight: '12px', fontSize: '24px' }}>👔</span>
+                    <strong style={{ color: '#388e3c', fontSize: '18px' }}>ตำแหน่งงาน:</strong>
+                  </div>
+                  <div style={{
+                    marginLeft: '36px',
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    color: '#2e7d32'
+                  }}>
+                    {info.position}
+                  </div>
+                </div>
+
+                {/* ตารางเวลาทำงาน */}
+                <div style={{
+                  padding: '15px',
+                  backgroundColor: 'white',
+                  borderRadius: '10px',
+                  borderLeft: '6px solid #ff9800'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '15px'
+                  }}>
+                    <span style={{ marginRight: '12px', fontSize: '24px' }}>⏰</span>
+                    <strong style={{ color: '#f57c00', fontSize: '18px' }}>ตารางเวลาทำงาน:</strong>
+                  </div>
+                  <div style={{ marginLeft: '36px' }}>
+                    {info.workSchedule === 'ไม่มีข้อมูลเวลา' ? (
+                      <div style={{
+                        color: '#999',
+                        fontStyle: 'italic',
+                        fontSize: '16px',
+                        padding: '12px 16px',
+                        backgroundColor: '#f5f5f5',
+                        borderRadius: '8px',
+                        textAlign: 'center'
+                      }}>
+                        ⚠️ ไม่มีข้อมูลเวลาทำงาน
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                        {info.workSchedule.split(', ').map((schedule, scheduleIndex) => {
+                          const [day, time] = schedule.split(': ');
+                          return (
+                            <div key={scheduleIndex} style={{
+                              backgroundColor: '#fff3e0',
+                              padding: '10px 15px',
+                              borderRadius: '8px',
+                              border: '2px solid #ffcc80',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              boxShadow: '0 3px 6px rgba(0,0,0,0.1)',
+                              minWidth: '140px',
+                              textAlign: 'center'
+                            }}>
+                              <div style={{
+                                color: '#e65100',
+                                fontWeight: 'bold',
+                                marginBottom: '4px',
+                                fontSize: '15px'
+                              }}>
+                                {day}
+                              </div>
+                              <div style={{
+                                color: '#bf360c',
+                                fontSize: '13px'
+                              }}>
+                                {time}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ข้อความเตือน */}
+          <div style={{
+            marginTop: '25px',
+            padding: '18px',
+            backgroundColor: '#ffebee',
+            borderRadius: '12px',
+            border: '2px solid #ef5350',
+            boxShadow: '0 3px 10px rgba(239, 83, 80, 0.2)'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              fontSize: '15px',
+              color: '#c62828',
+              lineHeight: '1.6'
+            }}>
+              <span style={{ marginRight: '12px', fontSize: '24px' }}>⚠️</span>
+              <div>
+                <div style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '17px' }}>
+                  ❗ หมายเหตุสำคัญ:
+                </div>
+                <div style={{ marginBottom: '8px' }}>
+                  • <strong>ตรวจสอบเวลา:</strong> กรุณาตรวจสอบตารางเวลาข้างต้นก่อนกำหนดเวลาใหม่
+                </div>
+                <div style={{ marginBottom: '8px' }}>
+                  • <strong>หลีกเลี่ยงการชน:</strong> เลือกเวลาที่ไม่ซ้อนทับกับร้านอื่น
+                </div>
+                <div style={{ marginBottom: '8px' }}>
+                  • <strong>ตรวจสอบอัตโนมัติ:</strong> ระบบจะตรวจสอบความขัดแย้งเมื่อบันทึก
+                </div>
+                <div style={{
+                  marginTop: '12px',
+                  padding: '10px 15px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '8px',
+                  border: '1px solid #ffcdd2',
+                  fontSize: '14px'
+                }}>
+                  💡 <strong>คำแนะนำ:</strong> หากมีเวลาทำงานชนกัน ระบบจะแจ้งเตือนและไม่อนุญาตให้บันทึก
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="signup-page-container">
       <HomeHeader />
@@ -775,7 +1170,7 @@ function FormStaffPage() {
                   <select
                     name="userId"
                     value={form.userId}
-                    onChange={e => setForm(f => ({ ...f, userId: e.target.value }))}
+                    onChange={handleUserSelection}
                     required
                   >
                     <option value="">-- เลือก user --</option>
@@ -785,16 +1180,77 @@ function FormStaffPage() {
                       </option>
                     ))}
                   </select>
+                  
+                  {/* ===== ปุ่มแสดงข้อมูลการทำงาน ===== */}
+                  {selectedUserStaffInfo.length > 0 && (
+                    <div style={{ marginTop: '15px' }}>
+                      <button
+                        type="button"
+                        onClick={handleShowStaffInfo}
+                        style={{
+                          width: '100%',
+                          padding: '12px 20px',
+                          backgroundColor: '#4a90e2',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '10px',
+                          boxShadow: '0 3px 8px rgba(74,144,226,0.3)',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseOver={(e) => {
+                          e.target.style.backgroundColor = '#357abd';
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 5px 15px rgba(74,144,226,0.4)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.target.style.backgroundColor = '#4a90e2';
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = '0 3px 8px rgba(74,144,226,0.3)';
+                        }}
+                      >
+                        <span style={{ fontSize: '20px' }}>👁️</span>
+                        ดูข้อมูลการทำงานปัจจุบัน ({selectedUserStaffInfo.length} ร้าน)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
+              
               {(isNewUser || documentId) && (
                 <>
                   <label>ชื่อ<span className="required">*</span></label>
-                  <input type="text" name="firstName" value={form.firstName} onChange={handleChange} required />
+                  <input 
+                    type="text" 
+                    name="firstName" 
+                    value={form.firstName} 
+                    onChange={handleChange} 
+                    required 
+                    disabled={!isNewUser && !documentId && form.userId}
+                  />
                   <label>นามสกุล<span className="required">*</span></label>
-                  <input type="text" name="lastName" value={form.lastName} onChange={handleChange} required />
+                  <input 
+                    type="text" 
+                    name="lastName" 
+                    value={form.lastName} 
+                    onChange={handleChange} 
+                    required 
+                    disabled={!isNewUser && !documentId && form.userId}
+                  />
                   <label>เบอร์โทรศัพท์</label>
-                  <input type="text" name="phone" value={form.phone} onChange={handleChange} />
+                  <input 
+                    type="text" 
+                    name="phone" 
+                    value={form.phone} 
+                    onChange={handleChange} 
+                    disabled={!isNewUser && !documentId && form.userId}
+                  />
                   <label>USERNAME<span className="required">*</span></label>
                   <input
                     type="text"
@@ -802,7 +1258,7 @@ function FormStaffPage() {
                     value={form.username}
                     onChange={handleChange}
                     required
-                    disabled={!!documentId}
+                    disabled={!!documentId || (!isNewUser && form.userId)}
                   />
                   <label>PASSWORD</label>
                   <input
@@ -811,6 +1267,51 @@ function FormStaffPage() {
                     value={form.password}
                     onChange={handleChange}
                     required={isNewUser && !documentId}
+                    disabled={!isNewUser && !documentId}
+                  />
+                </>
+              )}
+              {/* แสดงช่องกรอกข้อมูลส่วนตัวเมื่อเลือก user ที่มีอยู่แล้ว */}
+              {!documentId && !isNewUser && form.userId && (
+                <>
+                  <label>ชื่อ<span className="required">*</span></label>
+                  <input 
+                    type="text" 
+                    name="firstName" 
+                    value={form.firstName} 
+                    onChange={handleChange} 
+                    required 
+                    disabled
+                    style={{ backgroundColor: '#f8f9fa' }}
+                  />
+                  <label>นามสกุล<span className="required">*</span></label>
+                  <input 
+                    type="text" 
+                    name="lastName" 
+                    value={form.lastName} 
+                    onChange={handleChange} 
+                    required 
+                    disabled
+                    style={{ backgroundColor: '#f8f9fa' }}
+                  />
+                  <label>เบอร์โทรศัพท์</label>
+                  <input 
+                    type="text" 
+                    name="phone" 
+                    value={form.phone} 
+                    onChange={handleChange} 
+                    disabled
+                    style={{ backgroundColor: '#f8f9fa' }}
+                  />
+                  <label>USERNAME<span className="required">*</span></label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={form.username}
+                    onChange={handleChange}
+                    required
+                    disabled
+                    style={{ backgroundColor: '#f8f9fa' }}
                   />
                 </>
               )}
@@ -903,6 +1404,9 @@ function FormStaffPage() {
         </div>
       </div>
       <Footer />
+      
+      {/* Popup Component */}
+      <StaffInfoPopup />
     </div>
   );
 }
