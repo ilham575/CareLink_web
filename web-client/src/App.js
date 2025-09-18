@@ -1,6 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './js/pages/default/home';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import DrugStoreDetail from './js/pages/default/DrugStoreDetail';
 import LoginPage from './js/pages/default/signin';
 import Signup from './js/pages/default/Signup';
@@ -20,26 +19,31 @@ import FormStaffPage from './js/components/middle_page/formStaffPage';
 import PharmacistDetailAdmin from './js/pages/admin/PharmacistDetail_admin';
 import EditPharmacistAdmin from "./js/pages/admin/EditPharmacist_admin";
 import EditStoreAdmin from "./js/pages/admin/EditStore_admin"
+import Footer from './js/components/footer';
 
-
-// ✅ เปลี่ยนชื่อ import ให้เป็นมาตรฐาน
 import AddStoreAdmin from './js/pages/admin/AddStore_admin';
 import AddPharmacyAdmin from './js/pages/admin/AddPharmacy_admin';
 
 import CustomerPage from './js/components/middle_page/customerPage';
 import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
 import FormCustomerPage from './js/components/middle_page/formcustomerPage';
-import 'antd/dist/reset.css';  // สำหรับ Ant Design v5 ขึ้นไป (2024)
+import 'antd/dist/reset.css';
+
+// Component สำหรับ redirect ตาม role
+import RoleBasedRedirect from './js/utils/rolebasedredirect';
 
 function App() {
   return (
     <Router>
       <div className="App">
         <Routes>
-          <Route path="/" element={<Home />} />
+          {/* Root path - จะ redirect ตาม role หรือแสดง Home */}
+          <Route path="/" element={<RoleBasedRedirect />} />
+          
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/drug_store/:id" element={<DrugStoreDetail />} />
+          
           {/* -------------------- ADMIN -------------------- */}
           <Route element={<RequireRole role="admin" />}>
             <Route path="/adminHome" element={<AdminHome />} />
@@ -71,7 +75,6 @@ function App() {
 
           {/* -------------------- STAFF MANAGEMENT -------------------- */}
           <Route element={<RequireRole role={['admin', 'pharmacy']} />}>
-            {/* <Route path="/add_drug_store_admin" element={<AddPharmacyAdmin />} />  */}
             <Route path="/drug_store_staff/:id" element={<StaffPage />} />
             <Route path="/form_staff" element={<FormStaffPage />} />
           </Route>
@@ -86,6 +89,7 @@ function App() {
             <Route path="/form_customer/:id" element={<FormCustomerPage />} />
           </Route>
         </Routes>
+        <Footer />
       </div>
     </Router>
   );

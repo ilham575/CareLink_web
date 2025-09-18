@@ -40,16 +40,16 @@ function LoginPage() {
 
       if (response.ok) {
         // ได้ Access Token + User
-        const accessToken = data.accessToken || data.jwt; // ถ้า backend ยังใช้ชื่อ jwt
+        const accessToken = data.accessToken || data.jwt;
         const userId = data.user.id;
         const userDocumentId = data.user.documentId;
 
-        // เก็บ Access Token และเวลาที่ได้
+        // ⚠️ ตรวจสอบให้แน่ใจว่าเก็บทั้งคู่
         localStorage.setItem('jwt', accessToken);
         localStorage.setItem('jwt_issued_at', Date.now().toString());
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('user_documentId', userDocumentId);
-
+        
         // ดึง user พร้อม role
         const userRes = await fetch(`http://localhost:1337/api/users/${userId}?populate=role`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
