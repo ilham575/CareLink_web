@@ -5,45 +5,52 @@ const { createCoreController } = require('@strapi/strapi').factories;
 module.exports = createCoreController('api::drug-store.drug-store', ({ strapi }) => ({
   async find(ctx) {
     const user = ctx.state.user;
+    console.log('🔍 Current User:', user?.id, user?.username);
 
-    if (user) {
-      // -- PHARMACIST --
+    // ปิด pharmacy filter ชั่วคราว
+    if (false && user) {  // เปลี่ยน false เป็น true เมื่อแก้ไขข้อมูลเสร็จ
       const pharmacyProfiles = await strapi.entityService.findMany('api::pharmacy-profile.pharmacy-profile', {
         filters: { users_permissions_user: user.id }
       });
+      
+      console.log('🏥 Found Pharmacy Profiles:', pharmacyProfiles);
+      
       if (pharmacyProfiles && pharmacyProfiles.length > 0) {
         const profileIds = pharmacyProfiles.map(p => p.id);
+        console.log('🔍 Profile IDs to filter:', profileIds);
+        
+        // Debug: ดูว่ามี drug store ไหนที่มี pharmacy_profiles บ้าง
+        const allStores = await strapi.entityService.findMany('api::drug-store.drug-store', {
+          populate: ['pharmacy_profiles']
+        });
+        
+        console.log('🏪 All Drug Stores with relations:');
+        allStores.forEach(store => {
+          console.log(`Store ${store.id} (${store.name_th}):`, {
+            pharmacy_profiles: store.pharmacy_profiles?.map(p => ({
+              id: p.id,
+              license: p.pharmacy_license_no
+            })) || []
+          });
+        });
+        
         ctx.query.filters = {
           ...ctx.query.filters,
           pharmacy_profiles: { id: { $in: profileIds } }
         };
-        // >>> LOG เงื่อนไข filter สุดท้ายที่ใช้จริง
-        console.log('PHARMACIST :: ctx.query.filters =', JSON.stringify(ctx.query.filters, null, 2));
-        return await super.find(ctx);
+        
+        console.log('PHARMACIST :: Final filter:', JSON.stringify(ctx.query.filters, null, 2));
+        
+        const result = await super.find(ctx);
+        console.log('🎯 Filtered Result:', {
+          count: result.data?.length,
+          stores: result.data?.map(s => ({ id: s.id, name: s.name_th }))
+        });
+        
+        return result;
       }
-
-      // -- ADMIN --
-      const adminProfiles = await strapi.entityService.findMany('api::admin-profile.admin-profile', {
-        filters: { users_permissions_user: user.id },
-        limit: 1,
-      });
-      if (adminProfiles && adminProfiles.length > 0) {
-        const adminProfileId = adminProfiles[0].id;
-        ctx.query.filters = {
-          ...ctx.query.filters,
-          admin_profile: adminProfileId
-        };
-        // >>> LOG เงื่อนไข filter สุดท้ายที่ใช้จริง
-        console.log('ADMIN :: ctx.query.filters =', JSON.stringify(ctx.query.filters, null, 2));
-        return await super.find(ctx);
-      }
-
-      // >>> LOG กรณีไม่ผ่าน profile
-      console.log('NO PROFILE :: ctx.query.filters =', JSON.stringify(ctx.query.filters, null, 2));
-      return this.transformResponse([]);
     }
-    // guest: ใช้ core filter ได้เต็มที่
-    console.log('GUEST :: ctx.query.filters =', JSON.stringify(ctx.query.filters, null, 2));
+    
     return await super.find(ctx);
   },
   async findOne(ctx) {

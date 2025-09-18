@@ -593,6 +593,7 @@ export interface ApiStaffProfileStaffProfile
       'manyToOne',
       'plugin::users-permissions.user'
     >;
+    work_schedule: Schema.Attribute.JSON;
     working_days: Schema.Attribute.JSON;
   };
 }

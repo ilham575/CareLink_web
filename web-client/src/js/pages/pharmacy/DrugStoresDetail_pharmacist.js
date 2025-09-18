@@ -157,10 +157,16 @@ function DrugStoresDetail_pharmacist() {
               <div className="service-box">
                 <p className="section-title">การให้บริการ</p>
                 <ul>
-                  <li>จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ</li>
-                  <li>ให้คำปรึกษาทางเภสัชกรรม</li>
-                  <li>ตรวจสุขภาพเบื้องต้น</li>
-                  <li>รับฝากยาและจัดส่งยา</li>
+                  {pharmacy.services ? (
+                    <>
+                      {pharmacy.services.sell_products && <li>จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ</li>}
+                      {pharmacy.services.consulting && <li>ให้คำปรึกษาทางเภสัชกรรม</li>}
+                      {pharmacy.services.health_check && <li>ตรวจสุขภาพเบื้องต้น</li>}
+                      {pharmacy.services.delivery && <li>รับฝากยาและจัดส่งยา</li>}
+                    </>
+                  ) : (
+                    <li>ไม่มีข้อมูลการให้บริการ</li>
+                  )}
                 </ul>
               </div>
               <div className="map-box">

@@ -140,7 +140,7 @@ function StaffPage({ id }) {
           const refreshList = async () => {
             if (!documentId) return;
             const res = await fetch(
-              `http://localhost:1337/api/staff-profiles?filters[drug_stores][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage&_=${Date.now()}`,
+              `http://localhost:1337/api/staff-profiles?filters[drug_store][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage&_=${Date.now()}`,
               { headers: authHeaders }
             );
             const js = await res.json().catch(() => ({}));
@@ -230,16 +230,23 @@ function StaffPage({ id }) {
                       <b>เบอร์โทรศัพท์:</b> {user?.phone || '…'}
                     </div>
                     <div>
-                      <b>เวลาทำงาน:</b>{" "}
-                      {staff.time_start && staff.time_end
-                        ? `${formatTime(staff.time_start)} - ${formatTime(staff.time_end)}`
-                        : '…'}
-                    </div>
-                    <div>
-                      <b>วันทำงาน:</b>{" "}
-                      {staff.working_days && staff.working_days.length > 0
-                        ? staff.working_days.join(", ")
-                        : '…'}
+                      <b>ตารางเวลาทำงาน:</b>
+                      <div style={{ marginLeft: '10px', fontSize: '12px' }}>
+                        {staff.work_schedule && Array.isArray(staff.work_schedule) ? (
+                          staff.work_schedule.map((schedule, idx) => (
+                            <div key={idx}>
+                              {schedule.day}: {schedule.start_time} - {schedule.end_time}
+                            </div>
+                          ))
+                        ) : staff.working_days && staff.working_days.length > 0 ? (
+                          // แสดงข้อมูลเก่า
+                          <div>
+                            {staff.working_days.join(", ")}: {formatTime(staff.time_start)} - {formatTime(staff.time_end)}
+                          </div>
+                        ) : (
+                          '…'
+                        )}
+                      </div>
                     </div>
                   </div>
                   <button

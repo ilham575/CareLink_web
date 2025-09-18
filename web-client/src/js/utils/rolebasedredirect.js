@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Home from './js/pages/default/home';
+import Home from '../pages/default/home';
 
 function RoleBasedRedirect () {
   const navigate = useNavigate();
@@ -8,12 +8,6 @@ function RoleBasedRedirect () {
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
     const role = localStorage.getItem('role');
-    
-    console.log('🔄 RoleBasedRedirect - Checking auth:', {
-      isLoggedIn,
-      role,
-      currentPath: window.location.pathname
-    });
     
     if (!isLoggedIn) {
       // ไม่ได้ login ให้แสดงหน้า Home ปกติ

@@ -50,6 +50,9 @@
     "doc_uid": {
       "type": "string",
       "unique": true
+    },
+    "work_schedule": {
+      "type": "json"
     }
   }
 }

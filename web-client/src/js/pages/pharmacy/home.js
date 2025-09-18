@@ -9,7 +9,6 @@ import Footer from '../../components/footer';
 function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front }) {
   const navigate = useNavigate();
 
-  // รูปภาพร้านยา
   const getImageUrl = (photo) => {
     if (!photo) return null;
     if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
@@ -18,9 +17,8 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
   };
   const imageUrl = getImageUrl(photo_front);
 
-  // ปุ่ม handler
   const handleClick = () => {
-    navigate(`/drug_store_pharmacy/${id}`); // Updated route for pharmacy details
+    navigate(`/drug_store_pharmacy/${id}`);
   };
   const handleDrugList = () => {
     navigate(`/drug_store_pharmacy/${id}/drugs`);
@@ -31,7 +29,6 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
 
   return (
     <div className="pharmacy-item">
-      {/* รูปภาพร้านยา */}
       <div className="pharmacy-image-placeholder" style={{ padding: 0, background: 'none' }}>
         {imageUrl ? (
           <img
@@ -50,7 +47,6 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
         )}
       </div>
 
-      {/* ข้อมูลร้านยา */}
       <div className="pharmacy-details">
         <p>ชื่อร้านยา: {name_th || 'ไม่พบข้อมูล'}</p>
         <p>ที่อยู่: {address || 'ไม่พบข้อมูล'}</p>
@@ -59,7 +55,6 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
         </p>
       </div>
 
-      {/* ปุ่มทั้ง 3 ปุ่มอยู่แถวเดียวกัน (responsive) */}
       <div
         className="pharmacy-actions"
         style={{
@@ -83,36 +78,101 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
   );
 }
 
-
 function PharmacyHome() {
   const location = useLocation();
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
+  const [userProfile, setUserProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [userId, setUserId] = useState(null); // เพิ่ม state สำหรับ user.id
 
-  // แทนที่จะใช้ user_id ให้ใช้ token
   const token = localStorage.getItem('jwt');
 
+  // ขั้นตอนที่ 1: ดึง user.id จาก /api/users/me
   useEffect(() => {
     if (!token) {
-      setPharmacies([]);
+      setProfileLoading(false);
       setLoading(false);
       return;
     }
-    fetch('http://localhost:1337/api/drug-stores?populate=*', {
+
+    fetch('http://localhost:1337/api/users/me', {
       headers: {
-        Authorization: 'Bearer ' + token
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(res => res.json())
+      .then(userData => {
+        setUserId(userData.id);
+      })
+      .catch(err => {
+        console.error('❌ Error fetching user:', err);
+        setProfileLoading(false);
+        setLoading(false);
+      });
+  }, [token]);
+
+  // ขั้นตอนที่ 2: ดึง pharmacy profile โดยใช้ user.id
+  useEffect(() => {
+    if (!token || !userId) {
+      return;
+    }
+
+    fetch(`http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
     })
       .then(res => res.json())
       .then(data => {
-        setPharmacies(Array.isArray(data.data) ? data.data : []);
+        if (data.data && data.data.length > 0) {
+          const activeProfile = data.data.find(p => p.publishedAt) || data.data[0];
+          setUserProfile(activeProfile);
+        }
+        setProfileLoading(false);
+      })
+      .catch(err => {
+        console.error('❌ Error fetching user profile:', err);
+        setProfileLoading(false);
+      });
+  }, [token, userId]);
+
+  // ขั้นตอนที่ 3: ดึงข้อมูลร้านยาและ filter ใน frontend
+  useEffect(() => {
+    if (profileLoading || !userProfile) {
+      return;
+    }
+
+    fetch(`http://localhost:1337/api/drug-stores?populate=*`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        const allStores = Array.isArray(data.data) ? data.data : [];
+        
+        const myStores = allStores.filter(store => {
+          const hasMyProfile = store.pharmacy_profiles?.some(profile => 
+            profile.id === userProfile.id || profile.documentId === userProfile.documentId
+          );
+          
+          return hasMyProfile;
+        });
+        
+        setPharmacies(myStores);
         setLoading(false);
       })
       .catch((err) => {
+        console.error('❌ Drug Stores Error:', err);
+        setPharmacies([]);
         setLoading(false);
       });
-  }, [token]);
+  }, [token, userProfile, profileLoading]);
 
   useEffect(() => {
     if (location.state?.showToast) {
@@ -124,17 +184,49 @@ function PharmacyHome() {
     pharmacy.name_th?.toLowerCase().includes(searchText.toLowerCase())
   );
 
+  if (loading || profileLoading) {
+    return (
+      <div className="app-container">
+        <HomeHeader onSearch={setSearchText} isLoggedIn={true} />
+        <main className="main-content">
+          <div style={{ textAlign: 'center', marginTop: '40px' }}>
+            กำลังโหลดข้อมูล...
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!userProfile) {
+    return (
+      <div className="app-container">
+        <ToastContainer />
+        <HomeHeader onSearch={setSearchText} isLoggedIn={true} />
+        <main className="main-content">
+          <div style={{ color: '#e57373', textAlign: 'center', marginTop: '40px' }}>
+            ไม่พบข้อมูลโปรไฟล์เภสัชกร<br />
+            กรุณาติดต่อผู้ดูแลระบบ
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       <ToastContainer />
       <HomeHeader onSearch={setSearchText} isLoggedIn={true} />
       <main className="main-content">
         <h2>ร้านยาของฉัน:</h2>
-        {loading ? (
-          <div>กำลังโหลดข้อมูล...</div>
-        ) : filteredPharmacies.length === 0 ? (
+
+        {filteredPharmacies.length === 0 ? (
           <div style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>
-            ไม่พบข้อมูลร้านยาของคุณ
+            {pharmacies.length === 0 
+              ? 'ยังไม่มีร้านยาที่คุณรับผิดชอบ' 
+              : 'ไม่พบร้านยาที่ตรงกับการค้นหา'
+            }
           </div>
         ) : (
           filteredPharmacies.map(pharmacy => (
@@ -155,6 +247,5 @@ function PharmacyHome() {
     </div>
   );
 }
-
 
 export default PharmacyHome;

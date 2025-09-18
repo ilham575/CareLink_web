@@ -13,7 +13,7 @@ function FormStaffPage() {
   const documentId = paramId || id || queryId;
   const pharmacyId = searchParams.get('pharmacyId');
 
-  // State
+  // State - เปลี่ยนโครงสร้าง
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -22,10 +22,8 @@ function FormStaffPage() {
     password: "",
     userId: "",
     position: "",
-    profileImage: null, // file object
-    timeStart: "",
-    timeEnd: "",
-    workDays: [],
+    profileImage: null,
+    workSchedule: [], // เปลี่ยนเป็น array ของ { day, start_time, end_time }
   });
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null); // preview ชั่วคราว
   const [uploadedImageUrl, setUploadedImageUrl] = useState(null); // รูปจริงจาก Strapi
@@ -35,7 +33,6 @@ function FormStaffPage() {
   const fileInputRef = useRef();
   const navigate = useNavigate();
 
-  // ===== 1. ดึง user สำหรับเลือก (แก้ไขแล้ว) =====
   // ===== 1. ดึง user สำหรับเลือก (แก้ไขแล้ว) =====
   useEffect(() => {
     if (!documentId && pharmacyId) {
@@ -91,7 +88,7 @@ function FormStaffPage() {
     }
   }, [pharmacyId, documentId]);
 
-  // ===== 2. โหลดข้อมูล staff-profile เดิม =====
+  // ===== 2. โหลดข้อมูล staff-profile เดิม (อัพเดต) =====
   useEffect(() => {
     if (!documentId) return;
     const token = localStorage.getItem('jwt');
@@ -108,6 +105,33 @@ function FormStaffPage() {
         }
         const user = staffRaw.users_permissions_user || {};
         setOriginalStaff(staffRaw);
+        
+        // *** แก้ไข: ปรับปรุงการแปลงข้อมูลเวลาทำงาน ***
+        let workSchedule = [];
+        if (staffRaw.work_schedule && Array.isArray(staffRaw.work_schedule) && staffRaw.work_schedule.length > 0) {
+          // ถ้ามีข้อมูลใหม่แล้ว - ใช้ข้อมูลใหม่
+          workSchedule = staffRaw.work_schedule.map(schedule => ({
+            day: schedule.day || "",
+            start_time: schedule.start_time || "",
+            end_time: schedule.end_time || ""
+          }));
+        } else if (staffRaw.working_days && Array.isArray(staffRaw.working_days) && staffRaw.working_days.length > 0) {
+          // แปลงจากข้อมูลเก่า - สร้างตารางเวลาจากวันทำงาน
+          const startTime = staffRaw.time_start ? formatTimeForDisplay(staffRaw.time_start) : "";
+          const endTime = staffRaw.time_end ? formatTimeForDisplay(staffRaw.time_end) : "";
+          
+          workSchedule = staffRaw.working_days.map(day => ({
+            day: day,
+            start_time: startTime,
+            end_time: endTime
+          }));
+        }
+        
+        // *** แก้ไข: ถ้าไม่มีตารางเวลา ให้เป็น array ว่าง ***
+        if (workSchedule.length === 0) {
+          workSchedule = [];
+        }
+
         setForm({
           firstName: user.full_name?.split(" ")[0] || "",
           lastName: user.full_name?.split(" ")[1] || "",
@@ -116,10 +140,8 @@ function FormStaffPage() {
           password: "",
           userId: user.id || "",
           position: staffRaw.position || "",
-          profileImage: null, // reset ฟิลด์ไฟล์
-          timeStart: staffRaw.time_start?.split(':').slice(0, 2).join(':') || "",
-          timeEnd: staffRaw.time_end?.split(':').slice(0, 2).join(':') || "",
-          workDays: staffRaw.working_days || [],
+          profileImage: null,
+          workSchedule: workSchedule,
         });
 
         // รูปจริงจาก Strapi
@@ -250,8 +272,77 @@ function FormStaffPage() {
     return json.data?.[0]?.documentId;
   };
 
-  // ===== 6. Create staff-profile (แก้ไขแล้ว) =====
-  // ===== 6. Create staff-profile (Debug ครอบคลุม) =====
+  // ===== เพิ่มฟังก์ชันเช็คเวลาชน =====
+  const checkTimeConflict = async (userId, newWorkSchedule, excludeStaffId = null) => {
+    const token = localStorage.getItem('jwt');
+    
+    try {
+      const response = await fetch(
+        `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=drug_store`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      const data = await response.json();
+      const existingProfiles = Array.isArray(data.data) ? data.data : [];
+      
+      const otherProfiles = excludeStaffId 
+        ? existingProfiles.filter(profile => profile.id !== excludeStaffId)
+        : existingProfiles;
+      
+      // เช็คความขัดแย้งกับแต่ละ profile
+      for (const profile of otherProfiles) {
+        const pharmacyName = profile.drug_store?.name_th || 'ร้านยาอื่น';
+        
+        // แปลงข้อมูลเก่าให้เป็นรูปแบบใหม่
+        let existingSchedule = [];
+        if (profile.work_schedule && Array.isArray(profile.work_schedule)) {
+          existingSchedule = profile.work_schedule;
+        } else if (profile.working_days && profile.time_start && profile.time_end) {
+          existingSchedule = profile.working_days.map(day => ({
+            day: day,
+            start_time: formatTimeForDisplay(profile.time_start),
+            end_time: formatTimeForDisplay(profile.time_end)
+          }));
+        }
+        
+        // เช็คความขัดแย้งระหว่างตารางเวลา
+        for (const newSlot of newWorkSchedule) {
+          for (const existingSlot of existingSchedule) {
+            if (newSlot.day === existingSlot.day) {
+              const newStartMinutes = timeToMinutes(newSlot.start_time);
+              const newEndMinutes = timeToMinutes(newSlot.end_time);
+              const existingStartMinutes = timeToMinutes(existingSlot.start_time);
+              const existingEndMinutes = timeToMinutes(existingSlot.end_time);
+              
+              const isTimeOverlap = (
+                (newStartMinutes < existingEndMinutes && newEndMinutes > existingStartMinutes)
+              );
+              
+              if (isTimeOverlap) {
+                return {
+                  hasConflict: true,
+                  conflictDetails: {
+                    pharmacyName,
+                    day: newSlot.day,
+                    existingTime: `${existingSlot.start_time} - ${existingSlot.end_time}`,
+                    newTime: `${newSlot.start_time} - ${newSlot.end_time}`
+                  }
+                };
+              }
+            }
+          }
+        }
+      }
+      
+      return { hasConflict: false };
+      
+    } catch (error) {
+      console.error('Error checking time conflict:', error);
+      return { hasConflict: false };
+    }
+  };
+
+  // ===== อัพเดต Create staff-profile =====
   const createStaffProfile = async () => {
     try {
       const token = localStorage.getItem('jwt');
@@ -294,24 +385,25 @@ function FormStaffPage() {
         });
       }
 
+      // *** เช็คเวลาชนก่อนสร้าง staff profile ***
+      if (form.workSchedule.length > 0) {
+        const validSchedules = form.workSchedule.filter(s => s.day && s.start_time && s.end_time);
+        if (validSchedules.length > 0) {
+          const conflictCheck = await checkTimeConflict(userId, validSchedules);
+          
+          if (conflictCheck.hasConflict) {
+            const { pharmacyName, day, existingTime, newTime } = conflictCheck.conflictDetails;
+            toast.error(
+              `เวลาทำงานขัดแย้งกับ ${pharmacyName}\n` +
+              `วัน${day}: เวลาเดิม ${existingTime}, เวลาใหม่ ${newTime}`,
+              { autoClose: 8000 }
+            );
+            return null;
+          }
+        }
+      }
+
       // *** ลอง URL หลายแบบ ***
-      // วิธีที่ 1: แบบเดิม
-      const url1 = `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`;
-      
-      const drugStoreRes1 = await fetch(url1, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const drugStoreJson1 = await drugStoreRes1.json();
-
-      // วิธีที่ 2: ลอง encode URI
-      const url2 = `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${encodeURIComponent(pharmacyId)}`;
-      
-      const drugStoreRes2 = await fetch(url2, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const drugStoreJson2 = await drugStoreRes2.json();
-
-      // วิธีที่ 3: ดึงทุกร้านแล้วหาเอง
       const url3 = `http://localhost:1337/api/drug-stores`;
       
       const drugStoreRes3 = await fetch(url3, {
@@ -319,7 +411,6 @@ function FormStaffPage() {
       });
       const drugStoreJson3 = await drugStoreRes3.json();
       
-      // *** ใช้วิธีที่ 3 (ดึงทุกร้านแล้วหาเอง) เพื่อความแน่ใจ ***
       const targetStore = drugStoreJson3.data?.find(store => {
         return store.documentId === pharmacyId;
       });
@@ -330,6 +421,7 @@ function FormStaffPage() {
       }
       
       const drugStoreInternalId = targetStore.id;
+      
       // ตรวจสอบ duplicate อีกรอบ
       const checkUrl = `http://localhost:1337/api/staff-profiles?filters[users_permissions_user]=${userId}&filters[drug_store]=${drugStoreInternalId}`;
       
@@ -353,9 +445,11 @@ function FormStaffPage() {
           drug_store: {
             connect: [drugStoreInternalId]
           },
-          time_start: form.timeStart ? `${form.timeStart}:00.000` : null,
-          time_end: form.timeEnd ? `${form.timeEnd}:00.000` : null,
-          working_days: form.workDays,
+          work_schedule: form.workSchedule.filter(s => s.day && s.start_time && s.end_time),
+          // เก็บข้อมูลเก่าไว้เพื่อ backward compatibility
+          working_days: form.workSchedule.map(s => s.day).filter(Boolean),
+          time_start: form.workSchedule[0]?.start_time ? `${form.workSchedule[0].start_time}:00.000` : null,
+          time_end: form.workSchedule[0]?.end_time ? `${form.workSchedule[0].end_time}:00.000` : null,
         },
       };
 
@@ -411,7 +505,7 @@ function FormStaffPage() {
     }
   };
 
-  // ===== 7. Update staff-profile =====
+  // ===== อัพเดต Update staff-profile =====
   const updateStaffProfile = async () => {
     try {
       const token = localStorage.getItem('jwt');
@@ -425,13 +519,33 @@ function FormStaffPage() {
         return null;
       }
 
+      // *** เช็คเวลาชนก่อนอัพเดต ***
+      if (form.workSchedule.length > 0) {
+        const validSchedules = form.workSchedule.filter(s => s.day && s.start_time && s.end_time);
+        if (validSchedules.length > 0) {
+          const conflictCheck = await checkTimeConflict(userId, validSchedules, staffId);
+          
+          if (conflictCheck.hasConflict) {
+            const { pharmacyName, day, existingTime, newTime } = conflictCheck.conflictDetails;
+            toast.error(
+              `เวลาทำงานขัดแย้งกับ ${pharmacyName}\n` +
+              `วัน${day}: เวลาเดิม ${existingTime}, เวลาใหม่ ${newTime}`,
+              { autoClose: 8000 }
+            );
+            return null;
+          }
+        }
+      }
+
       const staffData = {
         data: {
           position: form.position,
           users_permissions_user: userId,
-          time_start: form.timeStart ? `${form.timeStart}:00.000` : null,
-          time_end: form.timeEnd ? `${form.timeEnd}:00.000` : null,
-          working_days: form.workDays,
+          work_schedule: form.workSchedule.filter(s => s.day && s.start_time && s.end_time),
+          // เก็บข้อมูลเก่าไว้เพื่อ backward compatibility
+          working_days: form.workSchedule.map(s => s.day).filter(Boolean),
+          time_start: form.workSchedule[0]?.start_time ? `${form.workSchedule[0].start_time}:00.000` : null,
+          time_end: form.workSchedule[0]?.end_time ? `${form.workSchedule[0].end_time}:00.000` : null,
         },
       };
 
@@ -473,9 +587,17 @@ function FormStaffPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (form.timeStart && form.timeEnd && form.timeStart >= form.timeEnd) {
-      toast.error("เวลาเริ่มงานต้องก่อนเวลาเลิกงาน");
+    // ตรวจสอบวันซ้ำ
+    if (!validateWorkSchedule()) {
       return;
+    }
+
+    // ตรวจสอบเวลาในแต่ละวัน
+    for (const schedule of form.workSchedule) {
+      if (schedule.day && schedule.start_time && schedule.end_time && schedule.start_time >= schedule.end_time) {
+        toast.error(`วัน${schedule.day}: เวลาเริ่มงานต้องก่อนเวลาเลิกงาน`);
+        return;
+      }
     }
 
     const token = localStorage.getItem("jwt");
@@ -574,6 +696,57 @@ function FormStaffPage() {
     }
   };
 
+  // ===== ฟังก์ชันจัดการตารางเวลาทำงาน =====
+  const handleWorkScheduleChange = (index, field, value) => {
+    setForm(prevForm => ({
+      ...prevForm,
+      workSchedule: prevForm.workSchedule.map((schedule, i) => 
+        i === index ? { ...schedule, [field]: value } : schedule
+      )
+    }));
+  };
+
+  const addWorkDay = () => {
+    setForm(prevForm => ({
+      ...prevForm,
+      workSchedule: [...prevForm.workSchedule, { day: "", start_time: "", end_time: "" }]
+    }));
+  };
+
+  const removeWorkDay = (index) => {
+    if (form.workSchedule.length > 1) {
+      setForm(prevForm => ({
+        ...prevForm,
+        workSchedule: prevForm.workSchedule.filter((_, i) => i !== index)
+      }));
+    }
+  };
+
+  // *** เพิ่มการตรวจสอบวันซ้ำ ***
+  const validateWorkSchedule = () => {
+    const days = form.workSchedule.map(s => s.day).filter(Boolean);
+    const uniqueDays = [...new Set(days)];
+    
+    if (days.length !== uniqueDays.length) {
+      toast.error("ไม่สามารถเลือกวันเดียวกันได้มากกว่า 1 ครั้ง");
+      return false;
+    }
+    
+    return true;
+  };
+
+  // ฟังก์ชันช่วยแปลงเวลาเป็น minutes
+  const timeToMinutes = (timeString) => {
+    if (!timeString) return 0;
+    const [hours, minutes] = timeString.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+  
+  // ฟังก์ชันช่วยแสดงเวลา
+  const formatTimeForDisplay = (timeString) => {
+    if (!timeString) return '';
+    return timeString.substring(0, 5); // แสดงแค่ HH:MM
+  };
 
   return (
     <div className="signup-page-container">
@@ -644,30 +817,69 @@ function FormStaffPage() {
               <label>ตำแหน่งงาน<span className="required">*</span></label>
               <input type="text" name="position" value={form.position} onChange={handleChange} required />
               <div className="form-group">
-                <label>เวลาเริ่มงานและเวลาหยุดงาน</label>
-                <div className="time-input-group">
-                  <input type="time" name="timeStart" value={form.timeStart} onChange={handleChange} className="time-input" />
-                  <span className="time-separator">ถึง</span>
-                  <input type="time" name="timeEnd" value={form.timeEnd} onChange={handleChange} className="time-input" />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>เลือกวันทำงาน</label>
-                <div className="workdays-checkbox-group">
-                  {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].map((day) => (
-                    <label key={day} className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        value={day}
-                        checked={form.workDays.includes(day)}
-                        onChange={handleCheckboxChange}
-                      />
-                      {day}
-                    </label>
-                  ))}
+                <label>ตารางเวลาทำงาน</label>
+                <div className="work-schedule-container">
+                  {form.workSchedule.length === 0 ? (
+                    <div className="no-schedule">
+                      <p>ยังไม่มีตารางเวลาทำงาน</p>
+                    </div>
+                  ) : (
+                    form.workSchedule.map((schedule, index) => (
+                      <div key={index} className="work-schedule-row">
+                        <select
+                          value={schedule.day || ""}
+                          onChange={(e) => handleWorkScheduleChange(index, 'day', e.target.value)}
+                          className="day-select"
+                          required
+                        >
+                          <option value="">เลือกวัน</option>
+                          {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"]
+                            .filter(day => 
+                              // แสดงเฉพาะวันที่ยังไม่ถูกเลือก หรือวันที่เลือกอยู่ในแถวนี้
+                              !form.workSchedule.some((s, i) => s.day === day && i !== index) || schedule.day === day
+                            )
+                            .map((day) => (
+                              <option key={day} value={day}>{day}</option>
+                            ))
+                          }
+                        </select>
+                        <input
+                          type="time"
+                          value={schedule.start_time || ""}
+                          onChange={(e) => handleWorkScheduleChange(index, 'start_time', e.target.value)}
+                          className="time-input"
+                          required={!!schedule.day}
+                        />
+                        <span className="time-separator">-</span>
+                        <input
+                          type="time"
+                          value={schedule.end_time || ""}
+                          onChange={(e) => handleWorkScheduleChange(index, 'end_time', e.target.value)}
+                          className="time-input"
+                          required={!!schedule.day}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeWorkDay(index)}
+                          className="remove-day-btn"
+                        >
+                          ลบ
+                        </button>
+                      </div>
+                    ))
+                  )}
+                  <button
+                    type="button"
+                    onClick={addWorkDay}
+                    className="add-day-btn"
+                    disabled={form.workSchedule.length >= 7} // จำกัดไม่เกิน 7 วัน
+                  >
+                    + เพิ่มวันทำงาน
+                  </button>
                 </div>
               </div>
             </div>
+            
             <div className="signup-form-right">
               <label>เพิ่มรูปภาพพนักงาน</label>
               <div className="signup-upload-box" onClick={handleUploadClick}>
@@ -682,7 +894,9 @@ function FormStaffPage() {
               </div>
             </div>
           </div>
-          <button type="submit" className="signup-submit-btn">{documentId ? "บันทึกการแก้ไข" : "เพิ่มพนักงาน"}</button>
+          <button type="submit" className="signup-submit-btn">
+            {documentId ? "บันทึกการแก้ไข" : "เพิ่มพนักงาน"}
+          </button>
         </form>
         <div className="signup-footer-note">
           <span>" * " หมายถึง จำเป็นต้องใส่</span>

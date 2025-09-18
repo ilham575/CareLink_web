@@ -1,0 +1,36 @@
+.staff-home-container {
+  /* Main container styles if needed */
+}
+
+.staff-pharmacy-item {
+  /* Inherits from default home.css pharmacy-item */
+}
+
+.staff-pharmacy-image {
+  padding: 0;
+  background: none;
+}
+
+.staff-pharmacy-image img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 5px;
+  display: block;
+}
+
+.staff-work-info {
+  margin-top: 8px;
+}
+
+.staff-work-time {
+  color: #2e7d32;
+  font-weight: bold;
+  margin: 4px 0;
+}
+
+.staff-work-days {
+  color: #2e7d32;
+  font-weight: bold;
+  margin: 4px 0;
+}
