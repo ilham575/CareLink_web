@@ -12,6 +12,8 @@ function HomeHeader({ pharmacyName, onSearch }) {
   );
   const [profileUrl, setProfileUrl] = useState(null);
   const [profileFullName, setProfileFullName] = useState('');
+  const [formStaffPharmacyName, setFormStaffPharmacyName] = useState(''); // เพิ่ม state สำหรับชื่อร้านในหน้า form staff
+  const [formCustomerPharmacyName, setFormCustomerPharmacyName] = useState(''); // เพิ่ม state สำหรับชื่อร้านในหน้า form customer
 
   useEffect(() => {
     setIsLoggedIn(localStorage.getItem('isLoggedIn') === 'true');
@@ -79,6 +81,43 @@ function HomeHeader({ pharmacyName, onSearch }) {
       });
   }, [isLoggedIn]);
 
+  // เพิ่ม useEffect สำหรับดึงชื่อร้านเมื่ออยู่ในหน้า form_staff หรือ form_customer
+  useEffect(() => {
+    // เช็คว่าอยู่ในหน้า form_staff หรือ form_customer หรือไม่
+    if (location.pathname === '/form_staff' || location.pathname === '/form_customer') {
+      const searchParams = new URLSearchParams(location.search);
+      const pharmacyId = searchParams.get('pharmacyId');
+      
+      if (pharmacyId) {
+        // ดึงข้อมูลร้านยาจาก pharmacyId
+        fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`)
+          .then(res => res.json())
+          .then(json => {
+            const store = json.data?.find(item => item.documentId === pharmacyId);
+            if (store) {
+              const storeName = store.name_th || store.attributes?.name_th || '';
+              if (location.pathname === '/form_staff') {
+                setFormStaffPharmacyName(storeName);
+              } else if (location.pathname === '/form_customer') {
+                setFormCustomerPharmacyName(storeName);
+              }
+            }
+          })
+          .catch(() => {
+            if (location.pathname === '/form_staff') {
+              setFormStaffPharmacyName('');
+            } else if (location.pathname === '/form_customer') {
+              setFormCustomerPharmacyName('');
+            }
+          });
+      }
+    } else {
+      // ถ้าไม่ใช่หน้า form ให้เคลียร์ชื่อร้าน
+      setFormStaffPharmacyName('');
+      setFormCustomerPharmacyName('');
+    }
+  }, [location.pathname, location.search]);
+
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('jwt');
@@ -95,7 +134,46 @@ function HomeHeader({ pharmacyName, onSearch }) {
     location.pathname.startsWith('/drug_store_pharmacy/') ||
     location.pathname.startsWith('/drug_store_admin/') ||
     location.pathname.startsWith('/drug_store_staff/');
+  
   const isSignup = location.pathname === '/signup';
+  
+  // เพิ่มการเช็คหน้า form_staff และ form_customer
+  const isFormStaff = location.pathname === '/form_staff';
+  const isFormCustomer = location.pathname === '/form_customer';
+
+  // ฟังก์ชันสำหรับสร้างหัวข้อหน้า form_staff
+  const getFormStaffTitle = () => {
+    const searchParams = new URLSearchParams(location.search);
+    const documentId = searchParams.get('documentId');
+    const isEdit = !!documentId; // ถ้ามี documentId แสดงว่าเป็นการแก้ไข
+    
+    const action = isEdit ? 'แก้ไขพนักงาน' : 'เพิ่มพนักงาน';
+    let storeName = '';
+    if (formStaffPharmacyName) {
+      // เช็คว่าชื่อร้านเริ่มต้นด้วย "ร้านยา" หรือไม่
+      const needsPrefix = !formStaffPharmacyName.startsWith('ร้านยา');
+      storeName = needsPrefix ? `ร้านยา${formStaffPharmacyName}` : formStaffPharmacyName;
+    }
+    
+    return `${action}${storeName}`;
+  };
+
+  // ฟังก์ชันสำหรับสร้างหัวข้อหน้า form_customer
+  const getFormCustomerTitle = () => {
+    const searchParams = new URLSearchParams(location.search);
+    const documentId = searchParams.get('documentId');
+    const isEdit = !!documentId; // ถ้ามี documentId แสดงว่าเป็นการแก้ไข
+    
+    const action = isEdit ? 'แก้ไขลูกค้า' : 'เพิ่มลูกค้า';
+    let storeName = '';
+    if (formCustomerPharmacyName) {
+      // เช็คว่าชื่อร้านเริ่มต้นด้วย "ร้านยา" หรือไม่
+      const needsPrefix = !formCustomerPharmacyName.startsWith('ร้านยา');
+      storeName = needsPrefix ? `ร้านยา${formCustomerPharmacyName}` : formCustomerPharmacyName;
+    }
+    
+    return `${action}${storeName}`;
+  };
 
   if (isSignup) {
     return (
@@ -118,9 +196,24 @@ function HomeHeader({ pharmacyName, onSearch }) {
         alt="Logo"
         className="app-logo"
       />
-      {isPharmacyDetail ? (
+      {isFormStaff ? (
+        // แสดงหัวข้อสำหรับหน้า form_staff
         <div className="detail-title">
-          {(pharmacyName || 'ชื่อร้านยา')}
+          {getFormStaffTitle()}
+        </div>
+      ) : isFormCustomer ? (
+        // แสดงหัวข้อสำหรับหน้า form_customer
+        <div className="detail-title">
+          {getFormCustomerTitle()}
+        </div>
+      ) : isPharmacyDetail ? (
+        <div className="detail-title">
+          {(() => {
+            const name = pharmacyName || 'ชื่อร้านยา';
+            if (name === 'ชื่อร้านยา') return name;
+            const needsPrefix = !name.startsWith('ร้านยา');
+            return needsPrefix ? `ร้านยา${name}` : name;
+          })()}
         </div>
       ) : (
         <div className="search-bar-container">

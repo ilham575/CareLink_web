@@ -5,6 +5,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import "../../../css/theme.css";
+import "../../../css/pages/default/middle_page/formStaffPage.css";
 
 function FormStaffPage() {
   const { documentId: paramId, id } = useParams();
@@ -181,15 +182,17 @@ function FormStaffPage() {
     }
   };
   const handleUploadClick = () => fileInputRef.current.click();
-  const handleCheckboxChange = (e) => {
-    const { value, checked } = e.target;
-    setForm(f => ({
-      ...f,
-      workDays: checked
-        ? [...f.workDays, value]
-        : f.workDays.filter((day) => day !== value),
-    }));
-  };
+  
+  // ===== ฟังก์ชันที่ไม่ได้ใช้งาน - คอมเมนต์ไว้ =====
+  // const handleCheckboxChange = (e) => {
+  //   const { value, checked } = e.target;
+  //   setForm(f => ({
+  //     ...f,
+  //     workDays: checked
+  //       ? [...f.workDays, value]
+  //       : f.workDays.filter((day) => day !== value),
+  //   }));
+  // };
 
   // ===== 4. Unlink รูปเก่า (ถ้ามี) ก่อน upload ใหม่ =====
   const unlinkOldProfileImage = async (staffId, token) => {
@@ -200,79 +203,79 @@ function FormStaffPage() {
     });
   };
 
-  // ===== 5. Upload รูปใหม่แล้ว patch ใส่ staff-profile =====
-  const uploadProfileImageAndUpdateStaff = async (profileImage, _documentId) => {
-    const token = localStorage.getItem('jwt');
-    if (!profileImage || !_documentId) return;
-    // หา staffId จาก documentId
-    const profileRes = await fetch(
-      `http://localhost:1337/api/staff-profiles?filters[documentId][$eq]=${_documentId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const profileJson = await profileRes.json();
-    const staff = profileJson?.data?.[0];
-    const staffId = profileJson?.data?.[0]?.id;
-    if (!staffId) {
-      toast.error("ไม่พบ staff-profile ที่จะอัพเดตรูป");
-      return;
-    }
-    // unlink รูปเก่า
-    await unlinkOldProfileImage(staffId, token);
-    // upload file
-    const formData = new FormData();
-    formData.append("files", profileImage);
-    const uploadRes = await fetch(`http://localhost:1337/api/upload`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-    const uploadJson = await uploadRes.json();
-    if (!Array.isArray(uploadJson) || !uploadJson[0]?.id) {
-      toast.error("อัพโหลดรูปไม่สำเร็จ");
-      return;
-    }
-    const imageId = uploadJson[0].id;
-    // patch profileimage
-    const patchRes = await fetch(
-      `http://localhost:1337/api/staff-profiles/${staffId}`,
-      {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ data: { profileimage: imageId } }),
-      }
-    );
-    if (!patchRes.ok) {
-      toast.error("อัพเดตรูปใน staff-profile ไม่สำเร็จ");
-      return;
-    }
-    // ดึง url จริงมาแสดงใหม่
-    const profileAfter = await fetch(
-      `http://localhost:1337/api/staff-profiles/${staffId}?populate=profileimage`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const afterJson = await profileAfter.json();
-    let imageUrl = null;
-    if (afterJson?.data?.attributes?.profileimage?.data) {
-      const imgAttr = afterJson.data.attributes.profileimage.data.attributes;
-      imageUrl = imgAttr?.formats?.thumbnail?.url || imgAttr?.url || null;
-    }
-    if (imageUrl) {
-      const base = process.env.REACT_APP_API_URL || "http://localhost:1337";
-      setUploadedImageUrl(imageUrl.startsWith("/") ? `${base}${imageUrl}` : imageUrl);
-    }
-    setImagePreviewUrl(null); // ลบ preview ออก
-    toast.success("อัพโหลดรูปสำเร็จ");
-  };
+  // ===== ฟังก์ชันที่ไม่ได้ใช้งาน - คอมเมนต์ไว้ =====
+  // const uploadProfileImageAndUpdateStaff = async (profileImage, _documentId) => {
+  //   const token = localStorage.getItem('jwt');
+  //   if (!profileImage || !_documentId) return;
+  //   // หา staffId จาก documentId
+  //   const profileRes = await fetch(
+  //     `http://localhost:1337/api/staff-profiles?filters[documentId][$eq]=${_documentId}`,
+  //     { headers: { Authorization: `Bearer ${token}` } }
+  //   );
+  //   const profileJson = await profileRes.json();
+  //   const staff = profileJson?.data?.[0];
+  //   const staffId = profileJson?.data?.[0]?.id;
+  //   if (!staffId) {
+  //     toast.error("ไม่พบ staff-profile ที่จะอัพเดตรูป");
+  //     return;
+  //   }
+  //   // unlink รูปเก่า
+  //   await unlinkOldProfileImage(staffId, token);
+  //   // upload file
+  //   const formData = new FormData();
+  //   formData.append("files", profileImage);
+  //   const uploadRes = await fetch(`http://localhost:1337/api/upload`, {
+  //     method: "POST",
+  //     headers: { Authorization: `Bearer ${token}` },
+  //     body: formData,
+  //   });
+  //   const uploadJson = await uploadRes.json();
+  //   if (!Array.isArray(uploadJson) || !uploadJson[0]?.id) {
+  //     toast.error("อัพโหลดรูปไม่สำเร็จ");
+  //     return;
+  //   }
+  //   const imageId = uploadJson[0].id;
+  //   // patch profileimage
+  //   const patchRes = await fetch(
+  //     `http://localhost:1337/api/staff-profiles/${staffId}`,
+  //     {
+  //       method: "PUT",
+  //       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  //       body: JSON.stringify({ data: { profileimage: imageId } }),
+  //     }
+  //   );
+  //   if (!patchRes.ok) {
+  //     toast.error("อัพเดตรูปใน staff-profile ไม่สำเร็จ");
+  //     return;
+  //   }
+  //   // ดึง url จริงมาแสดงใหม่
+  //   const profileAfter = await fetch(
+  //     `http://localhost:1337/api/staff-profiles/${staffId}?populate=profileimage`,
+  //     { headers: { Authorization: `Bearer ${token}` } }
+  //   );
+  //   const afterJson = await profileAfter.json();
+  //   let imageUrl = null;
+  //   if (afterJson?.data?.attributes?.profileimage?.data) {
+  //     const imgAttr = afterJson.data.attributes.profileimage.data.attributes;
+  //     imageUrl = imgAttr?.formats?.thumbnail?.url || imgAttr?.url || null;
+  //   }
+  //   if (imageUrl) {
+  //     const base = process.env.REACT_APP_API_URL || "http://localhost:1337";
+  //     setUploadedImageUrl(imageUrl.startsWith("/") ? `${base}${imageUrl}` : imageUrl);
+  //   }
+  //   setImagePreviewUrl(null); // ลบ preview ออก
+  //   toast.success("อัพโหลดรูปสำเร็จ");
+  // };
 
-  const getDrugStoreIdFromDocumentId = async (documentId) => {
-    const token = localStorage.getItem('jwt');
-    const res = await fetch(
-      `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const json = await res.json();
-    return json.data?.[0]?.documentId;
-  };
+  // const getDrugStoreIdFromDocumentId = async (documentId) => {
+  //   const token = localStorage.getItem('jwt');
+  //   const res = await fetch(
+  //     `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`,
+  //     { headers: { Authorization: `Bearer ${token}` } }
+  //   );
+  //   const json = await res.json();
+  //   return json.data?.[0]?.documentId;
+  // };
 
   // ===== เพิ่มฟังก์ชันเช็คเวลาชน =====
   const checkTimeConflict = async (userId, newWorkSchedule, excludeStaffId = null) => {
@@ -855,233 +858,83 @@ function FormStaffPage() {
     if (!showStaffInfoPopup) return null;
 
     return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 1000,
-        padding: '20px'
-      }}>
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '15px',
-          padding: '25px',
-          maxWidth: '800px',
-          width: '100%',
-          maxHeight: '80%',
-          overflowY: 'auto',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-          position: 'relative'
-        }}>
+      <div className="popup-overlay">
+        <div className="popup-container">
           {/* ปุ่มปิด */}
-          <button
-            onClick={handleClosePopup}
-            style={{
-              position: 'absolute',
-              top: '15px',
-              right: '15px',
-              background: '#ff4757',
-              color: 'white',
-              border: 'none',
-              borderRadius: '50%',
-              width: '35px',
-              height: '35px',
-              fontSize: '18px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              boxShadow: '0 2px 8px rgba(255,71,87,0.3)'
-            }}
-          >
+          <button onClick={handleClosePopup} className="popup-close-button">
             ✕
           </button>
 
           {/* หัวข้อ */}
-          <h3 style={{
-            margin: '0 0 20px 0',
-            fontSize: '24px',
-            color: '#2c5aa0',
-            fontWeight: 'bold',
-            textAlign: 'center',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingRight: '35px' // เผื่อปุ่มปิด
-          }}>
-            <span style={{ marginRight: '12px', fontSize: '28px' }}>👨‍💼</span>
+          <h3 className="popup-header">
+            <span className="icon">👨‍💼</span>
             ข้อมูลการทำงานปัจจุบัน
           </h3>
 
           {/* สรุปจำนวนร้านที่ทำงาน */}
-          <div style={{
-            backgroundColor: '#e6f3ff',
-            padding: '12px 20px',
-            borderRadius: '10px',
-            marginBottom: '20px',
-            textAlign: 'center',
-            border: '2px solid #b3d9ff'
-          }}>
-            <strong style={{ color: '#1976d2', fontSize: '16px' }}>
+          <div className="summary-box">
+            <span className="summary-text">
               📊 พนักงานคนนี้ปัจจุบันทำงานอยู่ {selectedUserStaffInfo.length} ร้าน
-            </strong>
+            </span>
           </div>
 
           {/* รายการร้าน */}
-          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          <div className="store-list-container">
             {selectedUserStaffInfo.map((info, index) => (
-              <div key={info.id} style={{
-                marginBottom: index < selectedUserStaffInfo.length - 1 ? '25px' : '0',
-                padding: '20px',
-                backgroundColor: '#f8f9fa',
-                borderRadius: '15px',
-                border: '2px solid #e8f4fd',
-                boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                position: 'relative'
-              }}>
+              <div key={info.id} className="store-item">
                 {/* หมายเลขร้าน */}
-                <div style={{
-                  position: 'absolute',
-                  top: '-12px',
-                  left: '20px',
-                  backgroundColor: '#4a90e2',
-                  color: 'white',
-                  padding: '6px 15px',
-                  borderRadius: '20px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  boxShadow: '0 2px 6px rgba(74,144,226,0.3)'
-                }}>
+                <div className="store-number-badge">
                   ร้านที่ {index + 1}
                 </div>
 
                 {/* ข้อมูลร้านยา */}
-                <div style={{
-                  marginBottom: '18px',
-                  marginTop: '15px',
-                  padding: '15px',
-                  backgroundColor: 'white',
-                  borderRadius: '10px',
-                  borderLeft: '6px solid #2196f3'
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: '10px'
-                  }}>
-                    <span style={{ marginRight: '12px', fontSize: '24px' }}>🏪</span>
-                    <strong style={{ color: '#1976d2', fontSize: '18px' }}>ชื่อร้านยา:</strong>
+                <div className="info-section pharmacy-info">
+                  <div className="pharmacy-header">
+                    <span className="icon">🏪</span>
+                    <span className="title">ชื่อร้านยา:</span>
                   </div>
-                  <div style={{
-                    marginLeft: '36px',
-                    fontSize: '18px',
-                    fontWeight: '600',
-                    color: '#1565c0'
-                  }}>
+                  <div className="pharmacy-name">
                     {info.pharmacyName}
                   </div>
                   {info.pharmacyId && (
-                    <div style={{
-                      marginLeft: '36px',
-                      fontSize: '13px',
-                      color: '#666',
-                      marginTop: '6px',
-                      fontStyle: 'italic'
-                    }}>
+                    <div className="pharmacy-id">
                       รหัสร้าน: {info.pharmacyId}
                     </div>
                   )}
                 </div>
 
                 {/* ตำแหน่งงาน */}
-                <div style={{
-                  marginBottom: '18px',
-                  padding: '15px',
-                  backgroundColor: 'white',
-                  borderRadius: '10px',
-                  borderLeft: '6px solid #4caf50'
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: '10px'
-                  }}>
-                    <span style={{ marginRight: '12px', fontSize: '24px' }}>👔</span>
-                    <strong style={{ color: '#388e3c', fontSize: '18px' }}>ตำแหน่งงาน:</strong>
+                <div className="info-section position-info">
+                  <div className="position-header">
+                    <span className="icon">👔</span>
+                    <span className="title">ตำแหน่งงาน:</span>
                   </div>
-                  <div style={{
-                    marginLeft: '36px',
-                    fontSize: '16px',
-                    fontWeight: '500',
-                    color: '#2e7d32'
-                  }}>
+                  <div className="position-name">
                     {info.position}
                   </div>
                 </div>
 
                 {/* ตารางเวลาทำงาน */}
-                <div style={{
-                  padding: '15px',
-                  backgroundColor: 'white',
-                  borderRadius: '10px',
-                  borderLeft: '6px solid #ff9800'
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: '15px'
-                  }}>
-                    <span style={{ marginRight: '12px', fontSize: '24px' }}>⏰</span>
-                    <strong style={{ color: '#f57c00', fontSize: '18px' }}>ตารางเวลาทำงาน:</strong>
+                <div className="info-section schedule-info">
+                  <div className="schedule-header">
+                    <span className="icon">⏰</span>
+                    <span className="title">ตารางเวลาทำงาน:</span>
                   </div>
-                  <div style={{ marginLeft: '36px' }}>
+                  <div className="schedule-content">
                     {info.workSchedule === 'ไม่มีข้อมูลเวลา' ? (
-                      <div style={{
-                        color: '#999',
-                        fontStyle: 'italic',
-                        fontSize: '16px',
-                        padding: '12px 16px',
-                        backgroundColor: '#f5f5f5',
-                        borderRadius: '8px',
-                        textAlign: 'center'
-                      }}>
+                      <div className="no-schedule-message">
                         ⚠️ ไม่มีข้อมูลเวลาทำงาน
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                      <div className="schedule-items">
                         {info.workSchedule.split(', ').map((schedule, scheduleIndex) => {
                           const [day, time] = schedule.split(': ');
                           return (
-                            <div key={scheduleIndex} style={{
-                              backgroundColor: '#fff3e0',
-                              padding: '10px 15px',
-                              borderRadius: '8px',
-                              border: '2px solid #ffcc80',
-                              fontSize: '14px',
-                              fontWeight: '500',
-                              boxShadow: '0 3px 6px rgba(0,0,0,0.1)',
-                              minWidth: '140px',
-                              textAlign: 'center'
-                            }}>
-                              <div style={{
-                                color: '#e65100',
-                                fontWeight: 'bold',
-                                marginBottom: '4px',
-                                fontSize: '15px'
-                              }}>
+                            <div key={scheduleIndex} className="schedule-item">
+                              <div className="schedule-day">
                                 {day}
                               </div>
-                              <div style={{
-                                color: '#bf360c',
-                                fontSize: '13px'
-                              }}>
+                              <div className="schedule-time">
                                 {time}
                               </div>
                             </div>
@@ -1096,43 +949,23 @@ function FormStaffPage() {
           </div>
 
           {/* ข้อความเตือน */}
-          <div style={{
-            marginTop: '25px',
-            padding: '18px',
-            backgroundColor: '#ffebee',
-            borderRadius: '12px',
-            border: '2px solid #ef5350',
-            boxShadow: '0 3px 10px rgba(239, 83, 80, 0.2)'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              fontSize: '15px',
-              color: '#c62828',
-              lineHeight: '1.6'
-            }}>
-              <span style={{ marginRight: '12px', fontSize: '24px' }}>⚠️</span>
+          <div className="warning-box">
+            <div className="warning-content">
+              <span className="warning-icon">⚠️</span>
               <div>
-                <div style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '17px' }}>
+                <div className="warning-title">
                   ❗ หมายเหตุสำคัญ:
                 </div>
-                <div style={{ marginBottom: '8px' }}>
+                <div className="warning-item">
                   • <strong>ตรวจสอบเวลา:</strong> กรุณาตรวจสอบตารางเวลาข้างต้นก่อนกำหนดเวลาใหม่
                 </div>
-                <div style={{ marginBottom: '8px' }}>
+                <div className="warning-item">
                   • <strong>หลีกเลี่ยงการชน:</strong> เลือกเวลาที่ไม่ซ้อนทับกับร้านอื่น
                 </div>
-                <div style={{ marginBottom: '8px' }}>
+                <div className="warning-item">
                   • <strong>ตรวจสอบอัตโนมัติ:</strong> ระบบจะตรวจสอบความขัดแย้งเมื่อบันทึก
                 </div>
-                <div style={{
-                  marginTop: '12px',
-                  padding: '10px 15px',
-                  backgroundColor: '#ffffff',
-                  borderRadius: '8px',
-                  border: '1px solid #ffcdd2',
-                  fontSize: '14px'
-                }}>
+                <div className="warning-tip">
                   💡 <strong>คำแนะนำ:</strong> หากมีเวลาทำงานชนกัน ระบบจะแจ้งเตือนและไม่อนุญาตให้บันทึก
                 </div>
               </div>
@@ -1183,39 +1016,13 @@ function FormStaffPage() {
                   
                   {/* ===== ปุ่มแสดงข้อมูลการทำงาน ===== */}
                   {selectedUserStaffInfo.length > 0 && (
-                    <div style={{ marginTop: '15px' }}>
+                    <div className="button-container">
                       <button
                         type="button"
                         onClick={handleShowStaffInfo}
-                        style={{
-                          width: '100%',
-                          padding: '12px 20px',
-                          backgroundColor: '#4a90e2',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontSize: '16px',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '10px',
-                          boxShadow: '0 3px 8px rgba(74,144,226,0.3)',
-                          transition: 'all 0.3s ease'
-                        }}
-                        onMouseOver={(e) => {
-                          e.target.style.backgroundColor = '#357abd';
-                          e.target.style.transform = 'translateY(-2px)';
-                          e.target.style.boxShadow = '0 5px 15px rgba(74,144,226,0.4)';
-                        }}
-                        onMouseOut={(e) => {
-                          e.target.style.backgroundColor = '#4a90e2';
-                          e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 3px 8px rgba(74,144,226,0.3)';
-                        }}
+                        className="staff-info-button"
                       >
-                        <span style={{ fontSize: '20px' }}>👁️</span>
+                        <span className="icon">👁️</span>
                         ดูข้อมูลการทำงานปัจจุบัน ({selectedUserStaffInfo.length} ร้าน)
                       </button>
                     </div>
@@ -1282,7 +1089,7 @@ function FormStaffPage() {
                     onChange={handleChange} 
                     required 
                     disabled
-                    style={{ backgroundColor: '#f8f9fa' }}
+                    className="disabled-input"
                   />
                   <label>นามสกุล<span className="required">*</span></label>
                   <input 
@@ -1292,7 +1099,7 @@ function FormStaffPage() {
                     onChange={handleChange} 
                     required 
                     disabled
-                    style={{ backgroundColor: '#f8f9fa' }}
+                    className="disabled-input"
                   />
                   <label>เบอร์โทรศัพท์</label>
                   <input 
@@ -1301,7 +1108,7 @@ function FormStaffPage() {
                     value={form.phone} 
                     onChange={handleChange} 
                     disabled
-                    style={{ backgroundColor: '#f8f9fa' }}
+                    className="disabled-input"
                   />
                   <label>USERNAME<span className="required">*</span></label>
                   <input
@@ -1311,7 +1118,7 @@ function FormStaffPage() {
                     onChange={handleChange}
                     required
                     disabled
-                    style={{ backgroundColor: '#f8f9fa' }}
+                    className="disabled-input"
                   />
                 </>
               )}

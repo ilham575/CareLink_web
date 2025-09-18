@@ -430,6 +430,10 @@ export interface ApiCustomerProfileCustomerProfile
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     Customers_symptoms: Schema.Attribute.Text;
+    drug_stores: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::drug-store.drug-store'
+    >;
     Follow_up_appointment_date: Schema.Attribute.Date;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -467,6 +471,10 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    customer_profiles: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::customer-profile.customer-profile'
+    >;
     license_doc: Schema.Attribute.String & Schema.Attribute.Required;
     license_number: Schema.Attribute.String & Schema.Attribute.Required;
     link_gps: Schema.Attribute.String & Schema.Attribute.Required;

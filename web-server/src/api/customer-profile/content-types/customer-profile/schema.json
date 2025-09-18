@@ -28,6 +28,12 @@
     },
     "Customers_symptoms": {
       "type": "text"
+    },
+    "drug_stores": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::drug-store.drug-store",
+      "inversedBy": "customer_profiles"
     }
   }
 }

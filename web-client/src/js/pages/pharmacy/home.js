@@ -6,7 +6,7 @@ import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import Footer from '../../components/footer';
 
-function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front }) {
+function PharmacyItem({ id, documentId, name_th, address, time_open, time_close, phone_store, photo_front }) {
   const navigate = useNavigate();
 
   const getImageUrl = (photo) => {
@@ -21,10 +21,10 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
     navigate(`/drug_store_pharmacy/${id}`);
   };
   const handleDrugList = () => {
-    navigate(`/drug_store_pharmacy/${id}/drugs`);
+    navigate(`/drug_store_pharmacy/${documentId || id}/drugs`);
   };
   const handleFollowUp = () => {
-    navigate(`/drug_store_pharmacy/${id}/followup-customers`);
+    navigate(`/drug_store_pharmacy/${documentId}/followup-customers`);
   };
 
   return (
@@ -233,6 +233,7 @@ function PharmacyHome() {
             <PharmacyItem
               key={pharmacy.id}
               id={pharmacy.id}
+              documentId={pharmacy.documentId}
               name_th={pharmacy.name_th}
               address={pharmacy.address}
               time_open={formatTime(pharmacy.time_open)}

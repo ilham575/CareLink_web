@@ -109,6 +109,12 @@
         "type2",
         "type3"
       ]
+    },
+    "customer_profiles": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::customer-profile.customer-profile",
+      "mappedBy": "drug_stores"
     }
   }
 }

@@ -1,0 +1,402 @@
+/* Staff Info Button Styles */
+.staff-info-button {
+  width: 100%;
+  padding: 12px 20px;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 3px 8px rgba(74, 144, 226, 0.3);
+  transition: all 0.3s ease;
+}
+
+.staff-info-button:hover {
+  background-color: #357abd;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+}
+
+.staff-info-button .icon {
+  font-size: 20px;
+}
+
+/* Popup Overlay */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+/* Popup Container */
+.popup-container {
+  background-color: white;
+  border-radius: 15px;
+  padding: 25px;
+  max-width: 800px;
+  width: 100%;
+  max-height: 80%;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+/* Close Button */
+.popup-close-button {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: #ff4757;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3);
+}
+
+/* Popup Header */
+.popup-header {
+  margin: 0 0 20px 0;
+  font-size: 24px;
+  color: #2c5aa0;
+  font-weight: bold;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 35px;
+}
+
+.popup-header .icon {
+  margin-right: 12px;
+  font-size: 28px;
+}
+
+/* Summary Box */
+.summary-box {
+  background-color: #e6f3ff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  text-align: center;
+  border: 2px solid #b3d9ff;
+}
+
+.summary-text {
+  color: #1976d2;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* Store List Container */
+.store-list-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Store Item */
+.store-item {
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 15px;
+  border: 2px solid #e8f4fd;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  margin-bottom: 25px;
+}
+
+.store-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Store Number Badge */
+.store-number-badge {
+  position: absolute;
+  top: -12px;
+  left: 20px;
+  background-color: #4a90e2;
+  color: white;
+  padding: 6px 15px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: bold;
+  box-shadow: 0 2px 6px rgba(74, 144, 226, 0.3);
+}
+
+/* Info Section Base */
+.info-section {
+  padding: 15px;
+  background-color: white;
+  border-radius: 10px;
+  margin-bottom: 18px;
+}
+
+.info-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Pharmacy Info */
+.pharmacy-info {
+  margin-top: 15px;
+  border-left: 6px solid #2196f3;
+}
+
+.pharmacy-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.pharmacy-header .icon {
+  margin-right: 12px;
+  font-size: 24px;
+}
+
+.pharmacy-header .title {
+  color: #1976d2;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.pharmacy-name {
+  margin-left: 36px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1565c0;
+}
+
+.pharmacy-id {
+  margin-left: 36px;
+  font-size: 13px;
+  color: #666;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* Position Info */
+.position-info {
+  border-left: 6px solid #4caf50;
+}
+
+.position-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.position-header .icon {
+  margin-right: 12px;
+  font-size: 24px;
+}
+
+.position-header .title {
+  color: #388e3c;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.position-name {
+  margin-left: 36px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #2e7d32;
+}
+
+/* Schedule Info */
+.schedule-info {
+  border-left: 6px solid #ff9800;
+}
+
+.schedule-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.schedule-header .icon {
+  margin-right: 12px;
+  font-size: 24px;
+}
+
+.schedule-header .title {
+  color: #f57c00;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.schedule-content {
+  margin-left: 36px;
+}
+
+/* No Schedule Message */
+.no-schedule-message {
+  color: #999;
+  font-style: italic;
+  font-size: 16px;
+  padding: 12px 16px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* Schedule Items Container */
+.schedule-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Schedule Item */
+.schedule-item {
+  background-color: #fff3e0;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 2px solid #ffcc80;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+  min-width: 140px;
+  text-align: center;
+}
+
+.schedule-day {
+  color: #e65100;
+  font-weight: bold;
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.schedule-time {
+  color: #bf360c;
+  font-size: 13px;
+}
+
+/* Warning Box */
+.warning-box {
+  margin-top: 25px;
+  padding: 18px;
+  background-color: #ffebee;
+  border-radius: 12px;
+  border: 2px solid #ef5350;
+  box-shadow: 0 3px 10px rgba(239, 83, 80, 0.2);
+}
+
+.warning-content {
+  display: flex;
+  align-items: flex-start;
+  font-size: 15px;
+  color: #c62828;
+  line-height: 1.6;
+}
+
+.warning-icon {
+  margin-right: 12px;
+  font-size: 24px;
+}
+
+.warning-title {
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-size: 17px;
+}
+
+.warning-item {
+  margin-bottom: 8px;
+}
+
+.warning-tip {
+  margin-top: 12px;
+  padding: 10px 15px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #ffcdd2;
+  font-size: 14px;
+}
+
+/* Button Container */
+.button-container {
+  margin-top: 15px;
+}
+
+/* Disabled Input Styles */
+.disabled-input {
+  background-color: #f8f9fa;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .popup-container {
+    padding: 20px;
+    margin: 10px;
+  }
+  
+  .popup-header {
+    font-size: 20px;
+    padding-right: 30px;
+  }
+  
+  .store-item {
+    padding: 15px;
+  }
+  
+  .pharmacy-name,
+  .pharmacy-header .title,
+  .position-header .title,
+  .schedule-header .title {
+    font-size: 16px;
+  }
+  
+  .schedule-items {
+    gap: 8px;
+  }
+  
+  .schedule-item {
+    min-width: 120px;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .popup-overlay {
+    padding: 10px;
+  }
+  
+  .popup-container {
+    padding: 15px;
+  }
+  
+  .staff-info-button {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+  
+  .schedule-items {
+    flex-direction: column;
+  }
+  
+  .schedule-item {
+    min-width: auto;
+    width: 100%;
+  }
+}
