@@ -4,6 +4,7 @@ import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import { db } from '../../db'; // ✅ import Dexie db
 import '../../../css/pages/default/pharmacyDetail.css';
+import Footer from '../../components/footer';
 
 function getImageUrl(photo) {
   if (!photo) return null;
@@ -272,6 +273,7 @@ function DrugStoresDetail_admin() {
       ) : (
         <div>ไม่พบข้อมูลร้านยา</div>
       )}
+      <Footer />
     </div>
   );
 }

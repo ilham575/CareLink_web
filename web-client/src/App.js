@@ -17,14 +17,14 @@ import DrugStoresDetailAdmin from './js/pages/admin/DrugStoresDetail_admin';
 import StaffPage from './js/components/middle_page/staffPage';
 import FormStaffPage from './js/components/middle_page/formStaffPage';
 
-import PharmacistDetail_admin from './js/pages/admin/PharmacistDetail_admin';
-import EditPharmacist_admin from "./js/pages/admin/EditPharmacist_admin";
-import EditStore_admin from "./js/pages/admin/EditStore_admin"
+import PharmacistDetailAdmin from './js/pages/admin/PharmacistDetail_admin';
+import EditPharmacistAdmin from "./js/pages/admin/EditPharmacist_admin";
+import EditStoreAdmin from "./js/pages/admin/EditStore_admin"
 
 
 // ✅ เปลี่ยนชื่อ import ให้เป็นมาตรฐาน
-import AddStore_admin from './js/pages/admin/AddStore_admin';
-import AddPharmacy_admin from './js/pages/admin/AddPharmacy_admin';
+import AddStoreAdmin from './js/pages/admin/AddStore_admin';
+import AddPharmacyAdmin from './js/pages/admin/AddPharmacy_admin';
 
 import CustomerPage from './js/components/middle_page/customerPage';
 import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
@@ -40,17 +40,16 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/drug_store/:id" element={<DrugStoreDetail />} />
-
           {/* -------------------- ADMIN -------------------- */}
           <Route element={<RequireRole role="admin" />}>
             <Route path="/adminHome" element={<AdminHome />} />
             <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
-            <Route path="/add_store_admin" element={<AddStore_admin />} />
-            <Route path="/add_pharmacy_admin" element={<AddPharmacy_admin />} />
-            <Route path="/add_pharmacy_admin/:storeId" element={<AddPharmacy_admin />} />
-            <Route path="/pharmacist_detail_admin/:storeId" element={<PharmacistDetail_admin />} />
-            <Route path="/edit_pharmacist_admin/:id" element={<EditPharmacist_admin />}/>
-            <Route path="/edit_store_admin/:id" element={<EditStore_admin />}/>
+            <Route path="/add_store_admin" element={<AddStoreAdmin />} />
+            <Route path="/add_pharmacy_admin" element={<AddPharmacyAdmin />} />
+            <Route path="/add_pharmacy_admin/:storeId" element={<AddPharmacyAdmin />} />
+            <Route path="/pharmacist_detail_admin/:storeId" element={<PharmacistDetailAdmin />} />
+            <Route path="/edit_pharmacist_admin/:id" element={<EditPharmacistAdmin />}/>
+            <Route path="/edit_store_admin/:id" element={<EditStoreAdmin />}/>
           </Route>
 
           {/* -------------------- PHARMACY -------------------- */}
@@ -72,6 +71,7 @@ function App() {
 
           {/* -------------------- STAFF MANAGEMENT -------------------- */}
           <Route element={<RequireRole role={['admin', 'pharmacy']} />}>
+            {/* <Route path="/add_drug_store_admin" element={<AddPharmacyAdmin />} />  */}
             <Route path="/drug_store_staff/:id" element={<StaffPage />} />
             <Route path="/form_staff" element={<FormStaffPage />} />
           </Route>

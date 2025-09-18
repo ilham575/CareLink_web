@@ -24,12 +24,7 @@
     "profileimage": {
       "type": "media",
       "multiple": false,
-      "allowedTypes": [
-        "images",
-        "files",
-        "videos",
-        "audios"
-      ]
+      "allowedTypes": ["images", "files", "videos", "audios"]
     },
     "time_start": {
       "type": "time"
@@ -46,6 +41,10 @@
     "working_days": {
       "type": "json",
       "required": false
+    },
+    "doc_uid": {
+      "type": "string",
+      "unique": true
     }
   }
 }

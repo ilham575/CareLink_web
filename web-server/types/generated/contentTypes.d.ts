@@ -565,6 +565,7 @@ export interface ApiStaffProfileStaffProfile
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    doc_uid: Schema.Attribute.String & Schema.Attribute.Unique;
     drug_store: Schema.Attribute.Relation<
       'manyToOne',
       'api::drug-store.drug-store'

@@ -33,8 +33,6 @@ function StaffHome() {
         if (!response.ok) throw new Error('ไม่สามารถดึงข้อมูลร้านยาได้');
 
         const data = await response.json();
-        // log เพื่อตรวจสอบ (สามารถลบออกได้)
-        console.log('RAW response:', JSON.stringify(data, null, 2));
 
         // map เอา drug_store จากแต่ละ profile
         const pharmacies = (data?.data || []).map(profile => profile.drug_store).filter(Boolean);
