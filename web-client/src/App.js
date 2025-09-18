@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Home from './js/pages/default/home';
 import DrugStoreDetail from './js/pages/default/DrugStoreDetail';
 import LoginPage from './js/pages/default/signin';
 import Signup from './js/pages/default/Signup';
@@ -13,83 +14,52 @@ import CustomerHome from './js/pages/customer/home';
 import RequireRole from './js/components/RequireRole';
 import DrugStoresDetailPharmacist from './js/pages/pharmacy/DrugStoresDetail_pharmacist';
 import DrugStoresDetailAdmin from './js/pages/admin/DrugStoresDetail_admin';
-import StaffPage from './js/components/middle_page/staffPage';
-import FormStaffPage from './js/components/middle_page/formStaffPage';
-
-import PharmacistDetailAdmin from './js/pages/admin/PharmacistDetail_admin';
-import EditPharmacistAdmin from "./js/pages/admin/EditPharmacist_admin";
-import EditStoreAdmin from "./js/pages/admin/EditStore_admin"
-import Footer from './js/components/footer';
-
-import AddStoreAdmin from './js/pages/admin/AddStore_admin';
-import AddPharmacyAdmin from './js/pages/admin/AddPharmacy_admin';
-
-import CustomerPage from './js/components/middle_page/customerPage';
-import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
-import FormCustomerPage from './js/components/middle_page/formcustomerPage';
-import 'antd/dist/reset.css';
-
-// Component สำหรับ redirect ตาม role
-import RoleBasedRedirect from './js/utils/rolebasedredirect';
 
 function App() {
   return (
     <Router>
       <div className="App">
         <Routes>
-          {/* Root path - จะ redirect ตาม role หรือแสดง Home */}
-          <Route path="/" element={<RoleBasedRedirect />} />
-          
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<Signup />} />
           <Route path="/drug_store/:id" element={<DrugStoreDetail />} />
-          
-          {/* -------------------- ADMIN -------------------- */}
-          <Route element={<RequireRole role="admin" />}>
-            <Route path="/adminHome" element={<AdminHome />} />
-            <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
-            <Route path="/add_store_admin" element={<AddStoreAdmin />} />
-            <Route path="/add_pharmacy_admin" element={<AddPharmacyAdmin />} />
-            <Route path="/add_pharmacy_admin/:storeId" element={<AddPharmacyAdmin />} />
-            <Route path="/pharmacist_detail_admin/:storeId" element={<PharmacistDetailAdmin />} />
-            <Route path="/edit_pharmacist_admin/:id" element={<EditPharmacistAdmin />}/>
-            <Route path="/edit_store_admin/:id" element={<EditStoreAdmin />}/>
-          </Route>
-
-          {/* -------------------- PHARMACY -------------------- */}
-          <Route element={<RequireRole role="pharmacy" />}>
-            <Route path="/pharmacyHome" element={<PharmacyHome />} />
-            <Route path="/drug_store_pharmacy/:id" element={<DrugStoresDetailPharmacist />} />
-          </Route>
-
-          {/* -------------------- STAFF -------------------- */}
-          <Route element={<RequireRole role="staff" />}>
-            <Route path="/staffHome" element={<StaffHome />} />
-            <Route path="/drug_store_staff_detail/:id" element={<DrugStoresDetailStaff />} />
-          </Route>
-
-          {/* -------------------- CUSTOMER -------------------- */}
-          <Route element={<RequireRole role="customer" />}>
-            <Route path="/customerHome" element={<CustomerHome />} />
-          </Route>
-
-          {/* -------------------- STAFF MANAGEMENT -------------------- */}
-          <Route element={<RequireRole role={['admin', 'pharmacy']} />}>
-            <Route path="/drug_store_staff/:id" element={<StaffPage />} />
-            <Route path="/form_staff" element={<FormStaffPage />} />
-          </Route>
-          <Route element={<RequireRole role={['admin', 'pharmacy', 'staff']} />}>
-            <Route path="/form_staff/:id" element={<FormStaffPage />} />
-          </Route>
-
-          {/* -------------------- CUSTOMER MANAGEMENT -------------------- */}
-          <Route element={<RequireRole role={['pharmacy', 'staff']} />}>
-            <Route path="/drug_store_pharmacy/:id/followup-customers" element={<CustomerPage />} />
-            <Route path="/form_customer" element={<FormCustomerPage />} />
-            <Route path="/form_customer/:id" element={<FormCustomerPage />} />
-          </Route>
+          <Route path="/drug_store_pharmacy/:id" element={<DrugStoresDetailPharmacist />} />
+          <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route
+            path="/adminHome"
+            element={
+              <RequireRole role="admin">
+                <AdminHome />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/pharmacyHome"
+            element={
+              <RequireRole role="pharmacy">
+                <PharmacyHome />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/staffHome"
+            element={
+              <RequireRole role="staff">
+                <StaffHome />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/customerHome"
+            element={
+              <RequireRole role="customer">
+                <CustomerHome />
+              </RequireRole>
+            }
+          />
+          {/* <Route path="*" element={<Navigate to="/" />} /> */}
         </Routes>
-        <Footer />
       </div>
     </Router>
   );
