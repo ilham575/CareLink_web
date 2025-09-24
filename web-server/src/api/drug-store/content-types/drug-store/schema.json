@@ -103,6 +103,12 @@
       "relation": "manyToMany",
       "target": "api::customer-profile.customer-profile",
       "mappedBy": "drug_stores"
+    },
+    "pharmacy_profiles": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::pharmacy-profile.pharmacy-profile",
+      "inversedBy": "drug_stores"
     }
   }
 }

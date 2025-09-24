@@ -57,10 +57,16 @@ function HomeHeader({ pharmacyName, onSearch }) {
           .then(res => res.json())
           .then(profileRes => {
             const profile = profileRes.data && profileRes.data[0];
-            const img =
-              profile?.[imagePath]?.formats?.thumbnail?.url ||
-              profile?.[imagePath]?.url ||
-              null;
+            // แก้ตรงนี้
+            let img = null;
+            if (profile?.[imagePath]) {
+              // ถ้าเป็น array ให้ใช้ index 0
+              const imageObj = Array.isArray(profile[imagePath]) ? profile[imagePath][0] : profile[imagePath];
+              img =
+                imageObj?.formats?.thumbnail?.url ||
+                imageObj?.url ||
+                null;
+            }
             if (img) {
               setProfileUrl(
                 img.startsWith('/')

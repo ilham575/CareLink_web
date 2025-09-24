@@ -486,6 +486,10 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     name_en: Schema.Attribute.String & Schema.Attribute.Required;
     name_th: Schema.Attribute.String & Schema.Attribute.Required;
+    pharmacy_profiles: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::pharmacy-profile.pharmacy-profile'
+    >;
     phone_store: Schema.Attribute.String & Schema.Attribute.Required;
     photo_front: Schema.Attribute.Media<'images' | 'files'> &
       Schema.Attribute.Required;
@@ -524,13 +528,10 @@ export interface ApiPharmacyProfilePharmacyProfile
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    drug_store: Schema.Attribute.Relation<
-      'oneToOne',
+    drug_stores: Schema.Attribute.Relation<
+      'manyToMany',
       'api::drug-store.drug-store'
     >;
-    firstname: Schema.Attribute.String;
-    is_primary: Schema.Attribute.Boolean;
-    lastname: Schema.Attribute.String & Schema.Attribute.Unique;
     license_number: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -538,18 +539,17 @@ export interface ApiPharmacyProfilePharmacyProfile
       'api::pharmacy-profile.pharmacy-profile'
     > &
       Schema.Attribute.Private;
-    pharmacy_profile: Schema.Attribute.Relation<
-      'oneToOne',
-      'api::pharmacy-profile.pharmacy-profile'
+    profileimage: Schema.Attribute.Media<
+      'images' | 'files' | 'videos' | 'audios',
+      true
     >;
-    phone: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     services: Schema.Attribute.JSON;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     users_permissions_user: Schema.Attribute.Relation<
-      'oneToOne',
+      'manyToOne',
       'plugin::users-permissions.user'
     >;
     working_time: Schema.Attribute.String;
@@ -1091,6 +1091,10 @@ export interface PluginUsersPermissionsUser
       }>;
     pharmacy_profile: Schema.Attribute.Relation<
       'oneToOne',
+      'api::pharmacy-profile.pharmacy-profile'
+    >;
+    pharmacy_profiles: Schema.Attribute.Relation<
+      'oneToMany',
       'api::pharmacy-profile.pharmacy-profile'
     >;
     phone: Schema.Attribute.String & Schema.Attribute.Required;

@@ -96,6 +96,12 @@
       "type": "relation",
       "relation": "oneToOne",
       "target": "api::pharmacy-profile.pharmacy-profile"
+    },
+    "pharmacy_profiles": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::pharmacy-profile.pharmacy-profile",
+      "mappedBy": "users_permissions_user"
     }
   }
 }
