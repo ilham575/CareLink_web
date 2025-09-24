@@ -1,32 +1,45 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { db } from "../../db";
 
 function EditPharmacist_admin() {
-  const { id } = useParams();
+  const { id } = useParams(); // id ของเภสัชกร
   const navigate = useNavigate();
-  const [formData, setFormData] = useState(null);
+  const jwt = localStorage.getItem("jwt");
 
-  // ✅ helper สำหรับ parse id ให้ตรงชนิด
-  const safeId = isNaN(Number(id)) ? id : Number(id);
+  const [formData, setFormData] = useState(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const pharmacist = await db.pharmacists.get(safeId);
-        if (pharmacist) {
-          const [time_in, time_out] =
-            pharmacist.working_time?.split(" - ") || ["", ""];
+        const res = await fetch(`http://localhost:1337/api/pharmacists/${id}?populate=user,drug_store`, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        });
+
+        if (!res.ok) throw new Error("ไม่สามารถโหลดข้อมูลเภสัชกรได้");
+
+        const data = await res.json();
+        const p = data.data?.attributes;
+
+        if (p) {
+          const [time_in, time_out] = p.working_time?.split(" - ") || ["", ""];
           setFormData({
-            ...pharmacist,
+            id: data.data.id,
+            firstname: p.firstname || "",
+            lastname: p.lastname || "",
+            license_number: p.license_number || "",
+            phone: p.phone || "",
             time_in,
             time_out,
-            services: pharmacist.services || {
+            services: p.services || {
               sell_products: false,
               consulting: false,
               wholesale: false,
               delivery: false,
             },
+            is_primary: p.is_primary || false,
+            drug_store: p.drug_store?.data?.id || null,
+            user: p.user?.data?.id || null,
+            username: p.user?.data?.attributes?.username || "",
           });
         }
       } catch (err) {
@@ -34,7 +47,7 @@ function EditPharmacist_admin() {
       }
     };
     load();
-  }, [safeId]);
+  }, [id, jwt]);
 
   if (!formData) return <div className="p-6">กำลังโหลดข้อมูล...</div>;
 
@@ -57,22 +70,40 @@ function EditPharmacist_admin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const updated = {
-      ...formData,
-      working_time: `${formData.time_in} - ${formData.time_out}`,
+    const payload = {
+      data: {
+        firstname: formData.firstname,
+        lastname: formData.lastname,
+        license_number: formData.license_number,
+        phone: formData.phone,
+        working_time: `${formData.time_in} - ${formData.time_out}`,
+        services: formData.services,
+        is_primary: formData.is_primary,
+        drug_store: formData.drug_store,
+        user: formData.user,
+      },
     };
 
     try {
-      await db.pharmacists.put(updated);
-      alert("อัปเดตข้อมูลเภสัชกรเรียบร้อย!");
-      // ✅ ใช้ storeIds array แทน storeId เดี่ยว
-      if (updated.storeIds && updated.storeIds.length > 0) {
-        navigate(`/pharmacist_detail_admin/${updated.storeIds[0]}`);
-      } else {
-        navigate("/adminhome");
+      const res = await fetch(`http://localhost:1337/api/pharmacists/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwt}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error?.message || "อัปเดตข้อมูลไม่สำเร็จ");
       }
+
+      alert("✅ อัปเดตข้อมูลเภสัชกรเรียบร้อย!");
+      navigate(`/pharmacist_detail_admin/${formData.drug_store}`);
     } catch (err) {
       console.error("Update pharmacist error:", err);
+      alert("เกิดข้อผิดพลาด: " + err.message);
     }
   };
 
@@ -82,10 +113,7 @@ function EditPharmacist_admin() {
         แก้ไขข้อมูลเภสัชกร
       </h2>
 
-      <form
-        className="grid grid-cols-1 md:grid-cols-2 gap-6"
-        onSubmit={handleSubmit}
-      >
+      <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
         <div>
           <label className="block font-semibold mb-1">ชื่อ*</label>
           <input
@@ -97,7 +125,6 @@ function EditPharmacist_admin() {
             required
           />
         </div>
-
         <div>
           <label className="block font-semibold mb-1">นามสกุล*</label>
           <input
@@ -109,8 +136,7 @@ function EditPharmacist_admin() {
             required
           />
         </div>
-
-        <div>
+        <div className="md:col-span-2">
           <label className="block font-semibold mb-1">เลขที่ใบอนุญาต*</label>
           <input
             type="text"
@@ -121,8 +147,6 @@ function EditPharmacist_admin() {
             required
           />
         </div>
-
-        {/* ✅ เบอร์โทรศัพท์เภสัชกร */}
         <div>
           <label className="block font-semibold mb-1">เบอร์โทรศัพท์*</label>
           <input
@@ -134,11 +158,8 @@ function EditPharmacist_admin() {
             required
             pattern="[0-9]+"
             inputMode="numeric"
-            title="กรุณากรอกเฉพาะตัวเลข"
           />
         </div>
-
-        {/* เวลาทำการ */}
         <div>
           <label className="block font-semibold mb-1">เวลาเข้างาน*</label>
           <input
@@ -163,68 +184,36 @@ function EditPharmacist_admin() {
         </div>
 
         <div>
-          <label className="block font-semibold mb-1">USERNAME*</label>
+          <label className="block font-semibold mb-1">USERNAME (จาก User)</label>
           <input
             type="text"
             name="username"
             value={formData.username}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            required
-          />
-        </div>
-        <div>
-          <label className="block font-semibold mb-1">PASSWORD*</label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            required
+            readOnly
+            className="w-full border rounded p-2 bg-gray-100"
           />
         </div>
 
-        {/* Services */}
         <div className="md:col-span-2">
           <label className="block font-semibold mb-1">การให้บริการ*</label>
           <div className="space-y-2 p-4 bg-gray-100 rounded">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="sell_products"
-                checked={formData.services.sell_products}
-                onChange={handleChange}
-              />
-              <span>จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="consulting"
-                checked={formData.services.consulting}
-                onChange={handleChange}
-              />
-              <span>ให้คำปรึกษาทางเภสัชกรรม</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="wholesale"
-                checked={formData.services.wholesale}
-                onChange={handleChange}
-              />
-              <span>ขายปลีกและขายส่ง</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="delivery"
-                checked={formData.services.delivery}
-                onChange={handleChange}
-              />
-              <span>บริการจัดส่งกล่องยาสามัญประจำบ้าน</span>
-            </label>
+            {[
+              { key: "sell_products", label: "จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ" },
+              { key: "consulting", label: "ให้คำปรึกษาทางเภสัชกรรม" },
+              { key: "wholesale", label: "ขายปลีกและขายส่ง" },
+              { key: "delivery", label: "บริการจัดส่งกล่องยาสามัญประจำบ้าน" },
+            ].map((s) => (
+              <label key={s.key} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name={s.key}
+                  checked={formData.services[s.key]}
+                  onChange={handleChange}
+                />
+                <span>{s.label}</span>
+              </label>
+            ))}
+
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"

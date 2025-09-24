@@ -9,10 +9,10 @@ import Footer from '../../components/footer';
 function getImageUrl(photo) {
   if (!photo) return null;
   if (typeof photo === "string") return photo;
-  if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
-  if (photo.formats?.medium?.url) return photo.formats.medium.url;
   if (photo.formats?.large?.url) return photo.formats.large.url;
-  if (photo.url) return photo.url;
+  if (photo.formats?.medium?.url) return photo.formats.medium.url;
+  if (photo.url) return photo.url; // original full-size
+  if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url; 
   return null;
 }
 
@@ -92,10 +92,10 @@ function DrugStoresDetail_admin() {
         setPharmacy(store);
 
         // 4. ❌ ปิดการดึงข้อมูลเภสัชกรชั่วคราว
-        /*
+        
         try {
           const pharmacistRes = await fetch(
-            `http://localhost:1337/api/pharmacists?populate=*&filters[drug_stores][documentId][$eq]=${id}`,
+            `http://localhost:1337/api/pharmacy-profiles?populate=*&filters[drug_stores][documentId][$eq]=${id}`,
             {
               headers: {
                 Authorization: `Bearer ${jwt}`,
@@ -108,12 +108,10 @@ function DrugStoresDetail_admin() {
             const pharmacistData = await pharmacistRes.json();
             setPharmacists(pharmacistData.data || []);
           } else {
-            setPharmacists([]);
           }
         } catch (pharmacistErr) {
-          setPharmacists([]);
         }
-        */
+        
         
         // ตั้งค่าเภสัชกรเป็น array ว่าง
         setPharmacists([]);
@@ -148,7 +146,7 @@ function DrugStoresDetail_admin() {
 
   // ✅ เตรียมข้อมูลเภสัชกรหลัก - ปิดชั่วคราว
   const primaryPharmacist = React.useMemo(() => {
-    /*
+    
     if (pharmacists.length === 0) return null;
     
     // หาเภสัชกรหลัก หรือใช้คนแรก
@@ -159,7 +157,7 @@ function DrugStoresDetail_admin() {
       phone: primary.phone || '-',
       license_number: primary.license_number || '-'
     };
-    */
+    
     
     // ส่งค่าเริ่มต้นเมื่อปิดการดึงข้อมูลเภสัชกร
     return {
@@ -313,7 +311,7 @@ function DrugStoresDetail_admin() {
 
           {/* ✅ ปุ่ม เภสัชกรประจำร้าน + แก้ไขร้านยา */}
           <div style={{ display: 'flex', gap: 10, marginTop: 15 }}>
-            {/* <button
+            { <button
               onClick={() => navigate(`/pharmacist_detail_admin/${id}`)}
               style={{
                 background: '#4CAF50',
@@ -324,8 +322,8 @@ function DrugStoresDetail_admin() {
                 cursor: 'pointer'
               }}
             >
-              เภสัชกรประจำร้าน (0)
-            </button> */}
+              เภสัชกรประจำร้าน
+            </button> }
             <button
               onClick={() => navigate(`/edit_store_admin/${id}`)}
               style={{

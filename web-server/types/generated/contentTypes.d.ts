@@ -478,10 +478,6 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     name_en: Schema.Attribute.String & Schema.Attribute.Required;
     name_th: Schema.Attribute.String & Schema.Attribute.Required;
-    pharmacy_profiles: Schema.Attribute.Relation<
-      'manyToMany',
-      'api::pharmacy-profile.pharmacy-profile'
-    >;
     phone_store: Schema.Attribute.String & Schema.Attribute.Required;
     photo_front: Schema.Attribute.Media<'images' | 'files'> &
       Schema.Attribute.Required;
@@ -489,10 +485,6 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
       Schema.Attribute.Required;
     photo_staff: Schema.Attribute.Media<'images' | 'files'> &
       Schema.Attribute.Required;
-    primary_pharmacist: Schema.Attribute.Relation<
-      'oneToOne',
-      'api::pharmacy-profile.pharmacy-profile'
-    >;
     publishedAt: Schema.Attribute.DateTime;
     services: Schema.Attribute.JSON;
     staff_profiles: Schema.Attribute.Relation<
@@ -524,32 +516,35 @@ export interface ApiPharmacyProfilePharmacyProfile
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    drug_stores: Schema.Attribute.Relation<
-      'manyToMany',
+    drug_store: Schema.Attribute.Relation<
+      'oneToOne',
       'api::drug-store.drug-store'
     >;
+    firstname: Schema.Attribute.String;
+    is_primary: Schema.Attribute.Boolean;
+    lastname: Schema.Attribute.String & Schema.Attribute.Unique;
+    license_number: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::pharmacy-profile.pharmacy-profile'
     > &
       Schema.Attribute.Private;
-    pharmacy_license_no: Schema.Attribute.String & Schema.Attribute.Required;
-    primary_drug_store: Schema.Attribute.Relation<
+    pharmacy_profile: Schema.Attribute.Relation<
       'oneToOne',
-      'api::drug-store.drug-store'
+      'api::pharmacy-profile.pharmacy-profile'
     >;
-    profileimage: Schema.Attribute.Media<
-      'images' | 'files' | 'videos' | 'audios'
-    >;
+    phone: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
+    services: Schema.Attribute.JSON;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     users_permissions_user: Schema.Attribute.Relation<
-      'manyToOne',
+      'oneToOne',
       'plugin::users-permissions.user'
     >;
+    working_time: Schema.Attribute.String;
   };
 }
 
@@ -1086,8 +1081,8 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
-    pharmacy_profiles: Schema.Attribute.Relation<
-      'oneToMany',
+    pharmacy_profile: Schema.Attribute.Relation<
+      'oneToOne',
       'api::pharmacy-profile.pharmacy-profile'
     >;
     phone: Schema.Attribute.String & Schema.Attribute.Required;

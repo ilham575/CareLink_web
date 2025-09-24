@@ -1,11 +1,35 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { db } from "../../db"; // ✅ ใช้ IndexedDB
+
+// ✅ default service keys
+const defaultServices = {
+  sell_products: false,
+  consulting: false,
+  health_check: false,
+  delivery: false,
+};
+
+// ✅ helper แปลงเวลา
+const formatTime = (time) => {
+  if (!time) return null;
+  return `${time}:00.000`;
+};
+
+// ✅ helper ดึง url รูป
+const getImageUrl = (photo) => {
+  if (!photo) return null;
+  if (typeof photo === "string") return photo;
+  if (photo.url) {
+    return `${process.env.REACT_APP_API_URL || "http://localhost:1337"}${photo.url}`;
+  }
+  return null;
+};
 
 function EditStore_admin() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id: documentId } = useParams(); // ✅ documentId ของ drug-store
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name_th: "",
     name_en: "",
@@ -23,42 +47,64 @@ function EditStore_admin() {
     photo_in_preview: null,
     photo_staff: null,
     photo_staff_preview: null,
-    services: {
-      sell_products: false,
-      consulting: false,
-      health_check: false,
-      delivery: false,
-    },
+    services: defaultServices,
     confirm: false,
   });
 
-  // ✅ โหลดข้อมูลร้านจาก IndexedDB
+  const jwt = localStorage.getItem("jwt");
+
+  // ✅ โหลดข้อมูลร้านจาก Strapi
   useEffect(() => {
-    const loadData = async () => {
-      const store = await db.pharmacies.get(Number(id));
-      if (store) {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(
+          `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}&populate=*`,
+          {
+            headers: { Authorization: `Bearer ${jwt}` },
+          }
+        );
+
+        if (!res.ok) throw new Error("โหลดข้อมูลร้านไม่สำเร็จ");
+        const data = await res.json();
+        const store = data.data[0];
+
+        if (!store) {
+          alert("ไม่พบร้านนี้ หรือคุณไม่มีสิทธิ์เข้าถึง");
+          navigate(-1);
+          return;
+        }
+
         setFormData({
-          ...store,
-          photo_front: store.photo_front || null,
-          photo_in: store.photo_in || null,
-          photo_staff: store.photo_staff || null,
-          photo_front_preview: null,
-          photo_in_preview: null,
-          photo_staff_preview: null,
-          services: {
-            sell_products: store.services?.sell_products || false,
-            consulting: store.services?.consulting || false,
-            health_check: store.services?.health_check || false,
-            delivery: store.services?.delivery || false,
-          },
+          name_th: store.name_th || "",
+          name_en: store.name_en || "",
+          license_number: store.license_number || "",
+          license_doc: store.license_doc || "",
+          address: store.address || "",
+          phone_store: store.phone_store || "",
+          time_open: store.time_open ? store.time_open.substring(0, 5) : "",
+          time_close: store.time_close ? store.time_close.substring(0, 5) : "",
+          link_gps: store.link_gps || "",
+          type: store.type || "",
+          photo_front: store.photo_front?.id || null,
+          photo_front_preview: getImageUrl(store.photo_front),
+          photo_in: store.photo_in?.id || null,
+          photo_in_preview: getImageUrl(store.photo_in),
+          photo_staff: store.photo_staff?.id || null,
+          photo_staff_preview: getImageUrl(store.photo_staff),
+          services: { ...defaultServices, ...(store.services || {}) },
           confirm: false,
         });
+      } catch (err) {
+        console.error(err);
+        alert("เกิดข้อผิดพลาดในการโหลดข้อมูลร้าน");
+        navigate(-1);
       }
     };
-    loadData();
-  }, [id]);
 
-  // ✅ handleChange รองรับ preview
+    fetchData();
+  }, [documentId, jwt, navigate]);
+
+  // ✅ handleChange
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
     if (type === "checkbox") {
@@ -73,59 +119,95 @@ function EditStore_admin() {
     } else if (type === "file") {
       if (files && files[0]) {
         const previewUrl = URL.createObjectURL(files[0]);
-        setFormData({ ...formData, [name]: files[0], [`${name}_preview`]: previewUrl });
+        setFormData({
+          ...formData,
+          [name]: files[0],
+          [`${name}_preview`]: previewUrl,
+        });
       }
     } else {
       setFormData({ ...formData, [name]: value });
     }
   };
 
-  const handleNext = (e) => {
-    e.preventDefault();
-    const form = e.target.closest("form");
-    if (form.checkValidity()) {
-      setStep(2);
-    } else {
-      form.reportValidity();
-    }
-  };
+  // ✅ อัพโหลดรูปไป Strapi
+  const uploadImageToStrapi = async (file) => {
+    const uploadData = new FormData();
+    uploadData.append("files", file);
 
-  const handleBack = () => setStep(1);
-
-  const fileToBase64 = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (err) => reject(err);
-      reader.readAsDataURL(file);
+    const res = await fetch("http://localhost:1337/api/upload", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${jwt}` },
+      body: uploadData,
     });
 
+    if (!res.ok) throw new Error("อัพโหลดรูปไม่สำเร็จ");
+    const data = await res.json();
+    return data[0].id;
+  };
+
+  // ✅ บันทึกข้อมูลแก้ไข
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const photoFrontBase64 =
-      formData.photo_front instanceof File
-        ? await fileToBase64(formData.photo_front)
-        : formData.photo_front;
-    const photoInBase64 =
-      formData.photo_in instanceof File
-        ? await fileToBase64(formData.photo_in)
-        : formData.photo_in;
-    const photoStaffBase64 =
-      formData.photo_staff instanceof File
-        ? await fileToBase64(formData.photo_staff)
-        : formData.photo_staff;
+    setIsSubmitting(true);
 
-    const updatedPharmacy = {
-      ...formData,
-      id: Number(id),
-      photo_front: photoFrontBase64,
-      photo_in: photoInBase64,
-      photo_staff: photoStaffBase64,
-    };
+    try {
+      let photoFrontId = formData.photo_front;
+      let photoInId = formData.photo_in;
+      let photoStaffId = formData.photo_staff;
 
-    await db.pharmacies.put(updatedPharmacy);
-    alert("แก้ไขข้อมูลร้านขายยาเรียบร้อย!");
-    navigate("/adminhome");
+      if (formData.photo_front instanceof File) {
+        photoFrontId = await uploadImageToStrapi(formData.photo_front);
+      }
+      if (formData.photo_in instanceof File) {
+        photoInId = await uploadImageToStrapi(formData.photo_in);
+      }
+      if (formData.photo_staff instanceof File) {
+        photoStaffId = await uploadImageToStrapi(formData.photo_staff);
+      }
+
+      const payload = {
+        data: {
+          name_th: formData.name_th,
+          name_en: formData.name_en,
+          license_number: formData.license_number,
+          license_doc: formData.license_doc,
+          address: formData.address,
+          phone_store: formData.phone_store,
+          time_open: formatTime(formData.time_open),
+          time_close: formatTime(formData.time_close),
+          link_gps: formData.link_gps,
+          type: formData.type,
+          services: formData.services,
+          photo_front: photoFrontId,
+          photo_in: photoInId,
+          photo_staff: photoStaffId,
+        },
+      };
+
+      const res = await fetch(
+        `http://localhost:1337/api/drug-stores/${documentId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${jwt}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!res.ok) throw new Error("อัปเดตร้านไม่สำเร็จ");
+      await res.json();
+
+      alert("แก้ไขข้อมูลร้านเรียบร้อย!");
+      navigate(`/drug_store_admin/${documentId}`); // ✅ กลับไปหน้ารายละเอียดร้าน
+    } catch (err) {
+      console.error(err);
+      alert("เกิดข้อผิดพลาด: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -136,11 +218,9 @@ function EditStore_admin() {
 
       {step === 1 && (
         <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* ชื่อร้าน (ไทย) */}
+          {/* ฟอร์มข้อมูลเหมือน AddStore_admin */}
           <div>
-            <label className="block font-semibold mb-1">
-              ชื่อร้านยา (ภาษาไทย)*
-            </label>
+            <label className="block font-semibold mb-1">ชื่อร้านยา (ภาษาไทย)*</label>
             <input
               type="text"
               name="name_th"
@@ -151,11 +231,8 @@ function EditStore_admin() {
             />
           </div>
 
-          {/* ชื่อร้าน (อังกฤษ) */}
           <div>
-            <label className="block font-semibold mb-1">
-              ชื่อร้านยา (ภาษาอังกฤษ)
-            </label>
+            <label className="block font-semibold mb-1">ชื่อร้านยา (ภาษาอังกฤษ)</label>
             <input
               type="text"
               name="name_en"
@@ -165,11 +242,8 @@ function EditStore_admin() {
             />
           </div>
 
-          {/* เลขทะเบียน */}
           <div>
-            <label className="block font-semibold mb-1">
-              เลขทะเบียนร้านยา*
-            </label>
+            <label className="block font-semibold mb-1">เลขทะเบียนร้านยา*</label>
             <input
               type="text"
               name="license_number"
@@ -180,11 +254,8 @@ function EditStore_admin() {
             />
           </div>
 
-          {/* เอกสาร */}
           <div>
-            <label className="block font-semibold mb-1">
-              ใบอนุญาต/เอกสารประกอบ*
-            </label>
+            <label className="block font-semibold mb-1">ใบอนุญาต/เอกสารประกอบ*</label>
             <input
               type="text"
               name="license_doc"
@@ -195,7 +266,6 @@ function EditStore_admin() {
             />
           </div>
 
-          {/* ที่อยู่ */}
           <div className="md:col-span-2">
             <label className="block font-semibold mb-1">ที่อยู่ร้านยา*</label>
             <textarea
@@ -207,11 +277,8 @@ function EditStore_admin() {
             ></textarea>
           </div>
 
-          {/* เบอร์โทร */}
           <div>
-            <label className="block font-semibold mb-1">
-              เบอร์โทรศัพท์ร้านยา*
-            </label>
+            <label className="block font-semibold mb-1">เบอร์โทรศัพท์ร้านยา*</label>
             <input
               type="tel"
               name="phone_store"
@@ -219,16 +286,11 @@ function EditStore_admin() {
               onChange={handleChange}
               className="w-full border rounded p-2"
               required
-              pattern="[0-9]+"
-              inputMode="numeric"
             />
           </div>
 
-          {/* เวลาเปิด */}
           <div>
-            <label className="block font-semibold mb-1">
-              เวลาเปิดทำการ*
-            </label>
+            <label className="block font-semibold mb-1">เวลาเปิดทำการ*</label>
             <input
               type="time"
               name="time_open"
@@ -239,11 +301,8 @@ function EditStore_admin() {
             />
           </div>
 
-          {/* เวลาปิด */}
           <div>
-            <label className="block font-semibold mb-1">
-              เวลาปิดทำการ*
-            </label>
+            <label className="block font-semibold mb-1">เวลาปิดทำการ*</label>
             <input
               type="time"
               name="time_close"
@@ -254,11 +313,8 @@ function EditStore_admin() {
             />
           </div>
 
-          {/* Google Map */}
           <div className="md:col-span-2">
-            <label className="block font-semibold mb-1">
-              Link Google Map*
-            </label>
+            <label className="block font-semibold mb-1">Link Google Map*</label>
             <input
               type="text"
               name="link_gps"
@@ -269,7 +325,6 @@ function EditStore_admin() {
             />
           </div>
 
-          {/* ประเภทร้าน */}
           <div className="md:col-span-2">
             <label className="block font-semibold mb-1">ประเภทร้านยา*</label>
             <select
@@ -290,42 +345,17 @@ function EditStore_admin() {
           <div className="md:col-span-2">
             <label className="block font-semibold mb-2">การให้บริการ*</label>
             <div className="space-y-3 p-4 bg-gray-100 rounded">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="sell_products"
-                  checked={formData.services.sell_products}
-                  onChange={handleChange}
-                />
-                <span>จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="consulting"
-                  checked={formData.services.consulting}
-                  onChange={handleChange}
-                />
-                <span>ให้คำปรึกษาทางเภสัชกรรม</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="health_check"
-                  checked={formData.services.health_check}
-                  onChange={handleChange}
-                />
-                <span>ตรวจสุขภาพเบื้องต้น</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="delivery"
-                  checked={formData.services.delivery}
-                  onChange={handleChange}
-                />
-                <span>บริการจัดส่งยา/เวชภัณฑ์</span>
-              </label>
+              {Object.entries(formData.services).map(([key, value]) => (
+                <label key={key} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name={key}
+                    checked={value}
+                    onChange={handleChange}
+                  />
+                  <span>{key}</span>
+                </label>
+              ))}
             </div>
           </div>
 
@@ -333,7 +363,7 @@ function EditStore_admin() {
             <button
               type="button"
               className="bg-blue-600 text-white font-bold py-2 px-6 rounded hover:bg-blue-700"
-              onClick={handleNext}
+              onClick={() => setStep(2)}
             >
               ถัดไป
             </button>
@@ -344,74 +374,58 @@ function EditStore_admin() {
       {step === 2 && (
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* รูปด้านหน้า */}
             <div>
               <label className="block font-semibold mb-1">รูปด้านหน้าร้านยา*</label>
-              {formData.photo_front_preview ? (
+              {formData.photo_front_preview && (
                 <img
                   src={formData.photo_front_preview}
                   alt="preview_front"
                   className="w-40 h-40 object-cover rounded mb-2"
                 />
-              ) : (
-                formData.photo_front &&
-                typeof formData.photo_front === "string" && (
-                  <img
-                    src={formData.photo_front}
-                    alt="photo_front"
-                    className="w-40 h-40 object-cover rounded mb-2"
-                  />
-                )
               )}
-              <input type="file" name="photo_front" onChange={handleChange} className="w-full" />
+              <input
+                type="file"
+                name="photo_front"
+                onChange={handleChange}
+                className="w-full"
+              />
             </div>
 
-            {/* รูปด้านใน */}
             <div>
               <label className="block font-semibold mb-1">รูปด้านในร้านยา*</label>
-              {formData.photo_in_preview ? (
+              {formData.photo_in_preview && (
                 <img
                   src={formData.photo_in_preview}
                   alt="preview_in"
                   className="w-40 h-40 object-cover rounded mb-2"
                 />
-              ) : (
-                formData.photo_in &&
-                typeof formData.photo_in === "string" && (
-                  <img
-                    src={formData.photo_in}
-                    alt="photo_in"
-                    className="w-40 h-40 object-cover rounded mb-2"
-                  />
-                )
               )}
-              <input type="file" name="photo_in" onChange={handleChange} className="w-full" />
+              <input
+                type="file"
+                name="photo_in"
+                onChange={handleChange}
+                className="w-full"
+              />
             </div>
 
-            {/* รูปเภสัชกร */}
             <div>
-              <label className="block font-semibold mb-1">รูปเภสัชกรและพนักงาน*</label>
-              {formData.photo_staff_preview ? (
+              <label className="block font-semibold mb-1">รูปเภสัชกร*</label>
+              {formData.photo_staff_preview && (
                 <img
                   src={formData.photo_staff_preview}
                   alt="preview_staff"
                   className="w-40 h-40 object-cover rounded mb-2"
                 />
-              ) : (
-                formData.photo_staff &&
-                typeof formData.photo_staff === "string" && (
-                  <img
-                    src={formData.photo_staff}
-                    alt="photo_staff"
-                    className="w-40 h-40 object-cover rounded mb-2"
-                  />
-                )
               )}
-              <input type="file" name="photo_staff" onChange={handleChange} className="w-full" />
+              <input
+                type="file"
+                name="photo_staff"
+                onChange={handleChange}
+                className="w-full"
+              />
             </div>
           </div>
 
-          {/* ยืนยัน */}
           <div className="flex justify-center">
             <label className="flex items-center gap-2">
               <input
@@ -430,20 +444,21 @@ function EditStore_admin() {
             <button
               type="button"
               className="bg-gray-500 text-white font-bold py-2 px-6 rounded hover:bg-gray-600"
-              onClick={handleBack}
+              onClick={() => setStep(1)}
+              disabled={isSubmitting}
             >
               ย้อนกลับ
             </button>
             <button
               type="submit"
               className={`py-2 px-6 rounded font-bold ${
-                formData.confirm
+                formData.confirm && !isSubmitting
                   ? "bg-blue-600 text-white hover:bg-blue-700"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
-              disabled={!formData.confirm}
+              disabled={!formData.confirm || isSubmitting}
             >
-              บันทึกการแก้ไข
+              {isSubmitting ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
             </button>
           </div>
         </form>

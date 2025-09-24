@@ -80,12 +80,6 @@
       "target": "api::admin-profile.admin-profile",
       "mappedBy": "users_permissions_user"
     },
-    "pharmacy_profiles": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::pharmacy-profile.pharmacy-profile",
-      "mappedBy": "users_permissions_user"
-    },
     "staff_profiles": {
       "type": "relation",
       "relation": "oneToMany",
@@ -97,6 +91,11 @@
       "relation": "oneToMany",
       "target": "api::customer-profile.customer-profile",
       "mappedBy": "users_permissions_user"
+    },
+    "pharmacy_profile": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::pharmacy-profile.pharmacy-profile"
     }
   }
 }

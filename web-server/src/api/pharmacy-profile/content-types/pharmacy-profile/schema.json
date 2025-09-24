@@ -11,37 +11,42 @@
   },
   "pluginOptions": {},
   "attributes": {
-    "pharmacy_license_no": {
-      "type": "string",
-      "required": true
+    "firstname": {
+      "type": "string"
     },
-    "profileimage": {
-      "type": "media",
-      "multiple": false,
-      "allowedTypes": [
-        "images",
-        "files",
-        "videos",
-        "audios"
-      ]
+    "lastname": {
+      "type": "string",
+      "unique": true
+    },
+    "license_number": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "working_time": {
+      "type": "string"
+    },
+    "services": {
+      "type": "json"
+    },
+    "is_primary": {
+      "type": "boolean"
+    },
+    "pharmacy_profile": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::pharmacy-profile.pharmacy-profile"
+    },
+    "drug_store": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::drug-store.drug-store"
     },
     "users_permissions_user": {
       "type": "relation",
-      "relation": "manyToOne",
-      "target": "plugin::users-permissions.user",
-      "inversedBy": "pharmacy_profiles"
-    },
-    "drug_stores": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::drug-store.drug-store",
-      "mappedBy": "pharmacy_profiles"
-    },
-    "primary_drug_store": {
-      "type": "relation",
       "relation": "oneToOne",
-      "target": "api::drug-store.drug-store",
-      "mappedBy": "primary_pharmacist"
+      "target": "plugin::users-permissions.user"
     }
   }
 }

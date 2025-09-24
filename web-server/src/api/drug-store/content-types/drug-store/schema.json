@@ -80,18 +80,6 @@
       "target": "api::admin-profile.admin-profile",
       "inversedBy": "drug_stores"
     },
-    "pharmacy_profiles": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::pharmacy-profile.pharmacy-profile",
-      "inversedBy": "drug_stores"
-    },
-    "primary_pharmacist": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "api::pharmacy-profile.pharmacy-profile",
-      "inversedBy": "primary_drug_store"
-    },
     "staff_profiles": {
       "type": "relation",
       "relation": "oneToMany",
