@@ -3,21 +3,22 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
-import { db } from '../../db';   // ✅ import db.js
 import '../../../css/pages/default/home.css';
 import Footer from '../../components/footer';
 
-function PharmacyItem({ documentId, name_th, address, time_open, time_close, phone_store, photo_front, pharmacists, onDelete }) {
+function PharmacyItem({ documentId, name_th, address, time_open, time_close, phone_store, photo_front, onDelete }) {
   const navigate = useNavigate();
 
   const getImageUrl = (photo) => {
     if (!photo) return null;
     if (typeof photo === "string") return photo;
-    
-    // ⚠️ แก้ไขสำหรับ API format ใหม่
-    if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
+
+    // ✅ ใช้รูปชัดที่สุดก่อน
+    if (photo.formats?.large?.url) return photo.formats.large.url;
+    if (photo.formats?.medium?.url) return photo.formats.medium.url;
     if (photo.url) return photo.url;
-    
+    if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
+
     return null;
   };
 
@@ -59,7 +60,7 @@ function PharmacyItem({ documentId, name_th, address, time_open, time_close, pho
         <button
           className="detail-button"
           style={{ background: '#4CAF50' }}
-          onClick={() => navigate(`/add_pharmacy_admin/${documentId}`)}
+          onClick={() => navigate(`/pharmacist_detail_admin/${documentId}`)}
         >
           เภสัชกร<br />ประจำร้านยา
         </button>
@@ -81,7 +82,6 @@ function AdminHome() {
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
-  const [currentUserId, setCurrentUserId] = useState(null);
   const navigate = useNavigate();
 
   const jwt = localStorage.getItem('jwt');
@@ -109,7 +109,6 @@ function AdminHome() {
         if (!userRes.ok) throw new Error("ไม่สามารถดึงข้อมูล user ได้");
 
         const userData = await userRes.json();
-        // ใช้ documentId ของ user แทน id
         const userDocumentId = userData.documentId;
 
         // 2. ดึง admin_profile + drug_stores ที่ผูกกับ user.documentId
@@ -130,7 +129,7 @@ function AdminHome() {
         const data = await res.json();
         const myDrugStores = data.data[0]?.drug_stores || [];
 
-        // แปลงข้อมูลให้ง่ายต่อการ render
+        // 3. แปลงข้อมูลให้ง่ายต่อการ render
         const pharmaciesFromAPI = myDrugStores.map(store => ({
           documentId: store.documentId,
           id: store.id,
@@ -164,19 +163,17 @@ function AdminHome() {
     loadData();
   }, [jwt, navigate]);
 
-
   const handleDelete = async (documentId) => {
     if (!window.confirm("คุณต้องการลบร้านยานี้หรือไม่?")) return;
-    
+
     if (!jwt) {
       toast.error('กรุณาเข้าสู่ระบบ');
       return;
     }
-    
+
     try {
-      console.log('🗑️ กำลังลบร้านยา ID:', documentId);
-      
-      // ลบจาก API
+      console.log('🗑️ กำลังลบร้านยา DocumentID:', documentId);
+
       const deleteRes = await fetch(`http://localhost:1337/api/drug-stores/${documentId}`, {
         method: "DELETE",
         headers: {
@@ -186,21 +183,12 @@ function AdminHome() {
       });
 
       if (deleteRes.ok) {
-        // ลบจาก state เมื่อ API สำเร็จ
-        setPharmacies(prev => prev.filter(p => p.documentId !== documentId && p.id !== documentId));
-        
-        // ลบจาก IndexedDB ด้วย
-        try {
-          await db.pharmacies.delete(documentId);
-        } catch (dbErr) {
-          console.log('Warning: Could not delete from IndexedDB:', dbErr);
-        }
-        
+        setPharmacies(prev => prev.filter(p => p.documentId !== documentId));
         toast.success("ลบร้านยาเรียบร้อยแล้ว!");
       } else {
         const errorData = await deleteRes.json();
         console.error('Delete error:', errorData);
-        
+
         if (deleteRes.status === 403) {
           toast.error("คุณไม่มีสิทธิ์ลบร้านยานี้");
         } else if (deleteRes.status === 404) {

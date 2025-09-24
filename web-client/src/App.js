@@ -29,6 +29,8 @@ import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
 import FormCustomerPage from './js/components/middle_page/formcustomerPage';
 import 'antd/dist/reset.css';
 
+
+
 // Component สำหรับ redirect ตาม role
 import RoleBasedRedirect from './js/utils/rolebasedredirect';
 
@@ -49,7 +51,6 @@ function App() {
             <Route path="/adminHome" element={<AdminHome />} />
             <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
             <Route path="/add_store_admin" element={<AddStoreAdmin />} />
-            <Route path="/add_pharmacy_admin" element={<AddPharmacyAdmin />} />
             <Route path="/add_pharmacy_admin/:storeId" element={<AddPharmacyAdmin />} />
             <Route path="/pharmacist_detail_admin/:storeId" element={<PharmacistDetailAdmin />} />
             <Route path="/edit_pharmacist_admin/:id" element={<EditPharmacistAdmin />}/>

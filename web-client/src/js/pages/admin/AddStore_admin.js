@@ -403,7 +403,7 @@ function AddStore_admin() {
 
             {/* Staff */}
             <div>
-              <label className="block font-semibold mb-1">รูปเภสัชกรและพนักงาน*</label>
+              <label className="block font-semibold mb-1">รูปเภสัชกร*</label>
               {formData.photo_staff_preview && (
                 <img
                   src={formData.photo_staff_preview}
