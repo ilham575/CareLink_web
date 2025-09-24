@@ -853,6 +853,11 @@ function FormStaffPage() {
     setShowStaffInfoPopup(false);
   };
 
+  // ===== เพิ่ม: ฟังก์ชันกลับหน้า =====
+  const handleCancel = () => {
+    navigate(-1);
+  };
+
   // ===== เพิ่ม: Component Popup =====
   const StaffInfoPopup = () => {
     if (!showStaffInfoPopup) return null;
@@ -1202,9 +1207,18 @@ function FormStaffPage() {
               </div>
             </div>
           </div>
-          <button type="submit" className="signup-submit-btn">
-            {documentId ? "บันทึกการแก้ไข" : "เพิ่มพนักงาน"}
-          </button>
+          <div className="form-buttons">
+            <button type="submit" className="signup-submit-btn">
+              {documentId ? "บันทึกการแก้ไข" : "เพิ่มพนักงาน"}
+            </button>
+            <button 
+              type="button" 
+              className="signup-cancel-btn"
+              onClick={handleCancel}
+            >
+              ← กลับ
+            </button>
+          </div>
         </form>
         <div className="signup-footer-note">
           <span>" * " หมายถึง จำเป็นต้องใส่</span>

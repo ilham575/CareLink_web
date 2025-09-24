@@ -89,9 +89,7 @@ function FormCustomerPage() {
 
   const validateForm = () => {
     const required = ['full_name', 'phone', 'username'];
-    if (!isEditMode) {
-      required.push('password');
-    }
+    // Remove password from required fields since we'll use phone as default
     
     for (const field of required) {
       if (!formData[field]?.trim()) {
@@ -184,6 +182,9 @@ function FormCustomerPage() {
 
     // Auto-generate email if not provided
     const emailToUse = formData.email?.trim() || `${formData.username}@example.com`;
+    
+    // Use phone number as default password if no password provided
+    const passwordToUse = formData.password?.trim() || formData.phone;
 
     // Create user with basic fields only
     const userResponse = await fetch('http://localhost:1337/api/auth/local/register', {
@@ -194,7 +195,7 @@ function FormCustomerPage() {
       body: JSON.stringify({
         username: formData.username,
         email: emailToUse,
-        password: formData.password
+        password: passwordToUse
       })
     });
 
@@ -316,7 +317,7 @@ function FormCustomerPage() {
         throw new Error(errorData.error?.message || 'ไม่สามารถอัปเดตข้อมูลผู้ใช้ได้');
       }
     } else if (userId) {
-      // Update user data without password
+      // Update user data without password change
       const userResponse = await fetch(`http://localhost:1337/api/users/${userId}`, {
         method: 'PUT',
         headers: {
@@ -370,12 +371,11 @@ function FormCustomerPage() {
   };
 
   return (
-    <div className="form-page form-page-modern">
+    <div className="form-page-modern">
       <ToastContainer />
       <HomeHeader />
-      <main className="form-main form-main-modern">
-        <div className="form-container form-container-modern">
-          {/* Header */}
+      <div className="form-main-modern">
+        <div className="form-container-modern">
           <div className="form-header">
             <h1>
               {isEditMode ? '✏️ แก้ไขข้อมูลลูกค้า' : '👤 เพิ่มลูกค้าใหม่'}
@@ -386,170 +386,172 @@ function FormCustomerPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="customer-form">
-            {/* Personal Information Section */}
-            <div className="form-section form-section-personal">
-              <h3>
-                📋 ข้อมูลส่วนตัว
-              </h3>
-              
-              <div className="form-row form-row-modern form-row-two-cols">
-                <div className="form-group form-group-modern">
-                  <label htmlFor="full_name">
-                    👤 ชื่อ-นามสกุล *
-                  </label>
-                  <input
-                    type="text"
-                    id="full_name"
-                    name="full_name"
-                    value={formData.full_name}
-                    onChange={handleInputChange}
-                    required
-                    className="form-input-modern form-input-personal"
-                  />
+            {/* เปลี่ยนจาก div แยกๆ เป็น wrapper div เดียว */}
+            <div className="form-sections-horizontal">
+              {/* กล่องที่ 1: ข้อมูลส่วนตัว */}
+              <div className="form-section form-section-personal">
+                <h3>
+                  📋 ข้อมูลส่วนตัว
+                </h3>
+                
+                <div className="form-row form-row-modern form-row-two-cols">
+                  <div className="form-group form-group-modern">
+                    <label htmlFor="full_name">
+                      👤 ชื่อ-นามสกุล *
+                    </label>
+                    <input
+                      type="text"
+                      id="full_name"
+                      name="full_name"
+                      value={formData.full_name}
+                      onChange={handleInputChange}
+                      required
+                      className="form-input-modern form-input-personal"
+                    />
+                  </div>
+                  <div className="form-group form-group-modern">
+                    <label htmlFor="phone">
+                      📞 เบอร์โทรศัพท์ *
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      required
+                      className="form-input-modern form-input-personal"
+                    />
+                  </div>
                 </div>
-                <div className="form-group form-group-modern">
-                  <label htmlFor="phone">
-                    📞 เบอร์โทรศัพท์ *
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    required
-                    className="form-input-modern form-input-personal"
-                  />
+
+                <div className="form-row form-row-modern form-row-two-cols">
+                  <div className="form-group form-group-modern">
+                    <label htmlFor="congenital_disease">
+                      🏥 โรคประจำตัว
+                    </label>
+                    <input
+                      type="text"
+                      id="congenital_disease"
+                      name="congenital_disease"
+                      value={formData.congenital_disease}
+                      onChange={handleInputChange}
+                      className="form-input-modern form-input-personal"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="form-row form-row-modern form-row-two-cols">
-                <div className="form-group form-group-modern">
-                  <label htmlFor="congenital_disease">
-                    🏥 โรคประจำตัว
-                  </label>
-                  <input
-                    type="text"
-                    id="congenital_disease"
-                    name="congenital_disease"
-                    value={formData.congenital_disease}
-                    onChange={handleInputChange}
-                    className="form-input-modern form-input-personal"
-                  />
+              {/* กล่องที่ 2: ข้อมูลบัญชี */}
+              <div className="form-section form-section-account">
+                <h3>
+                  🔐 ข้อมูลบัญชี
+                </h3>
+                
+                <div className="form-row form-row-modern form-row-two-cols">
+                  <div className="form-group form-group-modern">
+                    <label htmlFor="username">
+                      👨‍💻 USERNAME *
+                    </label>
+                    <input
+                      type="text"
+                      id="username"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleInputChange}
+                      required
+                      className="form-input-modern form-input-account"
+                    />
+                  </div>
+                  <div className="form-group form-group-modern">
+                    <label htmlFor="password">
+                      🔒 PASSWORD {!isEditMode && '(ถ้าไม่ใส่จะใช้เบอร์โทรศัพท์)'}
+                    </label>
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder={isEditMode ? "เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่าน" : "เว้นว่างเพื่อใช้เบอร์โทรศัพท์เป็นรหัสผ่าน"}
+                      className="form-input-modern form-input-account"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row form-row-modern form-row-one-col">
+                  <div className="form-group form-group-modern">
+                    <label htmlFor="email">
+                      ✉️ อีเมล
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="ถ้าไม่กรอก จะใช้ username@example.com"
+                      className="form-input-modern form-input-account"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* กล่องที่ 3: ข้อมูลทางการแพทย์ */}
+              <div className="form-section form-section-medical">
+                <h3>
+                  💊 ข้อมูลทางการแพทย์
+                </h3>
+                
+                <div className="form-row form-row-modern form-row-two-cols">
+                  <div className="form-group form-group-modern">
+                    <label htmlFor="Allergic_drugs">
+                      ⚠️ ยาที่แพ้
+                    </label>
+                    <input
+                      type="text"
+                      id="Allergic_drugs"
+                      name="Allergic_drugs"
+                      value={formData.Allergic_drugs}
+                      onChange={handleInputChange}
+                      className="form-input-modern form-input-medical"
+                    />
+                  </div>
+                  <div className="form-group form-group-modern">
+                    <label htmlFor="Customers_symptoms">
+                      🩺 อาการของลูกค้า
+                    </label>
+                    <input
+                      type="text"
+                      id="Customers_symptoms"
+                      name="Customers_symptoms"
+                      value={formData.Customers_symptoms}
+                      onChange={handleInputChange}
+                      className="form-input-modern form-input-medical"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row form-row-modern form-row-one-col">
+                  <div className="form-group form-group-modern">
+                    <label htmlFor="Follow_up_appointment_date">
+                      📅 วันที่นัดติดตาม
+                    </label>
+                    <input
+                      type="date"
+                      id="Follow_up_appointment_date"
+                      name="Follow_up_appointment_date"
+                      value={formData.Follow_up_appointment_date}
+                      onChange={handleInputChange}
+                      className="form-input-modern form-input-medical"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Account Information Section */}
-            <div className="form-section form-section-account">
-              <h3>
-                🔐 ข้อมูลบัญชี
-              </h3>
-              
-              <div className="form-row form-row-modern form-row-two-cols">
-                <div className="form-group form-group-modern">
-                  <label htmlFor="username">
-                    👨‍💻 USERNAME *
-                  </label>
-                  <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    required
-                    className="form-input-modern form-input-account"
-                  />
-                </div>
-                <div className="form-group form-group-modern">
-                  <label htmlFor="password">
-                    🔒 PASSWORD {!isEditMode && '*'}
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required={!isEditMode}
-                    placeholder={isEditMode ? "เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่าน" : ""}
-                    className="form-input-modern form-input-account"
-                  />
-                </div>
-              </div>
-
-              <div className="form-row form-row-modern form-row-one-col">
-                <div className="form-group form-group-modern">
-                  <label htmlFor="email">
-                    ✉️ อีเมล
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="ถ้าไม่กรอก จะใช้ username@example.com"
-                    className="form-input-modern form-input-account"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Medical Information Section */}
-            <div className="form-section form-section-medical">
-              <h3>
-                💊 ข้อมูลทางการแพทย์
-              </h3>
-              
-              <div className="form-row form-row-modern form-row-two-cols">
-                <div className="form-group form-group-modern">
-                  <label htmlFor="Allergic_drugs">
-                    ⚠️ ยาที่แพ้
-                  </label>
-                  <input
-                    type="text"
-                    id="Allergic_drugs"
-                    name="Allergic_drugs"
-                    value={formData.Allergic_drugs}
-                    onChange={handleInputChange}
-                    className="form-input-modern form-input-medical"
-                  />
-                </div>
-                <div className="form-group form-group-modern">
-                  <label htmlFor="Customers_symptoms">
-                    🩺 อาการของลูกค้า
-                  </label>
-                  <input
-                    type="text"
-                    id="Customers_symptoms"
-                    name="Customers_symptoms"
-                    value={formData.Customers_symptoms}
-                    onChange={handleInputChange}
-                    className="form-input-modern form-input-medical"
-                  />
-                </div>
-              </div>
-
-              <div className="form-row form-row-modern form-row-one-col">
-                <div className="form-group form-group-modern">
-                  <label htmlFor="Follow_up_appointment_date">
-                    📅 วันที่นัดติดตาม
-                  </label>
-                  <input
-                    type="date"
-                    id="Follow_up_appointment_date"
-                    name="Follow_up_appointment_date"
-                    value={formData.Follow_up_appointment_date}
-                    onChange={handleInputChange}
-                    className="form-input-modern form-input-medical"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="form-buttons form-buttons-modern">
+            {/* ปุ่มอยู่ข้างนอก wrapper */}
+            <div className="form-buttons-modern">
               <button
                 type="submit"
                 className="form-btn-modern form-btn-submit"
@@ -577,7 +579,7 @@ function FormCustomerPage() {
             </div>
           </form>
         </div>
-      </main>
+      </div>
       <Footer />
     </div>
   );

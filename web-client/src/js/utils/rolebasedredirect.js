@@ -10,7 +10,6 @@ function RoleBasedRedirect () {
     const role = localStorage.getItem('role');
     
     if (!isLoggedIn) {
-      // ไม่ได้ login ให้แสดงหน้า Home ปกติ
       return;
     }
     

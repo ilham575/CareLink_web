@@ -131,7 +131,7 @@
   padding: 40px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  max-width: 800px;
+  max-width: 1400px; /* เพิ่มความกว้างเพื่อรองรับ 3 กล่อง */
   width: 100%;
 }
 
@@ -158,7 +158,9 @@
 .form-section {
   border-radius: 16px;
   padding: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 0; /* เอา margin-bottom ออก */
+  height: fit-content; /* ให้ความสูงพอดีกับเนื้อหา */
+  min-height: 400px; /* กำหนดความสูงขั้นต่ำ */
 }
 
 .form-section-personal {
@@ -239,11 +241,19 @@
   box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1);
 }
 
+.form-sections-horizontal {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; /* แบ่งเป็น 3 คอลัมน์เท่าๆ กน */
+  gap: 24px;
+  margin-top: 24px;
+}
+
 .form-buttons-modern {
   display: flex;
   gap: 16px;
   justify-content: center;
   flex-wrap: wrap;
+  margin-top: 32px; /* เพิ่มระยะห่างจาก sections */
 }
 
 .form-btn-modern {
@@ -306,7 +316,21 @@
 }
 
 /* Responsive design for modern form */
+@media (max-width: 1200px) {
+  .form-sections-horizontal {
+    grid-template-columns: 1fr 1fr; /* 2 คอลัมน์ */
+  }
+}
+
 @media (max-width: 768px) {
+  .form-sections-horizontal {
+    grid-template-columns: 1fr; /* 1 คอลัมน์ - กลับเป็นแนวตั้ง */
+  }
+  
+  .form-section {
+    min-height: auto; /* ไม่กำหนดความสูงขั้นต่ำในมือถือ */
+  }
+  
   .form-main-modern {
     padding: 20px 10px;
   }
