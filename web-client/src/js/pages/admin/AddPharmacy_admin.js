@@ -5,6 +5,17 @@ import Footer from "../../components/footer";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+// 🟢 mapping วัน ไทย -> ไทย (เก็บเป็นวันไทยใน DB)
+const dayMapReverse = {
+  จันทร์: "จันทร์",
+  อังคาร: "อังคาร",
+  พุธ: "พุธ",
+  พฤหัสบดี: "พฤหัสบดี",
+  ศุกร์: "ศุกร์",
+  เสาร์: "เสาร์",
+  อาทิตย์: "อาทิตย์",
+};
+
 function AddPharmacist_admin() {
   const navigate = useNavigate();
   const { storeId } = useParams(); // documentId ของร้าน
@@ -14,8 +25,6 @@ function AddPharmacist_admin() {
     firstname: "",
     lastname: "",
     license_number: "",
-    time_in: "",
-    time_out: "",
     phone: "",
     username: "",
     password: "",
@@ -26,23 +35,59 @@ function AddPharmacist_admin() {
       wholesale: false,
       delivery: false,
     },
-    // is_primary: false, // ❌ ปิดการใช้งานไปก่อน
+    working_times: [{ day: "จันทร์", time_in: "", time_out: "" }], // 🟢 default วันไทย
   });
 
+  const [imagePreview, setImagePreview] = useState(null);
+
+  // ✅ Handle Change
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
+
     if (type === "checkbox") {
       setFormData({
         ...formData,
         services: { ...formData.services, [name]: checked },
       });
     } else if (type === "file") {
-      setFormData({ ...formData, profileImage: files[0] });
+      const file = files[0];
+      if (file) {
+        setFormData({ ...formData, profileImage: file });
+
+        // preview image
+        const reader = new FileReader();
+        reader.onload = (ev) => setImagePreview(ev.target.result);
+        reader.readAsDataURL(file);
+      }
     } else {
       setFormData({ ...formData, [name]: value });
     }
   };
 
+  // ✅ Working Times
+  const addWorkingTime = () => {
+    setFormData({
+      ...formData,
+      working_times: [
+        ...formData.working_times,
+        { day: "จันทร์", time_in: "", time_out: "" },
+      ],
+    });
+  };
+
+  const handleWorkingTimeChange = (index, field, value) => {
+    const updated = [...formData.working_times];
+    updated[index][field] = value;
+    setFormData({ ...formData, working_times: updated });
+  };
+
+  const removeWorkingTime = (index) => {
+    const updated = [...formData.working_times];
+    updated.splice(index, 1);
+    setFormData({ ...formData, working_times: updated });
+  };
+
+  // ✅ Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -53,16 +98,19 @@ function AddPharmacist_admin() {
     }
 
     try {
-      // ✅ 1. สมัคร User
-      const userRes = await fetch("http://localhost:1337/api/auth/local/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: formData.username,
-          email: `${formData.username}@mail.com`,
-          password: formData.password,
-        }),
-      });
+      // 1. สมัคร User
+      const userRes = await fetch(
+        "http://localhost:1337/api/auth/local/register",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: formData.username,
+            email: `${formData.username}@mail.com`,
+            password: formData.password,
+          }),
+        }
+      );
 
       if (!userRes.ok) {
         const error = await userRes.json();
@@ -71,29 +119,32 @@ function AddPharmacist_admin() {
 
       const userData = await userRes.json();
 
-      // ✅ 2. หา role pharmacist
-      const roleRes = await fetch("http://localhost:1337/api/users-permissions/roles", {
-        headers: { Authorization: `Bearer ${jwt}` },
-      });
+      // 2. หา role pharmacist
+      const roleRes = await fetch(
+        "http://localhost:1337/api/users-permissions/roles",
+        {
+          headers: { Authorization: `Bearer ${jwt}` },
+        }
+      );
       const roleData = await roleRes.json();
       const pharmacistRole = roleData.roles.find((r) => r.name === "pharmacy");
       if (!pharmacistRole) throw new Error("ไม่พบ role pharmacist");
 
-      // ✅ 2.1 อัปเดต User (เพิ่ม full_name, phone, role)
+      // 3. อัปเดต User
       await fetch(`http://localhost:1337/api/users/${userData.user.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${jwt}`, // ต้องเป็น admin jwt
+          Authorization: `Bearer ${jwt}`,
         },
         body: JSON.stringify({
           full_name: `${formData.firstname} ${formData.lastname}`,
           phone: formData.phone,
-          role: pharmacistRole.id, // เพิ่ม role เหมือน formStaffPage
+          role: pharmacistRole.id,
         }),
       });
 
-      // ✅ 3. อัปโหลดรูปถ้ามี
+      // 4. อัปโหลดรูปถ้ามี
       let uploadedImageId = null;
       if (formData.profileImage) {
         const imageForm = new FormData();
@@ -105,23 +156,24 @@ function AddPharmacist_admin() {
           body: imageForm,
         });
 
-        if (!uploadRes.ok) {
-          throw new Error("อัปโหลดรูปภาพไม่สำเร็จ");
-        }
+        if (!uploadRes.ok) throw new Error("อัปโหลดรูปภาพไม่สำเร็จ");
 
         const uploadData = await uploadRes.json();
         uploadedImageId = uploadData[0].id;
       }
 
-      // ✅ 4. สร้าง Pharmacy Profile
+      // 5. สร้าง Pharmacy Profile
       const payload = {
         data: {
           license_number: formData.license_number,
-          working_time: `${formData.time_in} - ${formData.time_out}`,
           services: formData.services,
           drug_stores: [storeId],
           users_permissions_user: userData.user.id,
-          profileimage: uploadedImageId ? [uploadedImageId] : [],
+          profileimage: uploadedImageId || null,
+          working_times: formData.working_times.map((wt) => ({
+            ...wt,
+            day: dayMapReverse[wt.day] || wt.day, // 🟢 เก็บวันเป็นภาษาไทย
+          })),
         },
       };
 
@@ -152,11 +204,15 @@ function AddPharmacist_admin() {
       <Header />
 
       <div className="max-w-3xl mx-auto bg-white shadow-md rounded-lg p-6 mt-6">
-        <h2 className="text-2xl font-bold text-green-700 mb-4">
+        <h2 className="text-2xl font-bold text-green-700 mb-4 text-center">
           เพิ่มเภสัชกรประจำร้านขายยา
         </h2>
 
-        <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
+        <form
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          onSubmit={handleSubmit}
+        >
+          {/* Firstname & Lastname */}
           <div>
             <label className="block font-semibold mb-1">ชื่อ*</label>
             <input
@@ -180,6 +236,7 @@ function AddPharmacist_admin() {
             />
           </div>
 
+          {/* License & Phone */}
           <div className="md:col-span-2">
             <label className="block font-semibold mb-1">เลขที่ใบอนุญาต*</label>
             <input
@@ -191,7 +248,6 @@ function AddPharmacist_admin() {
               required
             />
           </div>
-
           <div>
             <label className="block font-semibold mb-1">เบอร์โทรศัพท์*</label>
             <input
@@ -206,29 +262,67 @@ function AddPharmacist_admin() {
             />
           </div>
 
-          <div>
-            <label className="block font-semibold mb-1">เวลาเข้างาน*</label>
-            <input
-              type="time"
-              name="time_in"
-              value={formData.time_in}
-              onChange={handleChange}
-              className="w-full border rounded p-2"
-              required
-            />
-          </div>
-          <div>
-            <label className="block font-semibold mb-1">เวลาออกงาน*</label>
-            <input
-              type="time"
-              name="time_out"
-              value={formData.time_out}
-              onChange={handleChange}
-              className="w-full border rounded p-2"
-              required
-            />
+          {/* Working Times */}
+          <div className="md:col-span-2">
+            <label className="block font-semibold mb-2">
+              วันและเวลาเข้างาน*
+            </label>
+            {formData.working_times.map((item, index) => (
+              <div key={index} className="flex gap-2 items-center mb-2">
+                <select
+                  value={item.day}
+                  onChange={(e) =>
+                    handleWorkingTimeChange(index, "day", e.target.value)
+                  }
+                  className="border p-2 rounded"
+                >
+                  <option value="จันทร์">จันทร์</option>
+                  <option value="อังคาร">อังคาร</option>
+                  <option value="พุธ">พุธ</option>
+                  <option value="พฤหัสบดี">พฤหัสบดี</option>
+                  <option value="ศุกร์">ศุกร์</option>
+                  <option value="เสาร์">เสาร์</option>
+                  <option value="อาทิตย์">อาทิตย์</option>
+                </select>
+
+                <input
+                  type="time"
+                  value={item.time_in}
+                  onChange={(e) =>
+                    handleWorkingTimeChange(index, "time_in", e.target.value)
+                  }
+                  className="border p-2 rounded"
+                />
+                <input
+                  type="time"
+                  value={item.time_out}
+                  onChange={(e) =>
+                    handleWorkingTimeChange(index, "time_out", e.target.value)
+                  }
+                  className="border p-2 rounded"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => removeWorkingTime(index)}
+                  className="text-red-500 ml-2"
+                >
+                  ลบ
+                </button>
+              </div>
+            ))}
+            <div className="flex justify-center mt-2">
+              <button
+                type="button"
+                onClick={addWorkingTime}
+                className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
+              >
+                + เพิ่มวัน/เวลา
+              </button>
+            </div>
           </div>
 
+          {/* Username & Password */}
           <div>
             <label className="block font-semibold mb-1">USERNAME*</label>
             <input
@@ -252,16 +346,34 @@ function AddPharmacist_admin() {
             />
           </div>
 
+          {/* Profile Image */}
           <div className="md:col-span-2">
-            <label className="block font-semibold mb-2">รูปภาพโปรไฟล์</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleChange}
-              className="w-full"
-            />
+            <label className="block font-semibold mb-2 text-center">
+              รูปภาพโปรไฟล์
+            </label>
+            {imagePreview && (
+              <div className="mb-2 flex justify-center">
+                <img
+                  src={imagePreview}
+                  alt="preview"
+                  className="w-32 h-32 object-cover rounded-full border"
+                />
+              </div>
+            )}
+            <div className="flex justify-center">
+              <label className="bg-gray-200 px-4 py-2 rounded cursor-pointer hover:bg-gray-300">
+                เลือกรูปภาพ
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
 
+          {/* Services */}
           <div className="md:col-span-2">
             <label className="block font-semibold mb-2">การให้บริการ*</label>
             <div className="space-y-3 p-4 bg-gray-100 rounded">
@@ -285,6 +397,7 @@ function AddPharmacist_admin() {
             </div>
           </div>
 
+          {/* Submit */}
           <div className="md:col-span-2 flex justify-end">
             <button
               type="submit"

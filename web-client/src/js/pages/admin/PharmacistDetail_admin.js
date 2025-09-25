@@ -5,6 +5,15 @@ import Footer from "../../components/footer";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+// 🟢 helper function ดึง URL รูปภาพ
+function getImageUrl(photoAttr) {
+  if (!photoAttr) return null;
+  if (photoAttr.formats?.medium?.url) return photoAttr.formats.medium.url;
+  if (photoAttr.url) return photoAttr.url;
+  if (photoAttr.formats?.thumbnail?.url) return photoAttr.formats.thumbnail.url;
+  return null;
+}
+
 function PharmacistDetail_admin() {
   const { storeId } = useParams(); // documentId ของ drug-store
   const navigate = useNavigate();
@@ -23,7 +32,7 @@ function PharmacistDetail_admin() {
           return;
         }
 
-        // โหลดข้อมูลร้าน
+        // ✅ โหลดข้อมูลร้าน
         const storeRes = await fetch(
           `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${storeId}&populate=*`,
           { headers: { Authorization: `Bearer ${jwt}` } }
@@ -37,13 +46,12 @@ function PharmacistDetail_admin() {
         }
         setPharmacy(store);
 
-        // โหลดข้อมูลเภสัชกร (จาก pharmacy-profiles) - Wildcard approach
+        // ✅ โหลดข้อมูลเภสัชกร
         const pharmacistRes = await fetch(
           `http://localhost:1337/api/pharmacy-profiles?filters[drug_stores][documentId][$eq]=${storeId}&populate=*`,
           { headers: { Authorization: `Bearer ${jwt}` } }
         );
         const pharmacistData = await pharmacistRes.json();
-
         setPharmacists(pharmacistData.data || []);
       } catch (err) {
         console.error("โหลดข้อมูลผิดพลาด:", err);
@@ -55,18 +63,18 @@ function PharmacistDetail_admin() {
     loadData();
   }, [storeId, jwt, navigate]);
 
-  // ฟังก์ชันลบเภสัช
-  const handleDelete = async (id) => {
+  // ✅ ฟังก์ชันลบเภสัช
+  const handleDelete = async (documentId) => {
     if (!window.confirm("คุณต้องการลบเภสัชกรคนนี้หรือไม่?")) return;
 
     try {
-      const res = await fetch(`http://localhost:1337/api/pharmacy-profiles/${id}`, {
+      const res = await fetch(`http://localhost:1337/api/pharmacy-profiles/${documentId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${jwt}` },
       });
 
       if (res.ok) {
-        setPharmacists((prev) => prev.filter((p) => p.id !== id));
+        setPharmacists((prev) => prev.filter((p) => p.documentId !== documentId));
         toast.success("ลบเภสัชกรเรียบร้อยแล้ว");
       } else {
         const error = await res.json();
@@ -79,14 +87,15 @@ function PharmacistDetail_admin() {
     }
   };
 
-  if (loading) return (
-    <>
-      <HomeHeader />
-      <div className="p-6 text-center">กำลังโหลดข้อมูล...</div>
-      <Footer />
-      <ToastContainer />
-    </>
-  );
+  if (loading)
+    return (
+      <>
+        <HomeHeader />
+        <div className="p-6 text-center">กำลังโหลดข้อมูล...</div>
+        <Footer />
+        <ToastContainer />
+      </>
+    );
 
   if (!pharmacy) {
     return (
@@ -129,64 +138,101 @@ function PharmacistDetail_admin() {
           <p className="text-center text-gray-500">ไม่พบข้อมูลเภสัชกรในร้านนี้</p>
         ) : (
           <div className="space-y-6">
-            {pharmacists.map((pharmacist) => (
-              <div
-                key={pharmacist.id}
-                className="border rounded-lg p-6 bg-gray-50 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center"
-              >
-                <div className="text-left flex-1 space-y-2">
-                  <div>
-                    <span className="font-semibold">ชื่อ-นามสกุล:</span>{" "}
-                    {pharmacist.users_permissions_user?.full_name || "-"}
-                  </div>
-                  <div>
-                    <span className="font-semibold">เลขที่ใบอนุญาต:</span>{" "}
-                    {pharmacist.license_number || "-"}
-                  </div>
-                  <div>
-                    <span className="font-semibold">เบอร์โทรศัพท์:</span>{" "}
-                    {pharmacist.users_permissions_user?.phone || "-"}
-                  </div>
-                  <div>
-                    <span className="font-semibold">การให้บริการ:</span>
-                    <ul className="list-disc ml-6 mt-1 space-y-1">
-                      {pharmacist.services?.sell_products && (
-                        <li>จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ</li>
-                      )}
-                      {pharmacist.services?.consulting && (
-                        <li>ให้คำปรึกษาทางเภสัชกรรม</li>
-                      )}
-                      {pharmacist.services?.wholesale && (
-                        <li>ขายปลีกและขายส่ง</li>
-                      )}
-                      {pharmacist.services?.delivery && (
-                        <li>บริการจัดส่งกล่องยาสามัญประจำบ้าน</li>
-                      )}
-                      {/* กรณีไม่มีบริการเลย */}
-                      {!pharmacist.services ||
-                        Object.values(pharmacist.services).every(v => !v) ? (
-                          <li>-</li>
-                      ) : null}
-                    </ul>
-                  </div>
-                </div>
+            {pharmacists.map((pharmacist) => {
+              const imgUrl = pharmacist.profileimage?.data?.attributes
+                ? getImageUrl(pharmacist.profileimage.data.attributes)
+                : null;
 
-                <div className="flex flex-row md:flex-col gap-2 mt-4 md:mt-0 ml-0 md:ml-4">
-                  <button
-                    onClick={() => navigate(`/edit_pharmacist_admin/${pharmacist.documentId}`)}
-                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                  >
-                    แก้ไข
-                  </button>
-                  <button
-                    onClick={() => handleDelete(pharmacist.id)}
-                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                  >
-                    ลบ
-                  </button>
+              return (
+                <div
+                  key={pharmacist.id}
+                  className="border rounded-lg p-6 bg-gray-50 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center"
+                >
+                  <div className="flex-1 space-y-2 text-left">
+                    {/* รูปโปรไฟล์ */}
+                    {imgUrl && (
+                      <div className="flex justify-center mb-4">
+                        <img
+                          src={imgUrl.startsWith("/") ? `http://localhost:1337${imgUrl}` : imgUrl}
+                          alt="pharmacist"
+                          className="w-24 h-24 object-cover rounded-full border"
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <span className="font-semibold">ชื่อ-นามสกุล:</span>{" "}
+                      {pharmacist.users_permissions_user?.full_name || "-"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">USERNAME:</span>{" "}
+                      {pharmacist.users_permissions_user?.username || "-"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">เบอร์โทรศัพท์:</span>{" "}
+                      {pharmacist.users_permissions_user?.phone || "-"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">เลขที่ใบอนุญาต:</span>{" "}
+                      {pharmacist.license_number || "-"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">วันและเวลาเข้างาน:</span>
+                      <ul className="ml-6 list-disc space-y-1">
+                        {pharmacist.working_times?.length > 0 ? (
+                          pharmacist.working_times.map((wt, idx) => (
+                            <li key={idx}>
+                              {wt.day} : {wt.time_in} - {wt.time_out}
+                            </li>
+                          ))
+                        ) : (
+                          <li>-</li>
+                        )}
+                      </ul>
+                    </div>
+                    <div>
+                      <span className="font-semibold">การให้บริการ:</span>
+                      <ul className="list-disc ml-6 mt-1 space-y-1">
+                        {pharmacist.services?.sell_products && (
+                          <li>จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ</li>
+                        )}
+                        {pharmacist.services?.consulting && (
+                          <li>ให้คำปรึกษาทางเภสัชกรรม</li>
+                        )}
+                        {pharmacist.services?.wholesale && (
+                          <li>ขายปลีกและขายส่ง</li>
+                        )}
+                        {pharmacist.services?.delivery && (
+                          <li>บริการจัดส่งกล่องยาสามัญประจำบ้าน</li>
+                        )}
+                        {!pharmacist.services ||
+                        Object.values(pharmacist.services).every((v) => !v) ? (
+                          <li>-</li>
+                        ) : null}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* ปุ่มจัดการ */}
+                  <div className="flex flex-row md:flex-col gap-2 mt-4 md:mt-0 ml-0 md:ml-4">
+                    <button
+                      onClick={() =>
+                        navigate(`/edit_pharmacist_admin/${pharmacist.documentId}`)
+                      }
+                      className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                    >
+                      แก้ไข
+                    </button>
+                    <button
+                      onClick={() => handleDelete(pharmacist.documentId)}
+                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                    >
+                      ลบ
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
