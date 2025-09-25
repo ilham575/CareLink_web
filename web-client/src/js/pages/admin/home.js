@@ -12,13 +12,10 @@ function PharmacyItem({ documentId, name_th, address, time_open, time_close, pho
   const getImageUrl = (photo) => {
     if (!photo) return null;
     if (typeof photo === "string") return photo;
-
-    // ✅ ใช้รูปชัดที่สุดก่อน
     if (photo.formats?.large?.url) return photo.formats.large.url;
     if (photo.formats?.medium?.url) return photo.formats.medium.url;
     if (photo.url) return photo.url;
     if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
-
     return null;
   };
 
@@ -48,7 +45,7 @@ function PharmacyItem({ documentId, name_th, address, time_open, time_close, pho
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+      <div className="pharmacy-actions">
         <button
           className="detail-button"
           style={{ background: '#2196F3' }}

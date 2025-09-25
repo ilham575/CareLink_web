@@ -1089,10 +1089,6 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
-    pharmacy_profile: Schema.Attribute.Relation<
-      'oneToOne',
-      'api::pharmacy-profile.pharmacy-profile'
-    >;
     pharmacy_profiles: Schema.Attribute.Relation<
       'oneToMany',
       'api::pharmacy-profile.pharmacy-profile'

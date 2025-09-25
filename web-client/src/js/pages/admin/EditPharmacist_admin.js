@@ -7,27 +7,29 @@ function EditPharmacist_admin() {
   const jwt = localStorage.getItem("jwt");
 
   const [formData, setFormData] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`http://localhost:1337/api/pharmacists/${id}?populate=user,drug_store`, {
+        const res = await fetch(`http://localhost:1337/api/pharmacy-profiles/${id}?populate=*`, {
           headers: { Authorization: `Bearer ${jwt}` },
         });
 
         if (!res.ok) throw new Error("ไม่สามารถโหลดข้อมูลเภสัชกรได้");
 
         const data = await res.json();
-        const p = data.data?.attributes;
+        const p = data.data;
 
         if (p) {
           const [time_in, time_out] = p.working_time?.split(" - ") || ["", ""];
           setFormData({
-            id: data.data.id,
-            firstname: p.firstname || "",
-            lastname: p.lastname || "",
+            id: p.id,
+            firstname: p.users_permissions_user?.full_name?.split(" ")[0] || "",
+            lastname: p.users_permissions_user?.full_name?.split(" ").slice(1).join(" ") || "",
             license_number: p.license_number || "",
-            phone: p.phone || "",
+            phone: p.users_permissions_user?.phone || "",
             time_in,
             time_out,
             services: p.services || {
@@ -36,11 +38,16 @@ function EditPharmacist_admin() {
               wholesale: false,
               delivery: false,
             },
-            is_primary: p.is_primary || false,
-            drug_store: p.drug_store?.data?.id || null,
-            user: p.user?.data?.id || null,
-            username: p.user?.data?.attributes?.username || "",
+            profileimage: p.profileimage,
+            drug_store: p.drug_stores?.[0]?.id || null,
+            user: p.users_permissions_user?.id || null,
+            username: p.users_permissions_user?.username || "",
           });
+          
+          // Set current image preview if exists
+          if (p.profileimage) {
+            setImagePreview(`http://localhost:1337${p.profileimage.url}`);
+          }
         }
       } catch (err) {
         console.error("Load pharmacist error:", err);
@@ -67,25 +74,76 @@ function EditPharmacist_admin() {
     }
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert("ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB");
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        alert("กรุณาเลือกไฟล์รูปภาพ");
+        return;
+      }
+      
+      setImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImage = async () => {
+    if (!imageFile) return null;
+    
+    const formData = new FormData();
+    formData.append('files', imageFile);
+    
+    try {
+      const res = await fetch('http://localhost:1337/api/upload', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+        },
+        body: formData,
+      });
+      
+      if (!res.ok) throw new Error('ไม่สามารถอัปโหลดรูปภาพได้');
+      
+      const uploadedFiles = await res.json();
+      return uploadedFiles[0]?.id || null;
+    } catch (err) {
+      console.error('Image upload error:', err);
+      throw err;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const payload = {
-      data: {
-        firstname: formData.firstname,
-        lastname: formData.lastname,
-        license_number: formData.license_number,
-        phone: formData.phone,
-        working_time: `${formData.time_in} - ${formData.time_out}`,
-        services: formData.services,
-        is_primary: formData.is_primary,
-        drug_store: formData.drug_store,
-        user: formData.user,
-      },
-    };
-
     try {
-      const res = await fetch(`http://localhost:1337/api/pharmacists/${id}`, {
+      let imageId = formData.profileimage?.id;
+      
+      // Upload new image if selected
+      if (imageFile) {
+        imageId = await uploadImage();
+      }
+
+      const payload = {
+        data: {
+          license_number: formData.license_number,
+          working_time: `${formData.time_in} - ${formData.time_out}`,
+          services: formData.services,
+          profileimage: imageId,
+        },
+      };
+
+      const res = await fetch(`http://localhost:1337/api/pharmacy-profiles/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -114,37 +172,48 @@ function EditPharmacist_admin() {
       </h2>
 
       <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
+        <div className="md:col-span-2">
+          <label className="block font-semibold mb-1">รูปโปรไฟล์</label>
+          <div className="space-y-4">
+            {imagePreview && (
+              <div className="flex justify-center">
+                <img 
+                  src={imagePreview} 
+                  alt="Profile Preview" 
+                  className="w-32 h-32 object-cover rounded-full border-4 border-gray-300"
+                />
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="w-full border rounded p-2"
+            />
+            <p className="text-sm text-gray-500">
+              รองรับไฟล์: JPG, PNG, GIF (ขนาดไม่เกิน 5MB)
+            </p>
+          </div>
+        </div>
+
         <div>
-          <label className="block font-semibold mb-1">ชื่อ*</label>
+          <label className="block font-semibold mb-1">ชื่อ-นามสกุล*</label>
           <input
             type="text"
             name="firstname"
-            value={formData.firstname}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            required
-          />
-        </div>
-        <div>
-          <label className="block font-semibold mb-1">นามสกุล*</label>
-          <input
-            type="text"
-            name="lastname"
-            value={formData.lastname}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            required
-          />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block font-semibold mb-1">เลขที่ใบอนุญาต*</label>
-          <input
-            type="text"
-            name="license_number"
-            value={formData.license_number}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            required
+            value={`${formData.firstname} ${formData.lastname}`.trim()}
+            onChange={(e) => {
+              const fullName = e.target.value;
+              const parts = fullName.split(" ");
+              setFormData({
+                ...formData,
+                firstname: parts[0] || "",
+                lastname: parts.slice(1).join(" ") || ""
+              });
+            }}
+            className="w-full border rounded p-2 bg-gray-100"
+            readOnly
+            title="ชื่อ-นามสกุลถูกกำหนดจาก User Account"
           />
         </div>
         <div>
@@ -158,6 +227,19 @@ function EditPharmacist_admin() {
             required
             pattern="[0-9]+"
             inputMode="numeric"
+            readOnly
+            title="เบอร์โทรศัพท์ถูกกำหนดจาก User Account"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block font-semibold mb-1">เลขที่ใบอนุญาต*</label>
+          <input
+            type="text"
+            name="license_number"
+            value={formData.license_number}
+            onChange={handleChange}
+            className="w-full border rounded p-2"
+            required
           />
         </div>
         <div>
