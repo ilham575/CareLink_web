@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
 import Footer from "../../components/footer";
@@ -20,6 +21,8 @@ function PharmacistDetail_admin() {
   const [pharmacy, setPharmacy] = useState(null);
   const [pharmacists, setPharmacists] = useState([]);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const fromPage = location.state?.from;
 
   const jwt = localStorage.getItem("jwt");
 
@@ -179,8 +182,8 @@ function PharmacistDetail_admin() {
                     <div>
                       <span className="font-semibold">วันและเวลาเข้างาน:</span>
                       <ul className="ml-6 list-disc space-y-1">
-                        {pharmacist.working_times?.length > 0 ? (
-                          pharmacist.working_times.map((wt, idx) => (
+                        {Array.isArray(pharmacist.working_time) && pharmacist.working_time.length > 0 ? (
+                          pharmacist.working_time.map((wt, idx) => (
                             <li key={idx}>
                               {wt.day} : {wt.time_in} - {wt.time_out}
                             </li>
@@ -239,7 +242,13 @@ function PharmacistDetail_admin() {
         {/* ปุ่มกลับ */}
         <div className="mt-6 text-center">
           <button
-            onClick={() => navigate(`/drug_store_admin/${storeId}`)}
+            onClick={() => {
+              if (fromPage === "adminHome") {
+                navigate("/adminHome");
+              } else {
+                navigate(`/drug_store_admin/${storeId}`);
+              }
+            }}
             className="bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700"
           >
             กลับ

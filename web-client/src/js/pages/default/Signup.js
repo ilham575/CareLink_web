@@ -1,11 +1,13 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import '../../../css/pages/default/signup.css';
 import HomeHeader from '../../components/HomeHeader';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function Signup() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [profileImage, setProfileImage] = useState(null);
   const [form, setForm] = useState({
     firstName: '',
@@ -17,7 +19,53 @@ function Signup() {
     profileImage: null,
   });
   const fileInputRef = useRef();
-  const navigate = useNavigate();
+
+  // ดึงข้อมูลผู้ใช้จาก backend ถ้ามี userId
+  useEffect(() => {
+    const userId = location.state?.userId;
+    const jwt = localStorage.getItem('jwt');
+    if (userId && jwt) {
+      fetch(`http://localhost:1337/api/users/${userId}`, {
+        headers: { Authorization: `Bearer ${jwt}` }
+      })
+        .then(res => res.json())
+        .then(user => {
+          console.log('User data:', user); // Debug เพื่อดูโครงสร้างข้อมูล
+          setForm(f => ({
+            ...f,
+            firstName: user.full_name?.split(' ')[0] || '',
+            lastName: user.full_name?.split(' ').slice(1).join(' ') || '',
+            phone: user.phone || '',
+            username: user.username || '',
+            email: user.email || '',
+            password: '', // รหัสผ่านไม่ถูกส่งมาจาก API เพื่อความปลอดภัย
+          }));
+
+          // ✅ ดึงรูปโปรไฟล์จาก admin profile หรือ user profile
+          if (userId) {
+            // ดึงจาก admin-profiles แทน
+            fetch(`http://localhost:1337/api/admin-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage`, {
+              headers: { Authorization: `Bearer ${jwt}` }
+            })
+              .then(res => res.json())
+              .then(adminData => {
+                console.log('Admin profile data:', adminData); // Debug
+                const profile = adminData.data?.[0];
+                if (profile?.profileimage) {
+                  let imgUrl = null;
+                  const img = Array.isArray(profile.profileimage) ? profile.profileimage[0] : profile.profileimage;
+                  if (img?.url) {
+                    imgUrl = `${process.env.REACT_APP_API_URL || "http://localhost:1337"}${img.url}`;
+                  }
+                  if (imgUrl) setProfileImage(imgUrl);
+                }
+              })
+              .catch(err => console.log('Admin profile fetch error:', err));
+          }
+        })
+        .catch(err => console.log('User fetch error:', err));
+    }
+  }, [location.state]);
 
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -37,9 +85,85 @@ function Signup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const isEditMode = !!location.state?.userId;
 
     try {
-      // 1. Register user
+      if (isEditMode) {
+        // โหมดแก้ไขโปรไฟล์
+        const currentUserId = location.state.userId;
+        const jwt = localStorage.getItem('jwt');
+
+        // 1. Upload profile image ถ้ามีการเปลี่ยน
+        let profileImageId = null;
+        if (form.profileImage) {
+          const imageData = new FormData();
+          imageData.append('files', form.profileImage);
+          const uploadRes = await fetch('http://localhost:1337/api/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${jwt}` },
+            body: imageData,
+          });
+          const uploadResult = await uploadRes.json();
+          if (uploadRes.ok && uploadResult && uploadResult[0]?.id) {
+            profileImageId = uploadResult[0].id;
+          }
+        }
+
+        // 2. Update user data
+        const updateData = {
+          full_name: `${form.firstName} ${form.lastName}`,
+          phone: form.phone,
+          username: form.username,
+          email: form.email,
+        };
+
+        // เพิ่มรหัสผ่านเฉพาะเมื่อมีการกรอก
+        if (form.password && form.password.trim() !== '') {
+          updateData.password = form.password;
+        }
+
+        const userRes = await fetch(`http://localhost:1337/api/users/${currentUserId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwt}`,
+          },
+          body: JSON.stringify(updateData),
+        });
+
+        if (!userRes.ok) {
+          const error = await userRes.json();
+          toast.error(error.error?.message || "อัปเดตข้อมูลไม่สำเร็จ");
+          return;
+        }
+
+        // 3. Update admin profile image ถ้ามี
+        if (profileImageId) {
+          const adminProfileRes = await fetch(`http://localhost:1337/api/admin-profiles?filters[users_permissions_user][id][$eq]=${currentUserId}`, {
+            headers: { Authorization: `Bearer ${jwt}` }
+          });
+          const adminProfileData = await adminProfileRes.json();
+          
+          if (adminProfileData.data?.[0]?.id) {
+            await fetch(`http://localhost:1337/api/admin-profiles/${adminProfileData.data[0].id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${jwt}`,
+              },
+              body: JSON.stringify({
+                data: { profileimage: profileImageId }
+              }),
+            });
+          }
+        }
+
+        toast.success('อัปเดตข้อมูลเรียบร้อย!');
+        navigate('/adminHome');
+        return;
+      }
+
+      // โหมดสมัครใหม่ (existing code)
       const registerRes = await fetch('http://localhost:1337/api/auth/local/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -152,13 +276,27 @@ function Signup() {
     }
   };
 
+  // เพิ่มเติม: ถ้ามี profileUrl ให้แสดงรูป preview
+  React.useEffect(() => {
+    if (location.state?.user?.profileUrl) {
+      setProfileImage(location.state.user.profileUrl);
+    }
+  }, [location.state]);
+
+  // เช็คว่าเป็นการแก้ไขโปรไฟล์หรือการสมัครใหม่
+  const isEditMode = !!location.state?.userId;
+
   return (
     <div className="signup-page-container">
       <HomeHeader />
       <ToastContainer />
       <div className="signup-content">
         <div className="signup-note">
-          หมายเหตุ: บัญชีที่ถูกสร้างขึ้นนี้จะได้รับสิทธิ์เป็น <b>ผู้ดูแลระบบ (ADMIN)</b> โดยอัตโนมัติ
+          {isEditMode ? (
+            <>หมายเหตุ: คุณกำลังแก้ไขข้อมูลโปรไฟล์ <b>ผู้ดูแลระบบ (ADMIN)</b></>
+          ) : (
+            <>หมายเหตุ: บัญชีที่ถูกสร้างขึ้นนี้จะได้รับสิทธิ์เป็น <b>ผู้ดูแลระบบ (ADMIN)</b> โดยอัตโนมัติ</>
+          )}
         </div>
         <form className="signup-form" onSubmit={handleSubmit}>
           <div className="signup-form-flex">
@@ -171,13 +309,20 @@ function Signup() {
               <input type="text" name="phone" value={form.phone} onChange={handleChange} />
               <label>USERNAME<span className="required">*</span></label>
               <input type="text" name="username" value={form.username} onChange={handleChange} required />
-              <label>PASSWORD<span className="required">*</span></label>
-              <input type="password" name="password" value={form.password} onChange={handleChange} required />
+              <label>PASSWORD<span className="required">{isEditMode ? '' : '*'}</span></label>
+              <input 
+                type="password" 
+                name="password" 
+                value={form.password} 
+                onChange={handleChange} 
+                required={!isEditMode}
+                placeholder={isEditMode ? "เว้นว่างหากไม่ต้องการเปลี่ยนรหัสผ่าน" : ""}
+              />
               <label>EMAIL<span className="required">*</span></label>
               <input type="email" name="email" value={form.email} onChange={handleChange} required />
             </div>
             <div className="signup-form-right">
-              <label>เพิ่มรูปภาพตัวเอง<span className="required">*</span></label>
+              <label>เพิ่มรูปภาพตัวเอง<span className="required">{isEditMode ? '' : '*'}</span></label>
               <div className="signup-upload-box" onClick={handleUploadClick}>
                 {profileImage ? (
                   <img src={profileImage} alt="profile" className="signup-profile-preview" />
@@ -190,13 +335,13 @@ function Signup() {
                   ref={fileInputRef}
                   style={{ display: 'none' }}
                   onChange={handleImageChange}
-                  required
+                  required={!isEditMode}
                 />
               </div>
             </div>
           </div>
           <button type="submit" className="signup-submit-btn">
-            บันทึกและลงชื่อเข้าใช้
+            {isEditMode ? "บันทึกการแก้ไข" : "บันทึกและลงชื่อเข้าใช้"}
           </button>
         </form>
         <div className="signup-footer-note">

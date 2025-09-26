@@ -57,7 +57,9 @@ function PharmacyItem({ documentId, name_th, address, time_open, time_close, pho
         <button
           className="detail-button"
           style={{ background: '#4CAF50' }}
-          onClick={() => navigate(`/pharmacist_detail_admin/${documentId}`)}
+          onClick={() => navigate(`/pharmacist_detail_admin/${documentId}`, {
+            state: { from: "adminHome" }
+          })}
         >
           เภสัชกร<br />ประจำร้านยา
         </button>

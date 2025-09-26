@@ -35,7 +35,7 @@ function AddPharmacist_admin() {
       wholesale: false,
       delivery: false,
     },
-    working_times: [{ day: "จันทร์", time_in: "", time_out: "" }], // 🟢 default วันไทย
+    working_time: [{ day: "จันทร์", time_in: "", time_out: "" }], // 🟢 เปลี่ยนจาก working_times เป็น working_time
   });
 
   const [imagePreview, setImagePreview] = useState(null);
@@ -68,23 +68,23 @@ function AddPharmacist_admin() {
   const addWorkingTime = () => {
     setFormData({
       ...formData,
-      working_times: [
-        ...formData.working_times,
+      working_time: [
+        ...formData.working_time,
         { day: "จันทร์", time_in: "", time_out: "" },
       ],
     });
   };
 
   const handleWorkingTimeChange = (index, field, value) => {
-    const updated = [...formData.working_times];
+    const updated = [...formData.working_time];
     updated[index][field] = value;
-    setFormData({ ...formData, working_times: updated });
+    setFormData({ ...formData, working_time: updated });
   };
 
   const removeWorkingTime = (index) => {
-    const updated = [...formData.working_times];
+    const updated = [...formData.working_time];
     updated.splice(index, 1);
-    setFormData({ ...formData, working_times: updated });
+    setFormData({ ...formData, working_time: updated });
   };
 
   // ✅ Submit
@@ -170,7 +170,7 @@ function AddPharmacist_admin() {
           drug_stores: [storeId],
           users_permissions_user: userData.user.id,
           profileimage: uploadedImageId || null,
-          working_times: formData.working_times.map((wt) => ({
+          working_time: formData.working_time.map((wt) => ({
             ...wt,
             day: dayMapReverse[wt.day] || wt.day, // 🟢 เก็บวันเป็นภาษาไทย
           })),
@@ -267,7 +267,7 @@ function AddPharmacist_admin() {
             <label className="block font-semibold mb-2">
               วันและเวลาเข้างาน*
             </label>
-            {formData.working_times.map((item, index) => (
+            {formData.working_time.map((item, index) => (
               <div key={index} className="flex gap-2 items-center mb-2">
                 <select
                   value={item.day}

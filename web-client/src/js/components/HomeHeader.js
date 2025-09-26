@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../images/image 3.png';
 import '../../css/component/HomeHeader.css'; // เพิ่มบรรทัดนี้
+import ProfileAvatar from "./ProfileAvatar";
 
 function HomeHeader({ pharmacyName, onSearch }) {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ function HomeHeader({ pharmacyName, onSearch }) {
   );
   const [profileUrl, setProfileUrl] = useState(null);
   const [profileFullName, setProfileFullName] = useState('');
+  const [userId, setUserId] = useState(null); // เพิ่ม state สำหรับ userId
   const [formStaffPharmacyName, setFormStaffPharmacyName] = useState(''); // เพิ่ม state สำหรับชื่อร้านในหน้า form staff
   const [formCustomerPharmacyName, setFormCustomerPharmacyName] = useState(''); // เพิ่ม state สำหรับชื่อร้านในหน้า form customer
 
@@ -28,11 +30,11 @@ function HomeHeader({ pharmacyName, onSearch }) {
     })
       .then(res => res.json())
       .then(user => {
-        const userId = user.id;
+        const userIdFromApi = user.id;
+        setUserId(userIdFromApi); // เก็บ userId ใน state
         const role = user.role?.name || localStorage.getItem('role');
-        // ดึง full_name จาก user โดยตรง
         setProfileFullName(user.full_name || '');
-        if (!userId || !role) {
+        if (!userIdFromApi || !role) {
           setProfileUrl(null);
           return;
         }
@@ -40,13 +42,13 @@ function HomeHeader({ pharmacyName, onSearch }) {
         let profileApi = '';
         let imagePath = '';
         if (role === 'admin') {
-          profileApi = `http://localhost:1337/api/admin-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage`;
+          profileApi = `http://localhost:1337/api/admin-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
           imagePath = 'profileimage';
         } else if (role === 'pharmacy') {
-          profileApi = `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage`;
+          profileApi = `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
           imagePath = 'profileimage';
         } else if (role === 'staff') {
-          profileApi = `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage`;
+          profileApi = `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
           imagePath = 'profileimage';
         } else {
           setProfileUrl(null);
@@ -84,6 +86,7 @@ function HomeHeader({ pharmacyName, onSearch }) {
       .catch(() => {
         setProfileUrl(null);
         setProfileFullName('');
+        setUserId(null); // เคลียร์ userId เมื่อเกิดข้อผิดพลาด
       });
   }, [isLoggedIn]);
 
@@ -242,27 +245,14 @@ function HomeHeader({ pharmacyName, onSearch }) {
         </div>
       )}
       {isLoggedIn ? (
-        // เพิ่ม div ครอบ avatar กับปุ่ม เพื่อจัดให้อยู่แถวเดียวกันตอน responsive
         <div className="profile-and-btn-row">
-          <div
-            className="profile-avatar"
-            title={profileFullName || "โปรไฟล์"}
-          >
-            {profileUrl ? (
-              <img
-                src={profileUrl}
-                alt="profile"
-                className="profile-avatar-img"
-              />
-            ) : (
-              <span>
-                {localStorage.getItem('profileInitial') ||
-                  (localStorage.getItem('username') &&
-                    localStorage.getItem('username')[0].toUpperCase()) ||
-                  'U'}
-              </span>
-            )}
-          </div>
+          <ProfileAvatar
+            profileUrl={profileUrl}
+            profileFullName={profileFullName}
+            userData={{
+              id: userId, // ใช้ userId จาก state
+            }}
+          />
           <button
             className="home-button"
             onClick={handleLogout}

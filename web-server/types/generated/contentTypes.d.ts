@@ -552,7 +552,7 @@ export interface ApiPharmacyProfilePharmacyProfile
       'manyToOne',
       'plugin::users-permissions.user'
     >;
-    working_time: Schema.Attribute.String;
+    working_time: Schema.Attribute.JSON;
   };
 }
 

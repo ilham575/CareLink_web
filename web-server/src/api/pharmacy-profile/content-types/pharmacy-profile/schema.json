@@ -14,9 +14,6 @@
     "license_number": {
       "type": "string"
     },
-    "working_time": {
-      "type": "string"
-    },
     "services": {
       "type": "json"
     },
@@ -41,6 +38,9 @@
         "videos",
         "audios"
       ]
+    },
+    "working_time": {
+      "type": "json"
     }
   }
 }

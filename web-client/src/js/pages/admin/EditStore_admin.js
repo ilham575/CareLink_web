@@ -363,7 +363,14 @@ function EditStore_admin() {
               </div>
             </div>
 
-            <div className="md:col-span-2 flex justify-end">
+            <div className="md:col-span-2 flex justify-end gap-4">
+              <button
+                type="button"
+                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                onClick={() => navigate(`/drug_store_admin/${documentId}`)}
+              >
+                กลับ
+              </button>
               <button
                 type="button"
                 className="bg-blue-600 text-white font-bold py-2 px-6 rounded hover:bg-blue-700"

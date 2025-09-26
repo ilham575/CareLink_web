@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import HomeHeader from "../../components/HomeHeader";
 
 // 🟢 helper function ดึง URL รูปภาพจาก Strapi
 function getImageUrl(photo) {
@@ -49,19 +50,48 @@ function EditPharmacist_admin() {
 
         const data = await res.json();
         const p = data.data;
+        console.log("Loaded pharmacist data:", p); // Debug log
 
         if (p) {
           const fullName = p.users_permissions_user?.full_name || "";
           const [firstname, ...lastnameParts] = fullName.split(" ");
           const lastname = lastnameParts.join(" ");
 
-          // 🟢 ดึงข้อมูลรูปภาพ
+          // 🟢 ดึงข้อมูลรูปภาพ - แก้ไขให้ตรงกับโครงสร้างจริง
           let previewUrl = null;
           let profileImgId = null;
-          if (p.profileimage?.data) {
-            previewUrl = getImageUrl(p.profileimage.data.attributes);
-            profileImgId = p.profileimage.data.id;
+
+          console.log("Profile image data:", p.profileimage); // Debug log
+
+          if (p.profileimage) {
+            // กรณี profileimage เป็น array
+            if (Array.isArray(p.profileimage)) {
+              if (p.profileimage.length > 0) {
+                const img = p.profileimage[0];
+                previewUrl = `http://localhost:1337${img.url}`;
+                profileImgId = img.id;
+              }
+            }
+            // กรณี profileimage เป็น object เดี่ยว
+            else if (p.profileimage.url) {
+              previewUrl = `http://localhost:1337${p.profileimage.url}`;
+              profileImgId = p.profileimage.id;
+            }
+            // กรณี profileimage มี data wrapper
+            else if (p.profileimage.data) {
+              if (Array.isArray(p.profileimage.data) && p.profileimage.data.length > 0) {
+                const img = p.profileimage.data[0];
+                previewUrl = `http://localhost:1337${img.attributes.url}`;
+                profileImgId = img.id;
+              } else if (p.profileimage.data.attributes) {
+                previewUrl = `http://localhost:1337${p.profileimage.data.attributes.url}`;
+                profileImgId = p.profileimage.data.id;
+              }
+            }
           }
+
+          console.log("Preview URL:", previewUrl); // Debug log
+          console.log("Profile Image ID:", profileImgId); // Debug log
 
           setFormData({
             id: p.id,
@@ -75,15 +105,15 @@ function EditPharmacist_admin() {
               wholesale: false,
               delivery: false,
             },
-            drug_store: p.drug_stores?.[0]?.id || null,
+            drug_store: p.drug_stores?.[0]?.documentId || p.drug_stores?.[0]?.id || null,
             user: p.users_permissions_user?.id || null,
             username: p.users_permissions_user?.username || "",
-            password: "********", // 🟢 ให้โชว์ password แบบ masked
+            password: "********",
             working_times:
-              p.working_times?.length > 0
-                ? p.working_times.map((wt) => ({
+              Array.isArray(p.working_time) && p.working_time.length > 0
+                ? p.working_time.map((wt) => ({
                     ...wt,
-                    day: dayMap[wt.day] || wt.day, // 🟢 แปลง อังกฤษ -> ไทย ตอนโหลด
+                    day: dayMap[wt.day] || wt.day, // แปลงอังกฤษ → ไทย
                   }))
                 : [{ day: "จันทร์", time_in: "", time_out: "" }],
           });
@@ -131,20 +161,27 @@ function EditPharmacist_admin() {
   };
 
   const uploadImage = async () => {
-    if (!imageFile) return imageId; // 🟢 ถ้าไม่ได้เลือกใหม่ ใช้ id เก่า
+    if (!imageFile) return imageId; // ใช้ id เก่าถ้าไม่ได้เลือกใหม่
+    
     const formDataUpload = new FormData();
     formDataUpload.append("files", imageFile);
 
-    const res = await fetch("http://localhost:1337/api/upload", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${jwt}` },
-      body: formDataUpload,
-    });
+    try {
+      const res = await fetch("http://localhost:1337/api/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${jwt}` },
+        body: formDataUpload,
+      });
 
-    if (!res.ok) throw new Error("ไม่สามารถอัปโหลดรูปภาพได้");
+      if (!res.ok) throw new Error("ไม่สามารถอัปโหลดรูปภาพได้");
 
-    const uploadedFiles = await res.json();
-    return uploadedFiles[0]?.id || null;
+      const uploadedFiles = await res.json();
+      console.log("Uploaded files:", uploadedFiles); // Debug log
+      return uploadedFiles[0]?.id || null;
+    } catch (err) {
+      console.error("Upload error:", err);
+      throw err;
+    }
   };
 
   // 👉 จัดการ working_times
@@ -175,15 +212,16 @@ function EditPharmacist_admin() {
 
     try {
       const newImageId = await uploadImage();
+      console.log("Final image ID:", newImageId); // Debug log
 
-      // ✅ Update User (รวม password ถ้าแก้)
+      // ✅ Update User
       const userPayload = {
         username: formData.username,
         full_name: `${formData.firstname} ${formData.lastname}`,
         phone: formData.phone,
       };
       if (formData.password && formData.password !== "********") {
-        userPayload.password = formData.password; // 🟢 อัปเดตถ้าเปลี่ยนจากค่า default
+        userPayload.password = formData.password;
       }
 
       await fetch(`http://localhost:1337/api/users/${formData.user}`, {
@@ -200,13 +238,16 @@ function EditPharmacist_admin() {
         data: {
           license_number: formData.license_number,
           services: formData.services,
-          profileimage: newImageId,
-          working_times: formData.working_times.map((wt) => ({
-            ...wt,
-            day: dayMapReverse[wt.day] || wt.day, // 🟢 เก็บเป็นวันไทย
+          profileimage: newImageId ? newImageId : (imageId || null), // ส่งเป็น single ID ไม่ใช่ array
+          working_time: formData.working_times.map((wt) => ({
+            day: dayMapReverse[wt.day] || wt.day,
+            time_in: wt.time_in,
+            time_out: wt.time_out,
           })),
         },
       };
+
+      console.log("Update payload:", payload); // Debug log
 
       const res = await fetch(
         `http://localhost:1337/api/pharmacy-profiles/${id}`,
@@ -222,6 +263,7 @@ function EditPharmacist_admin() {
 
       if (!res.ok) {
         const error = await res.json();
+        console.error("Update error:", error); // Debug log
         throw new Error(error.error?.message || "อัปเดตข้อมูลไม่สำเร็จ");
       }
 
@@ -234,203 +276,206 @@ function EditPharmacist_admin() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto bg-white shadow-md rounded-lg p-6 mt-6">
-      <h2 className="text-2xl font-bold text-green-700 mb-4">
-        แก้ไขข้อมูลเภสัชกร
-      </h2>
+    <>
+      <HomeHeader />
+      <div className="max-w-3xl mx-auto bg-white shadow-md rounded-lg p-6 mt-6">
+        <h2 className="text-2xl font-bold text-green-700 mb-4">
+          แก้ไขข้อมูลเภสัชกร
+        </h2>
 
-      <form
-        className="grid grid-cols-1 md:grid-cols-2 gap-6"
-        onSubmit={handleSubmit}
-      >
-        {/* Profile Image */}
-        <div className="md:col-span-2">
-          <label className="block font-semibold mb-1">รูปโปรไฟล์</label>
-          <div className="space-y-4">
-            {imagePreview && (
+        <form
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          onSubmit={handleSubmit}
+        >
+          {/* Profile Image */}
+          <div className="md:col-span-2">
+            <label className="block font-semibold mb-1">รูปโปรไฟล์</label>
+            <div className="space-y-4">
+              {imagePreview && (
+                <div className="flex justify-center">
+                  <img
+                    src={imagePreview}
+                    alt="Profile Preview"
+                    className="w-32 h-32 object-cover rounded-full border-4 border-gray-300"
+                  />
+                </div>
+              )}
               <div className="flex justify-center">
-                <img
-                  src={imagePreview}
-                  alt="Profile Preview"
-                  className="w-32 h-32 object-cover rounded-full border-4 border-gray-300"
-                />
+                <label className="bg-gray-200 px-4 py-2 rounded cursor-pointer hover:bg-gray-300">
+                  เลือกรูปภาพ
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </label>
               </div>
-            )}
-            <div className="flex justify-center">
-              <label className="bg-gray-200 px-4 py-2 rounded cursor-pointer hover:bg-gray-300">
-                เลือกรูปภาพ
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-              </label>
             </div>
           </div>
-        </div>
 
-        {/* User Info */}
-        <div>
-          <label className="block font-semibold mb-1">ชื่อ*</label>
-          <input
-            type="text"
-            name="firstname"
-            value={formData.firstname}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            required
-          />
-        </div>
-        <div>
-          <label className="block font-semibold mb-1">นามสกุล*</label>
-          <input
-            type="text"
-            name="lastname"
-            value={formData.lastname}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            required
-          />
-        </div>
-        <div>
-          <label className="block font-semibold mb-1">เบอร์โทรศัพท์*</label>
-          <input
-            type="tel"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            required
-            pattern="[0-9]+"
-            inputMode="numeric"
-          />
-        </div>
-        <div>
-          <label className="block font-semibold mb-1">USERNAME*</label>
-          <input
-            type="text"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            required
-          />
-        </div>
-        <div>
-          <label className="block font-semibold mb-1">PASSWORD*</label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            required
-          />
-        </div>
+          {/* User Info */}
+          <div>
+            <label className="block font-semibold mb-1">ชื่อ*</label>
+            <input
+              type="text"
+              name="firstname"
+              value={formData.firstname}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+              required
+            />
+          </div>
+          <div>
+            <label className="block font-semibold mb-1">นามสกุล*</label>
+            <input
+              type="text"
+              name="lastname"
+              value={formData.lastname}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+              required
+            />
+          </div>
+          <div>
+            <label className="block font-semibold mb-1">เบอร์โทรศัพท์*</label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+              required
+              pattern="[0-9]+"
+              inputMode="numeric"
+            />
+          </div>
+          <div>
+            <label className="block font-semibold mb-1">USERNAME*</label>
+            <input
+              type="text"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+              required
+            />
+          </div>
+          <div>
+            <label className="block font-semibold mb-1">PASSWORD*</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+              required
+            />
+          </div>
 
-        {/* Pharmacy Profile */}
-        <div className="md:col-span-2">
-          <label className="block font-semibold mb-1">เลขที่ใบอนุญาต*</label>
-          <input
-            type="text"
-            name="license_number"
-            value={formData.license_number}
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-            required
-          />
-        </div>
+          {/* Pharmacy Profile */}
+          <div className="md:col-span-2">
+            <label className="block font-semibold mb-1">เลขที่ใบอนุญาต*</label>
+            <input
+              type="text"
+              name="license_number"
+              value={formData.license_number}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+              required
+            />
+          </div>
 
-        {/* Working Times */}
-        <div className="md:col-span-2">
-          <label className="block font-semibold mb-2">วันและเวลาเข้างาน*</label>
-          {formData.working_times.map((item, index) => (
-            <div key={index} className="flex gap-2 items-center mb-2">
-              <select
-                value={item.day}
-                onChange={(e) =>
-                  handleWorkingTimeChange(index, "day", e.target.value)
-                }
-                className="border p-2 rounded"
-              >
-                {Object.values(dayMap).map((thDay) => (
-                  <option key={thDay} value={thDay}>
-                    {thDay}
-                  </option>
-                ))}
-              </select>
+          {/* Working Times */}
+          <div className="md:col-span-2">
+            <label className="block font-semibold mb-2">วันและเวลาเข้างาน*</label>
+            {formData.working_times.map((item, index) => (
+              <div key={index} className="flex gap-2 items-center mb-2">
+                <select
+                  value={item.day}
+                  onChange={(e) =>
+                    handleWorkingTimeChange(index, "day", e.target.value)
+                  }
+                  className="border p-2 rounded"
+                >
+                  {Object.values(dayMap).map((thDay) => (
+                    <option key={thDay} value={thDay}>
+                      {thDay}
+                    </option>
+                  ))}
+                </select>
 
-              <input
-                type="time"
-                value={item.time_in}
-                onChange={(e) =>
-                  handleWorkingTimeChange(index, "time_in", e.target.value)
-                }
-                className="border p-2 rounded"
-              />
-              <input
-                type="time"
-                value={item.time_out}
-                onChange={(e) =>
-                  handleWorkingTimeChange(index, "time_out", e.target.value)
-                }
-                className="border p-2 rounded"
-              />
-
-              <button
-                type="button"
-                onClick={() => removeWorkingTime(index)}
-                className="text-red-500 ml-2"
-              >
-                ลบ
-              </button>
-            </div>
-          ))}
-
-          <button
-            type="button"
-            onClick={addWorkingTime}
-            className="mt-2 bg-gray-200 px-3 py-1 rounded"
-          >
-            + เพิ่มวัน/เวลา
-          </button>
-        </div>
-
-        {/* Services */}
-        <div className="md:col-span-2">
-          <label className="block font-semibold mb-1">การให้บริการ*</label>
-          <div className="space-y-2 p-4 bg-gray-100 rounded">
-            {[
-              { key: "sell_products", label: "จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ" },
-              { key: "consulting", label: "ให้คำปรึกษาทางเภสัชกรรม" },
-              { key: "wholesale", label: "ขายปลีกและขายส่ง" },
-              { key: "delivery", label: "บริการจัดส่งกล่องยาสามัญประจำบ้าน" },
-            ].map((s) => (
-              <label key={s.key} className="flex items-center gap-2">
                 <input
-                  type="checkbox"
-                  name={s.key}
-                  checked={formData.services[s.key]}
-                  onChange={handleChange}
+                  type="time"
+                  value={item.time_in}
+                  onChange={(e) =>
+                    handleWorkingTimeChange(index, "time_in", e.target.value)
+                  }
+                  className="border p-2 rounded"
                 />
-                <span>{s.label}</span>
-              </label>
+                <input
+                  type="time"
+                  value={item.time_out}
+                  onChange={(e) =>
+                    handleWorkingTimeChange(index, "time_out", e.target.value)
+                  }
+                  className="border p-2 rounded"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => removeWorkingTime(index)}
+                  className="text-red-500 ml-2"
+                >
+                  ลบ
+                </button>
+              </div>
             ))}
-          </div>
-        </div>
 
-        {/* Submit */}
-        <div className="md:col-span-2 flex justify-end">
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-          >
-            บันทึกการแก้ไข
-          </button>
-        </div>
-      </form>
-    </div>
+            <button
+              type="button"
+              onClick={addWorkingTime}
+              className="mt-2 bg-gray-200 px-3 py-1 rounded"
+            >
+              + เพิ่มวัน/เวลา
+            </button>
+          </div>
+
+          {/* Services */}
+          <div className="md:col-span-2">
+            <label className="block font-semibold mb-1">การให้บริการ*</label>
+            <div className="space-y-2 p-4 bg-gray-100 rounded">
+              {[
+                { key: "sell_products", label: "จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ" },
+                { key: "consulting", label: "ให้คำปรึกษาทางเภสัชกรรม" },
+                { key: "wholesale", label: "ขายปลีกและขายส่ง" },
+                { key: "delivery", label: "บริการจัดส่งกล่องยาสามัญประจำบ้าน" },
+              ].map((s) => (
+                <label key={s.key} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name={s.key}
+                    checked={formData.services[s.key]}
+                    onChange={handleChange}
+                  />
+                  <span>{s.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="md:col-span-2 flex justify-end">
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+            >
+              บันทึกการแก้ไข
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
   );
 }
 

@@ -269,7 +269,9 @@ function DrugStoresDetail_admin() {
           {/* ✅ ปุ่ม */}
           <div style={{ display: 'flex', gap: 10, marginTop: 15 }}>
             <button
-              onClick={() => navigate(`/pharmacist_detail_admin/${id}`)}
+              onClick={() => navigate(`/pharmacist_detail_admin/${id}`, {
+                state: { from: "drugStore" }
+              })}
               style={{
                 background: '#4CAF50',
                 color: 'white',
@@ -373,7 +375,7 @@ function DrugStoresDetail_admin() {
             border: "none",
             cursor: "pointer",
           }}
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("adminHome" ? "/adminHome" : -1)}
         >
           กลับ
         </button>
