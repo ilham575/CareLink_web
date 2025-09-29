@@ -288,20 +288,6 @@ function PharmacyHome() {
 			<main className="main-content">
 				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
 					<h2>ร้านยาของฉัน: (อัพเดท: {new Date().toLocaleTimeString()})</h2>
-					<button 
-						onClick={refreshData}
-						style={{
-							padding: '8px 16px',
-							backgroundColor: '#2196F3',
-							color: 'white',
-							border: 'none',
-							borderRadius: '4px',
-							cursor: 'pointer',
-							fontSize: '14px'
-						}}
-					>
-						🔄 รีเฟรช
-					</button>
 				</div>
 
 				{filteredPharmacies.length === 0 ? (
