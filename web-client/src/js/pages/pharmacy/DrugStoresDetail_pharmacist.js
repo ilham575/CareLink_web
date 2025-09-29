@@ -23,10 +23,33 @@ function DrugStoresDetail_pharmacist() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. ดึงข้อมูลร้าน
-        const storeRes = await fetch(`http://localhost:1337/api/drug-stores/${id}?populate=primary_pharmacist,photo_front,photo_in,photo_staff`);
-        const storeJson = await storeRes.json();
-        const store = storeJson.data;
+        // 1. ดึงข้อมูลร้าน - check if id is valid before making request
+        let storeRes, storeJson, store;
+        
+        if (!id || id === 'undefined' || id === 'null') {
+          throw new Error('Invalid store ID');
+        }
+
+        // Try documentId filter first
+        try {
+          storeRes = await fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${id}&populate=*`);
+          storeJson = await storeRes.json();
+          store = storeJson.data?.[0];
+        } catch (err) {
+          console.error('Error fetching by documentId:', err);
+        }
+
+        // If not found by documentId and id is a valid integer, try regular id
+        if (!store && !isNaN(parseInt(id))) {
+          storeRes = await fetch(`http://localhost:1337/api/drug-stores/${id}?populate=*`);
+          storeJson = await storeRes.json();
+          store = storeJson.data;
+        }
+
+        if (!store) {
+          throw new Error('Store not found');
+        }
+
         setPharmacy(store ? (store.attributes || store) : null);
 
         // 2. ดึง pharmacy-profiles ทั้งหมด
@@ -66,7 +89,9 @@ function DrugStoresDetail_pharmacist() {
           setPharmacist(null);
         }
       } catch (e) {
+        console.error('Error fetching data:', e);
         setPharmacist(null);
+        setPharmacy(null);
       } finally {
         setLoading(false);
       }
@@ -212,12 +237,28 @@ function DrugStoresDetail_pharmacist() {
             <button
               className="back-button"
               onClick={() => {
-                navigate(`/drug_store_admin/${id}/edit`);
+                const storeDocumentId = pharmacy?.documentId || pharmacy?.attributes?.documentId || id;
+                navigate(`/edit_store_admin/${storeDocumentId}`);
               }}
             >
               แก้ไข
             </button>
-            <button className="back-button" onClick={() => navigate(-1)}>กลับ</button>
+            <button
+              className="back-button"
+              onClick={() => {
+                // กลับไปหน้ารายการร้านยา (หรือเปลี่ยน path ตาม role)
+                const role = localStorage.getItem('role');
+                if (role === 'admin') {
+                  navigate('/drug_store_admin');
+                } else if (role === 'pharmacy') {
+                  navigate('/pharmacyHome');
+                } else {
+                  navigate('/'); // fallback
+                }
+              }}
+            >
+              กลับ
+            </button>
           </div>
         </>
       ) : (

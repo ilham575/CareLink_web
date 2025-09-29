@@ -4,22 +4,36 @@ import { useNavigate } from "react-router-dom";
 function ProfileAvatar({ profileUrl, profileFullName, userData }) {
   const navigate = useNavigate();
 
-  const handleProfileClick = () => {
+  const handleProfileClick = async () => {
     const role = localStorage.getItem('role');
     const userId = userData?.id;
-    
-    console.log('Role:', role); // Debug
-    console.log('UserId:', userId); // Debug
-    console.log('UserData:', userData); // Debug
-    
+
     if (role === 'admin') {
       if (userId) {
-        console.log('Navigating to signup with userId:', userId); // Debug
         navigate('/signup', {
           state: { userId }
         });
-      } else {
-        console.log('No userId found'); // Debug
+      }
+    } else if (role === 'pharmacy') {
+      if (userId) {
+        try {
+          const jwt = localStorage.getItem('jwt');
+          const res = await fetch(
+            `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}`,
+            { headers: { Authorization: `Bearer ${jwt}` } }
+          );
+          const data = await res.json();
+          const profile = data.data?.[0];
+          if (profile?.documentId) {
+            navigate(`/edit_pharmacist_admin/${profile.documentId}`, {
+              state: { isSelfEdit: true }
+            });
+          } else {
+            alert("ไม่พบข้อมูลโปรไฟล์เภสัชกร");
+          }
+        } catch (err) {
+          alert("เกิดข้อผิดพลาดในการดึงข้อมูลเภสัชกร");
+        }
       }
     }
   };

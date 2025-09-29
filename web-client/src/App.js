@@ -53,8 +53,6 @@ function App() {
             <Route path="/add_store_admin" element={<AddStoreAdmin />} />
             <Route path="/add_pharmacy_admin/:storeId" element={<AddPharmacyAdmin />} />
             <Route path="/pharmacist_detail_admin/:storeId" element={<PharmacistDetailAdmin />} />
-            <Route path="/edit_pharmacist_admin/:id" element={<EditPharmacistAdmin />}/>
-            <Route path="/edit_store_admin/:id" element={<EditStoreAdmin />}/>
           </Route>
 
           {/* -------------------- PHARMACY -------------------- */}
@@ -76,6 +74,8 @@ function App() {
 
           {/* -------------------- STAFF MANAGEMENT -------------------- */}
           <Route element={<RequireRole role={['admin', 'pharmacy']} />}>
+            <Route path="/edit_pharmacist_admin/:id" element={<EditPharmacistAdmin />}/>
+            <Route path="/edit_store_admin/:id" element={<EditStoreAdmin />}/>
             <Route path="/drug_store_staff/:id" element={<StaffPage />} />
             <Route path="/form_staff" element={<FormStaffPage />} />
           </Route>

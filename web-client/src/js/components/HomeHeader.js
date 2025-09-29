@@ -185,6 +185,7 @@ function HomeHeader({ pharmacyName, onSearch }) {
   };
 
   if (isSignup) {
+    const isEditMode = !!location.state?.userId;
     return (
       <header className="app-header">
         <img
@@ -193,7 +194,9 @@ function HomeHeader({ pharmacyName, onSearch }) {
           className="app-logo"
           onClick={() => navigate('/login')}
         />
-        <div className="signup-title">สร้างบัญชี</div>
+        <div className="signup-title">
+          {isEditMode ? "แก้ไขข้อมูลโปรไฟล์" : "สร้างบัญชี"}
+        </div>
       </header>
     );
   }

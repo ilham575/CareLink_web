@@ -460,7 +460,7 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
     singularName: 'drug-store';
   };
   options: {
-    draftAndPublish: true;
+    draftAndPublish: false;
   };
   attributes: {
     address: Schema.Attribute.Text & Schema.Attribute.Required;

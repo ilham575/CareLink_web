@@ -52,6 +52,7 @@ function EditStore_admin() {
     services: defaultServices,
     confirm: false,
   });
+  const [storeId, setStoreId] = useState(null); // numeric Strapi id
 
   const jwt = localStorage.getItem("jwt");
 
@@ -59,51 +60,78 @@ function EditStore_admin() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(
+        // Validate documentId before making requests
+        if (!documentId || documentId === 'undefined' || documentId === 'null') {
+          throw new Error('Invalid document ID');
+        }
+
+        // Try to fetch by documentId first
+        let res = await fetch(
           `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}&populate=*`,
           {
             headers: { Authorization: `Bearer ${jwt}` },
           }
         );
 
-        if (!res.ok) throw new Error("โหลดข้อมูลร้านไม่สำเร็จ");
-        const data = await res.json();
-        const store = data.data[0];
+        let data = await res.json();
+        let store = data.data?.[0];
 
-        if (!store) {
-          alert("ไม่พบร้านนี้ หรือคุณไม่มีสิทธิ์เข้าถึง");
-          navigate(-1);
-          return;
+        // If not found by documentId and documentId is a valid integer, try by regular id
+        if (!store && !isNaN(parseInt(documentId)) && parseInt(documentId) > 0) {
+          res = await fetch(
+            `http://localhost:1337/api/drug-stores/${documentId}?populate=*`,
+            {
+              headers: { Authorization: `Bearer ${jwt}` },
+            }
+          );
+          
+          if (res.ok) {
+            data = await res.json();
+            store = data.data; // single entity shape
+          }
         }
 
+        if (!res.ok || !store) {
+          throw new Error("โหลดข้อมูลร้านไม่สำเร็จ");
+        }
+
+        // Extract attributes if nested
+        const storeData = store.attributes || store;
+
+        // Save numeric Strapi id for update/publish actions
+        const numericId = store.id || (storeData && storeData.id) || null;
+        setStoreId(numericId);
+
         setFormData({
-          name_th: store.name_th || "",
-          name_en: store.name_en || "",
-          license_number: store.license_number || "",
-          license_doc: store.license_doc || "",
-          address: store.address || "",
-          phone_store: store.phone_store || "",
-          time_open: store.time_open ? store.time_open.substring(0, 5) : "",
-          time_close: store.time_close ? store.time_close.substring(0, 5) : "",
-          link_gps: store.link_gps || "",
-          type: store.type || "",
-          photo_front: store.photo_front?.id || null,
-          photo_front_preview: getImageUrl(store.photo_front),
-          photo_in: store.photo_in?.id || null,
-          photo_in_preview: getImageUrl(store.photo_in),
-          photo_staff: store.photo_staff?.id || null,
-          photo_staff_preview: getImageUrl(store.photo_staff),
-          services: { ...defaultServices, ...(store.services || {}) },
+          name_th: storeData.name_th || "",
+          name_en: storeData.name_en || "",
+          license_number: storeData.license_number || "",
+          license_doc: storeData.license_doc || "",
+          address: storeData.address || "",
+          phone_store: storeData.phone_store || "",
+          time_open: storeData.time_open ? storeData.time_open.substring(0, 5) : "",
+          time_close: storeData.time_close ? storeData.time_close.substring(0, 5) : "",
+          link_gps: storeData.link_gps || "",
+          type: storeData.type || "",
+          photo_front: storeData.photo_front?.data?.id || storeData.photo_front?.id || null,
+          photo_front_preview: getImageUrl(storeData.photo_front?.data?.attributes || storeData.photo_front),
+          photo_in: storeData.photo_in?.data?.id || storeData.photo_in?.id || null,
+          photo_in_preview: getImageUrl(storeData.photo_in?.data?.attributes || storeData.photo_in),
+          photo_staff: storeData.photo_staff?.data?.id || storeData.photo_staff?.id || null,
+          photo_staff_preview: getImageUrl(storeData.photo_staff?.data?.attributes || storeData.photo_staff),
+          services: { ...defaultServices, ...(storeData.services || {}) },
           confirm: false,
         });
       } catch (err) {
-        console.error(err);
-        alert("เกิดข้อผิดพลาดในการโหลดข้อมูลร้าน");
+        console.error('Fetch error:', err);
+        alert("เกิดข้อผิดพลาดในการโหลดข้อมูลร้าน: " + err.message);
         navigate(-1);
       }
     };
 
-    fetchData();
+    if (documentId) {
+      fetchData();
+    }
   }, [documentId, jwt, navigate]);
 
   // ✅ handleChange
@@ -154,6 +182,11 @@ function EditStore_admin() {
     setIsSubmitting(true);
 
     try {
+      // Validate documentId before making requests
+      if (!documentId || documentId === 'undefined' || documentId === 'null') {
+        throw new Error('Invalid document ID');
+      }
+
       let photoFrontId = formData.photo_front;
       let photoInId = formData.photo_in;
       let photoStaffId = formData.photo_staff;
@@ -184,11 +217,15 @@ function EditStore_admin() {
           photo_front: photoFrontId,
           photo_in: photoInId,
           photo_staff: photoStaffId,
+
+          publishedAt: new Date().toISOString(),
         },
       };
 
+      // Prefer numeric storeId for the update endpoint
+      const targetId = storeId || documentId;
       const res = await fetch(
-        `http://localhost:1337/api/drug-stores/${documentId}`,
+        `http://localhost:1337/api/drug-stores/${targetId}`,
         {
           method: "PUT",
           headers: {
@@ -199,11 +236,29 @@ function EditStore_admin() {
         }
       );
 
-      if (!res.ok) throw new Error("อัปเดตร้านไม่สำเร็จ");
+      if (!res.ok) {
+        // Try to extract backend error message
+        let errorMsg = "อัปเดตร้านไม่สำเร็จ";
+        try {
+          const errorData = await res.json();
+          if (errorData && errorData.error && errorData.error.message) {
+            errorMsg += `: ${errorData.error.message}`;
+          }
+        } catch (_) {
+          // ignore JSON parse errors
+        }
+        throw new Error(errorMsg);
+      }
       await res.json();
 
       alert("แก้ไขข้อมูลร้านเรียบร้อย!");
-      navigate(`/drug_store_admin/${documentId}`); // ✅ กลับไปหน้ารายละเอียดร้าน
+      const role = localStorage.getItem('role');
+      if (role === 'pharmacy') {
+        navigate(`/drug_store_pharmacy/${documentId}`);
+      } else {
+        navigate(`/drug_store_admin/${documentId}`);
+        // หรือใช้ window.location.reload(); ถ้า navigate แล้วข้อมูลยังไม่ใหม่
+      }
     } catch (err) {
       console.error(err);
       alert("เกิดข้อผิดพลาด: " + err.message);
@@ -367,7 +422,14 @@ function EditStore_admin() {
               <button
                 type="button"
                 className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-                onClick={() => navigate(`/drug_store_admin/${documentId}`)}
+                onClick={() => {
+                  const role = localStorage.getItem('role');
+                  if (role === 'pharmacy') {
+                    navigate(`/drug_store_pharmacy/${documentId}`);
+                  } else {
+                    navigate(`/drug_store_admin/${documentId}`);
+                  }
+                }}
               >
                 กลับ
               </button>

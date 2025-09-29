@@ -16,7 +16,7 @@ function getImageUrl(photoAttr) {
 }
 
 function PharmacistDetail_admin() {
-  const { storeId } = useParams(); // documentId ของ drug-store
+  const { storeId, pharmacistId } = useParams();
   const navigate = useNavigate();
   const [pharmacy, setPharmacy] = useState(null);
   const [pharmacists, setPharmacists] = useState([]);
@@ -50,10 +50,18 @@ function PharmacistDetail_admin() {
         setPharmacy(store);
 
         // ✅ โหลดข้อมูลเภสัชกร
-        const pharmacistRes = await fetch(
-          `http://localhost:1337/api/pharmacy-profiles?filters[drug_stores][documentId][$eq]=${storeId}&populate=*`,
-          { headers: { Authorization: `Bearer ${jwt}` } }
-        );
+        let pharmacistRes;
+        if (pharmacistId) {
+          pharmacistRes = await fetch(
+            `http://localhost:1337/api/pharmacy-profiles?filters[documentId][$eq]=${pharmacistId}&populate=*`,
+            { headers: { Authorization: `Bearer ${jwt}` } }
+          );
+        } else {
+          pharmacistRes = await fetch(
+            `http://localhost:1337/api/pharmacy-profiles?filters[drug_stores][documentId][$eq]=${storeId}&populate=*`,
+            { headers: { Authorization: `Bearer ${jwt}` } }
+          );
+        }
         const pharmacistData = await pharmacistRes.json();
         setPharmacists(pharmacistData.data || []);
       } catch (err) {
@@ -64,26 +72,73 @@ function PharmacistDetail_admin() {
       }
     };
     loadData();
-  }, [storeId, jwt, navigate]);
+  }, [storeId, pharmacistId, jwt, navigate]);
 
   // ✅ ฟังก์ชันลบเภสัช
   const handleDelete = async (documentId) => {
     if (!window.confirm("คุณต้องการลบเภสัชกรคนนี้หรือไม่?")) return;
 
     try {
-      const res = await fetch(`http://localhost:1337/api/pharmacy-profiles/${documentId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${jwt}` },
-      });
+      // 1. ดึง pharmacy-profile ที่จะลบ
+      const profileRes = await fetch(
+        `http://localhost:1337/api/pharmacy-profiles?filters[documentId][$eq]=${documentId}&populate=users_permissions_user`,
+        { headers: { Authorization: `Bearer ${jwt}` } }
+      );
+      const profileData = await profileRes.json();
+      const profile = profileData.data?.[0];
+      const pharmacyProfileId = profile?.documentId;
+      const user =
+        profile?.users_permissions_user?.id ||
+        profile?.users_permissions_user?.data?.id ||
+        null;
 
-      if (res.ok) {
-        setPharmacists((prev) => prev.filter((p) => p.documentId !== documentId));
-        toast.success("ลบเภสัชกรเรียบร้อยแล้ว");
-      } else {
-        const error = await res.json();
-        console.error("❌ ลบไม่สำเร็จ:", error);
-        toast.error("ลบไม่สำเร็จ");
+      // 2. ตัด relation user-permission ออกจาก pharmacy-profile
+      if (pharmacyProfileId) {
+        await fetch(
+          `http://localhost:1337/api/pharmacy-profiles/${pharmacyProfileId}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${jwt}`,
+            },
+            body: JSON.stringify({
+              data: { users_permissions_user: null },
+            }),
+          }
+        );
       }
+
+      // 3. ลบ pharmacy-profile
+      if (pharmacyProfileId) {
+        await fetch(
+          `http://localhost:1337/api/pharmacy-profiles/${pharmacyProfileId}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${jwt}` },
+          }
+        );
+      }
+
+      // 4. เช็กว่ามี pharmacy-profile อื่นที่ยังเชื่อม user-permission นี้อยู่ไหม
+      if (user) {
+        const checkRes = await fetch(
+          `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${user}`,
+          { headers: { Authorization: `Bearer ${jwt}` } }
+        );
+        const checkData = await checkRes.json();
+        const relatedProfiles = Array.isArray(checkData?.data) ? checkData.data : [];
+        if (relatedProfiles.length === 0) {
+          // 5. ถ้าไม่มี profile อื่น ลบ user-permission
+          await fetch(
+            `http://localhost:1337/api/users/${user}`,
+            { method: "DELETE", headers: { Authorization: `Bearer ${jwt}` } }
+          );
+        }
+      }
+
+      setPharmacists((prev) => prev.filter((p) => p.documentId !== documentId));
+      toast.success("ลบเภสัชกรเรียบร้อยแล้ว");
     } catch (err) {
       console.error(err);
       toast.error("เกิดข้อผิดพลาดในการลบ");
@@ -145,6 +200,10 @@ function PharmacistDetail_admin() {
               const imgUrl = pharmacist.profileimage?.data?.attributes
                 ? getImageUrl(pharmacist.profileimage.data.attributes)
                 : null;
+              const userId =
+                pharmacist.users_permissions_user?.id ||
+                pharmacist.users_permissions_user?.data?.id ||
+                null;
 
               return (
                 <div
