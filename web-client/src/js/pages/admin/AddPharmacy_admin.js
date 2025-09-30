@@ -71,7 +71,7 @@ function AddPharmacist_admin() {
           const data = await response.json();
           setExistingPharmacists(data.data);
         } else {
-          const errorData = await response.text();
+          // await response.text(); // Removed unused assignment
         }
       } catch (error) {
         toast.error("ไม่สามารถโหลดข้อมูลเภสัชกรได้");
@@ -448,7 +448,12 @@ function AddPharmacist_admin() {
         toast.success(`✅ เพิ่มเภสัชกรใหม่เรียบร้อย!`);
       }
 
-      navigate(`/pharmacist_detail_admin/${storeId}`);
+      // Force refresh หน้าที่เกี่ยวข้อง
+      setTimeout(() => {
+        navigate(`/pharmacist_detail_admin/${storeId}`, {
+          state: { forceRefresh: true, timestamp: Date.now() }
+        });
+      }, 1000);
     } catch (err) {
       toast.error("เกิดข้อผิดพลาด: " + err.message);
     }

@@ -120,9 +120,29 @@ function PharmacyHome() {
 		const handleFocus = () => {
 			refreshData();
 		};
+		
+		// เพิ่ม refresh เมื่อ component mount ใหม่
+		const handleVisibilityChange = () => {
+			if (!document.hidden) {
+				refreshData();
+			}
+		};
 
 		window.addEventListener('focus', handleFocus);
-		return () => window.removeEventListener('focus', handleFocus);
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		
+		// Auto refresh ทุก 30 วินาที
+		const interval = setInterval(() => {
+			if (!document.hidden) {
+				refreshData();
+			}
+		}, 30000);
+
+		return () => {
+			window.removeEventListener('focus', handleFocus);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			clearInterval(interval);
+		};
 	}, []);
 
 	// ขั้นตอนที่ 1: ดึง user.id จาก /api/users/me

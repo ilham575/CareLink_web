@@ -38,6 +38,7 @@ module.exports = createCoreController('api::drug-store.drug-store', ({ strapi })
 
   async create(ctx) {
     const user = ctx.state.user;
+    console.log("🟡 ctx.state.user in create:", user);
     if (!user) return ctx.unauthorized('You must be logged in');
 
     const adminProfiles = await strapi.entityService.findMany('api::admin-profile.admin-profile', {
@@ -53,12 +54,44 @@ module.exports = createCoreController('api::drug-store.drug-store', ({ strapi })
       ctx.request.body.data = JSON.parse(ctx.request.body.data);
     }
     ctx.request.body.data = ctx.request.body.data || {};
+
+    // Debug: log body before setting admin_profile
+    console.log("🟠 Body before setting admin_profile:", JSON.stringify(ctx.request.body.data));
+
+    // ลบ field เดิมออกก่อน set ใหม่
+    delete ctx.request.body.data.admin_profile;
     ctx.request.body.data.admin_profile = adminProfileId;
+    console.log("🟢 Set admin_profile in create:", ctx.request.body.data.admin_profile, typeof ctx.request.body.data.admin_profile);
 
     // ✅ force publish
     ctx.request.body.data.publishedAt = new Date().toISOString();
 
-    return await super.create(ctx);
+    // Debug: log body before create
+    console.log("🔵 Body before create:", JSON.stringify(ctx.request.body.data));
+
+    // สร้าง drug-store โดยไม่แนบ relation
+    const entity = await strapi.entityService.create('api::drug-store.drug-store', {
+      data: {
+        ...ctx.request.body.data
+        // ไม่ต้องแนบ admin_profile
+      },
+    });
+
+    // Force update relation ด้วย raw SQL (Knex)
+    await strapi.db.connection('drug_stores')
+      .where({ id: entity.id })
+      .update({ admin_profile_id: adminProfileId });
+
+    // Sync ORM ด้วย entityService.update (แนบ relation ซ้ำ)
+    await strapi.entityService.update('api::drug-store.drug-store', entity.id, {
+      data: { admin_profile: adminProfileId }
+    });
+
+    // ดึง entity ใหม่ (populate relation)
+    const updated = await strapi.entityService.findOne('api::drug-store.drug-store', entity.id, { populate: '*' });
+
+    const sanitized = await this.sanitizeOutput(updated, ctx);
+    return this.transformResponse(sanitized);
   },
 
   async update(ctx) {

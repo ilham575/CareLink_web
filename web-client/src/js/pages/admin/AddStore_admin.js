@@ -31,6 +31,36 @@ function AddStore_admin() {
     },
     confirm: false,
   });
+  const [adminProfileId, setAdminProfileId] = useState(null);
+
+  // โหลด adminProfileId เมื่อ component mount
+  React.useEffect(() => {
+    const fetchAdminProfileId = async () => {
+      const jwt = localStorage.getItem('jwt');
+      if (!jwt) return;
+      try {
+        // ดึง user
+        const userRes = await fetch('http://localhost:1337/api/users/me', {
+          headers: { Authorization: `Bearer ${jwt}` }
+        });
+        const userData = await userRes.json();
+        const userDocumentId = userData.documentId;
+        // ดึง admin-profile
+        const query = new URLSearchParams({
+          'filters[users_permissions_user][documentId][$eq]': userDocumentId
+        });
+        const adminRes = await fetch(`http://localhost:1337/api/admin-profiles?${query.toString()}`, {
+          headers: { Authorization: `Bearer ${jwt}` }
+        });
+        const adminData = await adminRes.json();
+        const adminProfile = adminData.data[0];
+        if (adminProfile) setAdminProfileId(adminProfile.id);
+      } catch (e) {
+        setAdminProfileId(null);
+      }
+    };
+    fetchAdminProfileId();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
@@ -124,36 +154,32 @@ function AddStore_admin() {
         return `${time}:00.000`;
       };
 
-      // สร้างข้อมูลร้านยา
-      const pharmacyData = {
-        data: {
-          name_th: formData.name_th,
-          name_en: formData.name_en,
-          license_number: formData.license_number,
-          license_doc: formData.license_doc,
-          address: formData.address,
-          phone_store: formData.phone_store,
-          time_open: formatTime(formData.time_open),
-          time_close: formatTime(formData.time_close),
-          link_gps: formData.link_gps,
-          type: formData.type,
-          services: formData.services,
-          // เชื่อมโยงรูปภาพ
-          photo_front: photoFrontId,
-          photo_in: photoInId,
-          photo_staff: photoStaffId,
-        }
-      };
-
-      // ส่งข้อมูลร้านยาไป Strapi
+      // ดึง token จาก localStorage
       const token = localStorage.getItem('jwt');
+
+      // สร้างข้อมูลร้านยา
       const response = await fetch('http://localhost:1337/api/drug-stores', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(pharmacyData),
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: {
+            name_th: formData.name_th,
+            name_en: formData.name_en,
+            license_number: formData.license_number,
+            license_doc: formData.license_doc,
+            address: formData.address,
+            phone_store: formData.phone_store,
+            time_open: formatTime(formData.time_open),
+            time_close: formatTime(formData.time_close),
+            link_gps: formData.link_gps,
+            type: formData.type,
+            services: formData.services,
+            // เชื่อมโยงรูปภาพ
+            photo_front: photoFrontId,
+            photo_in: photoInId,
+            photo_staff: photoStaffId,
+          }
+        }),
       });
 
       if (!response.ok) {
@@ -163,8 +189,37 @@ function AddStore_admin() {
       const result = await response.json();
       console.log('Pharmacy created:', result);
 
+      // เชื่อม admin_profile กับร้านที่สร้าง
+      if (adminProfileId) {
+        const storeId = result.data.id;
+        const updateRes = await fetch(`http://localhost:1337/api/drug-stores/${storeId}`, {
+          method: 'PUT', // หรือใช้ PATCH ก็ได้
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: {
+              admin_profile: adminProfileId,
+            },
+          }),
+        });
+
+        if (!updateRes.ok) {
+          throw new Error(`Failed to link admin_profile: ${updateRes.statusText}`);
+        }
+
+        console.log('Admin profile linked to store:', await updateRes.json());
+      }
+
       alert("บันทึกร้านขายยาเรียบร้อย!");
-      navigate("/adminhome");
+      // Force refresh หน้า adminHome
+      navigate("/adminhome", { 
+        state: { 
+          forceRefresh: true,
+          timestamp: Date.now()
+        } 
+      });
 
     } catch (error) {
       console.error('Error creating pharmacy:', error);

@@ -15,13 +15,8 @@
       "type": "relation",
       "relation": "manyToOne",
       "target": "plugin::users-permissions.user",
-      "inversedBy": "admin_profiles"
-    },
-    "drug_stores": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::drug-store.drug-store",
-      "mappedBy": "admin_profile"
+      "inversedBy": "admin_profiles",
+      "populate": true
     },
     "profileimage": {
       "type": "media",
@@ -32,6 +27,12 @@
         "videos",
         "audios"
       ]
+    },
+    "drug_stores": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::drug-store.drug-store",
+      "mappedBy": "admin_profile"
     }
   }
 }

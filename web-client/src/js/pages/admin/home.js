@@ -85,9 +85,49 @@ function AdminHome() {
 
   const jwt = localStorage.getItem('jwt');
 
+  // เพิ่ม function สำหรับ refresh ข้อมูล
+  const refreshData = async () => {
+    setLoading(true);
+    setPharmacies([]);
+    
+    // Clear cache
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => {
+          caches.delete(name);
+        });
+      });
+    }
+  };
+
+  // เพิ่ม auto refresh เมื่อกลับมาที่หน้า
+  useEffect(() => {
+    const handleFocus = () => {
+      refreshData();
+    };
+    
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   useEffect(() => {
     if (location.state?.showToast) {
       toast.success('เข้าสู่ระบบสำเร็จ!', { autoClose: 2000 });
+    }
+    // เพิ่มการตรวจสอบ forceRefresh
+    if (location.state?.forceRefresh) {
+      refreshData();
     }
   }, [location.state]);
 
@@ -101,8 +141,12 @@ function AdminHome() {
 
       try {
         // 1. ดึงข้อมูล user ปัจจุบัน
-        const userRes = await fetch('http://localhost:1337/api/users/me', {
-          headers: { Authorization: `Bearer ${jwt}` }
+        const timestamp = Date.now();
+        const userRes = await fetch(`http://localhost:1337/api/users/me?_=${timestamp}&nocache=${Math.random()}`, {
+          headers: { 
+            Authorization: `Bearer ${jwt}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
         });
 
         if (!userRes.ok) throw new Error("ไม่สามารถดึงข้อมูล user ได้");
@@ -110,43 +154,96 @@ function AdminHome() {
         const userData = await userRes.json();
         const userDocumentId = userData.documentId;
 
-        // 2. ดึง admin_profile + drug_stores ที่ผูกกับ user.documentId
-        const query = new URLSearchParams({
-          'filters[users_permissions_user][documentId][$eq]': userDocumentId,
-          'populate[drug_stores][populate]': '*'
+        // 2. ดึง admin_profile เพื่อหา id
+        const adminProfileQuery = new URLSearchParams({
+          'filters[users_permissions_user][documentId][$eq]': userDocumentId
+        });
+        const adminProfileRes = await fetch(
+          `http://localhost:1337/api/admin-profiles?${adminProfileQuery.toString()}`,
+          {
+            headers: { 
+              Authorization: `Bearer ${jwt}`,
+              'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }
+          }
+        );
+        if (!adminProfileRes.ok) throw new Error("ไม่สามารถโหลดโปรไฟล์แอดมินได้");
+        const adminProfileData = await adminProfileRes.json();
+        const adminProfile = adminProfileData.data[0];
+        if (!adminProfile) throw new Error("ไม่พบโปรไฟล์แอดมิน");
+
+        const adminProfileDocumentId = adminProfile.attributes?.documentId || adminProfile.documentId;
+        const adminProfileId = adminProfile.id;
+
+        // DEBUG: log adminProfile ที่ได้
+        console.log("DEBUG: adminProfileId", adminProfileId);
+        console.log("DEBUG: adminProfileDocumentId", adminProfileDocumentId);
+        console.log("DEBUG: adminProfile", adminProfile);
+
+        // 3. ดึง drug-stores ทั้งหมด (แก้ไข populate query)
+        const drugStoreQuery = new URLSearchParams({
+          'populate': '*', // ใช้ populate=* เพื่อดึงข้อมูลทั้งหมด
+          '_': timestamp,
+          'nocache': Math.random(),
+          'publicationState': 'preview'
         });
 
-        const res = await fetch(
-          `http://localhost:1337/api/admin-profiles?${query.toString()}`,
+        const drugStoreRes = await fetch(
+          `http://localhost:1337/api/drug-stores?${drugStoreQuery.toString()}`,
           {
-            headers: { Authorization: `Bearer ${jwt}` }
+            headers: { 
+              Authorization: `Bearer ${jwt}`,
+              'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }
           }
         );
 
-        if (!res.ok) throw new Error("ไม่สามารถโหลดร้านยาได้");
+        if (!drugStoreRes.ok) {
+          console.error("API error: ไม่สามารถดึงข้อมูล drug-stores ได้", await drugStoreRes.text());
+          throw new Error("ไม่สามารถดึงข้อมูล drug-stores ได้");
+        }
 
-        const data = await res.json();
-        const myDrugStores = data.data[0]?.drug_stores || [];
+        const drugStoreData = await drugStoreRes.json();
+        const allDrugStores = drugStoreData.data || [];
+        // DEBUG: log ข้อมูล drug_store ที่ได้จาก API
+        console.log("DEBUG: allDrugStores", allDrugStores);
 
-        // 3. แปลงข้อมูลให้ง่ายต่อการ render
-        const pharmaciesFromAPI = myDrugStores.map(store => ({
-          documentId: store.documentId,
-          id: store.id,
-          name_th: store.name_th,
-          name_en: store.name_en,
-          address: store.address,
-          time_open: formatTime(store.time_open),
-          time_close: formatTime(store.time_close),
-          phone_store: store.phone_store,
-          photo_front: store.photo_front,
-          photo_in: store.photo_in,
-          photo_staff: store.photo_staff,
-          services: store.services || {},
-          type: store.type,
-          license_number: store.license_number,
-          license_doc: store.license_doc,
-          link_gps: store.link_gps,
-        }));
+        // filter ใน frontend ด้วย admin_profile.id ทั้งใน attributes และ root
+        const myDrugStores = allDrugStores.filter(store => {
+          const adminProfileField = store.attributes?.admin_profile || store.admin_profile;
+          if (!adminProfileField) {
+            console.warn(`⚠️ ไม่มี admin_profile ใน store: ${store.id} (${store.name_th || store.name_en || 'ไม่ทราบชื่อ'})`);
+            return false;
+          }
+          return adminProfileField.id === adminProfileId || adminProfileField.documentId === adminProfileDocumentId;
+        });
+
+        // DEBUG: log ร้านยาที่ filter ได้
+        console.log("DEBUG: myDrugStores", myDrugStores);
+
+        // 4. แปลงข้อมูลให้ง่ายต่อการ render
+        const pharmaciesFromAPI = myDrugStores.map(store => {
+          const docId = store.documentId || store.attributes?.documentId || store.id;
+          return {
+            documentId: docId,
+            id: store.id,
+            name_th: store.name_th || store.attributes?.name_th,
+            name_en: store.name_en || store.attributes?.name_en,
+            address: store.address || store.attributes?.address,
+            time_open: formatTime(store.time_open || store.attributes?.time_open),
+            time_close: formatTime(store.time_close || store.attributes?.time_close),
+            phone_store: store.phone_store || store.attributes?.phone_store,
+            photo_front: store.photo_front || store.attributes?.photo_front,
+            photo_in: store.photo_in || store.attributes?.photo_in,
+            photo_staff: store.photo_staff || store.attributes?.photo_staff,
+            services: store.services || store.attributes?.services || {},
+            type: store.type || store.attributes?.type,
+            license_number: store.license_number || store.attributes?.license_number,
+            license_doc: store.license_doc || store.attributes?.license_doc,
+            link_gps: store.link_gps || store.attributes?.link_gps,
+            admin_profile: store.admin_profile || store.attributes?.admin_profile,
+          };
+        });
 
         setPharmacies(pharmaciesFromAPI);
         toast.success(`โหลดข้อมูลร้านยาของคุณสำเร็จ ${pharmaciesFromAPI.length} ร้าน`);
@@ -160,7 +257,7 @@ function AdminHome() {
     };
 
     loadData();
-  }, [jwt, navigate]);
+  }, [jwt, navigate, loading, location.state?.forceRefresh]); // เพิ่ม forceRefresh dependency
 
   const handleDelete = async (documentId) => {
     if (!window.confirm("คุณต้องการลบร้านยานี้หรือไม่?")) return;
@@ -213,8 +310,15 @@ function AdminHome() {
       <HomeHeader isLoggedIn={true} onSearch={setSearchText} />
       <main className="main-content">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between', marginBottom: 20 }}>
-          <h2 style={{ margin: 0 }}>ร้านยาของฉัน:</h2>
+          <h2 style={{ margin: 0 }}>ร้านยาของฉัน: (อัพเดท: {new Date().toLocaleTimeString()})</h2>
           <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              className="detail-button"
+              style={{ padding: '8px 16px', width: 120, backgroundColor: '#2196F3' }}
+              onClick={refreshData}
+            >
+              🔄 รีเฟรช
+            </button>
             <button
               className="detail-button"
               style={{ padding: '8px 16px', width: 120 }}

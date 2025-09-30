@@ -74,12 +74,6 @@
         "files"
       ]
     },
-    "admin_profile": {
-      "type": "relation",
-      "relation": "manyToOne",
-      "target": "api::admin-profile.admin-profile",
-      "inversedBy": "drug_stores"
-    },
     "staff_profiles": {
       "type": "relation",
       "relation": "oneToMany",
@@ -109,6 +103,13 @@
       "relation": "manyToMany",
       "target": "api::pharmacy-profile.pharmacy-profile",
       "inversedBy": "drug_stores"
+    },
+    "admin_profile": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::admin-profile.admin-profile",
+      "inversedBy": "drug_stores",
+      "populate": true
     }
   }
 }
