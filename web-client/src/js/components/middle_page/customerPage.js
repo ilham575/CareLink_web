@@ -3,6 +3,7 @@ import Footer from "../footer";
 import HomeHeader from "../HomeHeader";
 import "../../../css/pages/default/customerPage.css";
 import "../../../css/component/CustomerCard.css";
+import "../../../css/component/ModernCustomerCard.css";
 import React, { useEffect, useState } from "react";
 import { Modal } from "antd";
 import { toast, ToastContainer } from "react-toastify";
@@ -310,58 +311,107 @@ function CustomerPage({ id }) {
               const followUpDate = customer.Follow_up_appointment_date || customer.attributes?.Follow_up_appointment_date;
 
               return (
-                <div className="customer-card customer-card-hover" key={customer.id}>
-                  <div className="customer-card-accent"></div>
-                  
-                  <div className="customer-card-avatar">
-                    {(user?.full_name?.charAt(0) || 'C').toUpperCase()}
+                <div className="modern-customer-card" key={customer.id}>
+                  {/* Header Section */}
+                  <div className="card-header">
+                    <div className="customer-avatar-modern">
+                      <div className="avatar-circle">
+                        {(user?.full_name?.charAt(0) || 'C').toUpperCase()}
+                      </div>
+                      <div className="customer-status-badge active">
+                        ●
+                      </div>
+                    </div>
+                    <div className="customer-basic-info">
+                      <h3 className="customer-name-modern">
+                        {user?.full_name || 'ไม่พบชื่อ'}
+                      </h3>
+                      <p className="customer-username">
+                        @{user?.username || 'user'}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="customer-card-details">
-                    <div className="customer-card-name">
-                      {user?.full_name || '…'}
+                  {/* Content Section */}
+                  <div className="card-content">
+                    <div className="info-grid">
+                      <div className="info-item">
+                        <div className="info-icon phone">📞</div>
+                        <div className="info-text">
+                          <span className="info-label">เบอร์โทร</span>
+                          <span className="info-value">{user?.phone || 'ไม่ระบุ'}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="info-item">
+                        <div className="info-icon email">✉️</div>
+                        <div className="info-text">
+                          <span className="info-label">อีเมล</span>
+                          <span className="info-value">{user?.email || 'ไม่ระบุ'}</span>
+                        </div>
+                      </div>
+
+                      {/* Medical Info */}
+                      {(customer.congenital_disease || customer.attributes?.congenital_disease) && (
+                        <div className="info-item medical">
+                          <div className="info-icon medical">🏥</div>
+                          <div className="info-text">
+                            <span className="info-label">โรคประจำตัว</span>
+                            <span className="info-value">
+                              {customer.congenital_disease || customer.attributes?.congenital_disease}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {(customer.Allergic_drugs || customer.attributes?.Allergic_drugs) && (
+                        <div className="info-item allergy">
+                          <div className="info-icon allergy">⚠️</div>
+                          <div className="info-text">
+                            <span className="info-label">ยาที่แพ้</span>
+                            <span className="info-value">
+                              {customer.Allergic_drugs || customer.attributes?.Allergic_drugs}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    
-                    <div className="customer-card-info">
-                      <span>
-                        📞 {user?.phone || '…'}
-                      </span>
-                    </div>
-                    
-                    <div className="customer-card-info">
-                      <span>
-                        ✉️ {user?.email || '…'}
-                      </span>
-                    </div>
-                    
+
+                    {/* Appointment Section */}
                     {followUpDate && (
-                      <div className="customer-card-appointment">
-                        <span>
-                          📅 นัดครั้งถัดไป: {followUpDate}
-                        </span>
+                      <div className="appointment-section">
+                        <div className="appointment-badge">
+                          <span className="appointment-icon">📅</span>
+                          <span className="appointment-text">
+                            นัดครั้งถัดไป: <strong>{followUpDate}</strong>
+                          </span>
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  <div className="customer-card-buttons">
+                  {/* Footer Actions */}
+                  <div className="card-footer">
                     <button
-                      className="customer-card-edit-btn"
+                      className="btn-modern btn-primary"
                       onClick={() => {
-                        if (!customer.id) {
-                          toast.error("ไม่พบ ID ของลูกค้า ไม่สามารถแก้ไขได้");
+                        if (!customerDocumentId) {
+                          toast.error("ไม่พบข้อมูลลูกค้า ไม่สามารถดูรายละเอียดได้");
                           return;
                         }
-                        navigate(`/form_customer?documentId=${customerDocumentId}&pharmacyId=${documentId}`);
+                        navigate(`/customer_detail/${customerDocumentId}?pharmacyId=${documentId}`);
                       }}
                     >
-                      ✏️ แก้ไข
+                      <span className="btn-icon">👁️</span>
+                      <span className="btn-text">ดูรายละเอียด</span>
                     </button>
                     
                     <button 
-                      className="customer-card-delete-btn"
+                      className="btn-modern btn-danger"
                       onClick={() => deleteCustomer(customer.id, customerDocumentId, userId, customerName)}
                     >
-                      🗑️ ลบ
+                      <span className="btn-icon">🗑️</span>
+                      <span className="btn-text">ลบ</span>
                     </button>
                   </div>
                 </div>

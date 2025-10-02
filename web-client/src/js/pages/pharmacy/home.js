@@ -6,7 +6,7 @@ import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import Footer from '../../components/footer';
 
-function PharmacyItem({ id, documentId, name_th, address, time_open, time_close, phone_store, photo_front }) {
+function PharmacyItem({ id, documentId, name_th, address, time_open, time_close, phone_store, photo_front, pharmacy_profiles }) {
 	const navigate = useNavigate();
 
 	const getImageUrl = (photo) => {
@@ -54,6 +54,31 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
 				<p>
 					เวลาเปิดทำการ: {time_open || '-'} - {time_close || '-'} เบอร์โทรศัพท์: {phone_store || '-'}
 				</p>
+				
+				{/* แสดงเวลาทำงานของเภสัชกร */}
+				{pharmacy_profiles && pharmacy_profiles.length > 0 && (
+					<div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
+						<strong>เวลาทำงานของเภสัชกร:</strong>
+						{pharmacy_profiles.map((profile, index) => (
+							<div key={profile.id || index} style={{ marginLeft: '8px', marginTop: '4px' }}>
+								<span style={{ fontWeight: 'bold', color: '#4CAF50' }}>
+									{profile.firstname} {profile.lastname}
+								</span>
+								{profile.working_time && profile.working_time.length > 0 ? (
+									<ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
+										{profile.working_time.map((time, timeIndex) => (
+											<li key={timeIndex} style={{ fontSize: '12px' }}>
+												{time.day}: {time.time_in || '-'} - {time.time_out || '-'}
+											</li>
+										))}
+									</ul>
+								) : (
+									<span style={{ fontSize: '12px', color: '#999' }}> - ไม่ได้กำหนดเวลาทำงาน</span>
+								)}
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 
 			<div
@@ -115,35 +140,35 @@ function PharmacyHome() {
 		}, 1000);
 	};
 
-	// เพิ่ม useEffect สำหรับ refresh เมื่อกลับมาที่หน้า
-	useEffect(() => {
-		const handleFocus = () => {
-			refreshData();
-		};
+	// เพิ่ม useEffect สำหรับ refresh เมื่อกลับมาที่หน้า (ปิดการ auto refresh)
+	// useEffect(() => {
+	// 	const handleFocus = () => {
+	// 		refreshData();
+	// 	};
 		
-		// เพิ่ม refresh เมื่อ component mount ใหม่
-		const handleVisibilityChange = () => {
-			if (!document.hidden) {
-				refreshData();
-			}
-		};
+	// 	// เพิ่ม refresh เมื่อ component mount ใหม่
+	// 	const handleVisibilityChange = () => {
+	// 		if (!document.hidden) {
+	// 			refreshData();
+	// 		}
+	// 	};
 
-		window.addEventListener('focus', handleFocus);
-		document.addEventListener('visibilitychange', handleVisibilityChange);
+	// 	window.addEventListener('focus', handleFocus);
+	// 	document.addEventListener('visibilitychange', handleVisibilityChange);
 		
-		// Auto refresh ทุก 30 วินาที
-		const interval = setInterval(() => {
-			if (!document.hidden) {
-				refreshData();
-			}
-		}, 30000);
+	// 	// Auto refresh ทุก 30 วินาที
+	// 	const interval = setInterval(() => {
+	// 		if (!document.hidden) {
+	// 			refreshData();
+	// 		}
+	// 	}, 30000);
 
-		return () => {
-			window.removeEventListener('focus', handleFocus);
-			document.removeEventListener('visibilitychange', handleVisibilityChange);
-			clearInterval(interval);
-		};
-	}, []);
+	// 	return () => {
+	// 		window.removeEventListener('focus', handleFocus);
+	// 		document.removeEventListener('visibilitychange', handleVisibilityChange);
+	// 		clearInterval(interval);
+	// 	};
+	// }, []);
 
 	// ขั้นตอนที่ 1: ดึง user.id จาก /api/users/me
 	useEffect(() => {
@@ -307,7 +332,7 @@ function PharmacyHome() {
 			<HomeHeader onSearch={setSearchText} isLoggedIn={true} />
 			<main className="main-content">
 				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-					<h2>ร้านยาของฉัน: (อัพเดท: {new Date().toLocaleTimeString()})</h2>
+					<h2>ร้านยาของฉัน: </h2>
 				</div>
 
 				{filteredPharmacies.length === 0 ? (
@@ -329,6 +354,7 @@ function PharmacyHome() {
 							time_close={formatTime(pharmacy.time_close)}
 							phone_store={pharmacy.phone_store}
 							photo_front={pharmacy.photo_front}
+							pharmacy_profiles={pharmacy.pharmacy_profiles}
 						/>
 					))
 				)}

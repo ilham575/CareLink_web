@@ -12,6 +12,7 @@ function FormCustomerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [customerId, setCustomerId] = useState(null);
+  const [customerDocumentId, setCustomerDocumentId] = useState(null);
   
   // Form data
   const [formData, setFormData] = useState({
@@ -61,6 +62,7 @@ function FormCustomerPage() {
         const user = customer.users_permissions_user?.data?.attributes || customer.users_permissions_user;
         
         setCustomerId(customer.id);
+        setCustomerDocumentId(customer.documentId);
         setFormData({
           full_name: user?.full_name || "",
           phone: user?.phone || "",
@@ -289,8 +291,27 @@ function FormCustomerPage() {
   };
 
   const updateCustomer = async (token) => {
-    const userId = formData.users_permissions_user?.data?.id || 
-                   formData.users_permissions_user?.id;
+    // ดึง userId จากข้อมูลที่โหลดมาจาก API
+    let userId = null;
+    
+    // ดึงข้อมูล customer profile ใหม่เพื่อให้แน่ใจว่าได้ userId ที่ถูกต้อง
+    try {
+      const customerRes = await fetch(
+        `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate=users_permissions_user`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      const customerData = await customerRes.json();
+      
+      if (customerData.data) {
+        userId = customerData.data.users_permissions_user?.id || 
+                 customerData.data.users_permissions_user?.data?.id;
+      }
+    } catch (error) {
+      console.error('Error fetching customer data for update:', error);
+      throw new Error('ไม่สามารถดึงข้อมูลลูกค้าสำหรับการอัปเดตได้');
+    }
 
     // Auto-generate email if not provided
     const emailToUse = formData.email?.trim() || `${formData.username}@example.com`;
@@ -339,7 +360,7 @@ function FormCustomerPage() {
     }
 
     // Update customer profile
-    const profileResponse = await fetch(`http://localhost:1337/api/customer-profiles/${documentId}`, {
+    const profileResponse = await fetch(`http://localhost:1337/api/customer-profiles/${customerDocumentId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
