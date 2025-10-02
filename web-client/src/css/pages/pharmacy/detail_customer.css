@@ -1,8 +1,10 @@
+/* Import Google Fonts for Sarabun and Prompt */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap');
+
 /* Customer Detail Page Styles */
 .customer-detail-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
 .customer-detail-main {
@@ -323,6 +325,266 @@
   transform: translateY(-2px);
 }
 
+/* Appointment Modal */
+.modal-appointment {
+  border-radius: 18px !important;
+  max-width: 400px;
+}
+.modal-appointment .ant-modal-content {
+  border-radius: 18px !important;
+}
+.modal-appointment .ant-modal-body,
+.modal-appointment-body {
+  padding: 32px 24px 24px 24px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%);
+  border-radius: 18px;
+}
+.modal-appointment-header {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 18px;
+}
+.modal-appointment-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.modal-appointment-desc {
+  color: #64748b;
+  font-size: 15px;
+  margin-bottom: 18px;
+}
+.modal-appointment-datepicker {
+  width: 100%;
+  font-size: 18px;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(59,130,246,0.08);
+  padding: 12px 16px;
+  background: #fff;
+  margin-bottom: 8px;
+}
+.modal-appointment-selected {
+  margin-top: 12px;
+  color: #10b981;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+/* Appointment Modal Buttons */
+.btn-appointment-delete {
+  background: linear-gradient(90deg,#ef4444,#f59e42);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-weight: 700;
+  margin-right: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(239,68,68,0.10);
+}
+.btn-appointment-cancel {
+  background: #e0e7ef;
+  color: #334155;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-weight: 700;
+  margin-right: 8px;
+  cursor: pointer;
+}
+.btn-appointment-ok {
+  background: linear-gradient(90deg,#10b981,#06b6d4);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Medical Modal */
+.modal-medical {
+  border-radius: 18px !important;
+  max-width: 480px;
+}
+.modal-medical .ant-modal-content {
+  border-radius: 18px !important;
+}
+.modal-medical .ant-modal-body,
+.modal-medical-body {
+  padding: 32px 24px 24px 24px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%);
+  border-radius: 18px;
+}
+.modal-medical-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 22px;
+  color: #2563eb;
+}
+.modal-medical-symptom {
+  width: 100%;
+  text-align: left;
+  margin-bottom: 18px;
+}
+.modal-medical-symptom-section {
+  margin-bottom: 18px;
+}
+.modal-medical-symptom-label.main {
+  font-weight: 700;
+  color: #2563eb;
+  font-size: 18px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.modal-medical-symptom-label.history {
+  font-weight: 700;
+  color: #0ea5e9;
+  font-size: 17px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.modal-medical-symptom-label.note {
+  font-weight: 700;
+  color: #10b981;
+  font-size: 16px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.modal-medical-symptom-value {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(59,130,246,0.08);
+  padding: 14px 16px;
+  font-size: 15px;
+  color: #334155;
+  min-height: 36px;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+.modal-medical-symptom-value.main {
+  font-size: 16px;
+  color: #0f172a;
+  font-weight: 500;
+}
+.modal-medical-content {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 18px;
+}
+.modal-medical-desc {
+  color: #64748b;
+  font-size: 16px;
+  margin-bottom: 18px;
+}
+.modal-medical-value {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(59,130,246,0.08);
+  padding: 24px 18px;
+  font-size: 18px;
+  color: #0f172a;
+  font-weight: 600;
+  min-height: 60px;
+  word-break: break-word;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-medical-close {
+  background: linear-gradient(90deg, #6366f1, #06b6d4);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  box-shadow: 0 2px 8px rgba(59,130,246,0.10);
+  transition: background 0.2s;
+}
+
+/* Edit Medical Modal */
+.modal-editmedical {
+  border-radius: 18px !important;
+  max-width: 400px;
+}
+.modal-editmedical .ant-modal-content {
+  border-radius: 18px !important;
+}
+.modal-editmedical .ant-modal-body,
+.modal-editmedical-body {
+  padding: 32px 24px 24px 24px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%);
+  border-radius: 18px;
+}
+.modal-editmedical-title {
+  font-weight: 700;
+  font-size: 20px;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.modal-editmedical-content {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 18px;
+}
+.modal-editmedical-desc {
+  color: #64748b;
+  font-size: 16px;
+  margin-bottom: 18px;
+}
+.modal-editmedical-textarea {
+  width: 100%;
+  font-size: 16px;
+  border-radius: 10px;
+  border: 1.5px solid #a5b4fc;
+  padding: 12px 14px;
+  box-shadow: 0 2px 8px rgba(59,130,246,0.07);
+  resize: vertical;
+  background: #fff;
+  color: #0f172a;
+}
+
+/* Long Text Ellipsis */
+.long-text-ellipsis {
+  display: inline-block;
+  max-width: 220px;
+  vertical-align: bottom;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
 /* Responsive Design */
 @media (max-width: 1400px) {
   .customer-detail-layout {
@@ -356,7 +618,7 @@
     padding: 20px;
   }
   
-  .customer-info-form,
+  .customer-info_form,
   .customer-actions-panel {
     padding: 35px;
   }

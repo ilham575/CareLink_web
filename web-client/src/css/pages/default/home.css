@@ -210,3 +210,18 @@ body {
         margin-top: 10px;
     }
 }
+
+@keyframes fadeSlideIn {
+	from {
+		opacity: 0;
+		transform: translateY(32px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+.animation-fade-slide {
+	animation: fadeSlideIn 0.6s cubic-bezier(0.4,0,0.2,1);
+	will-change: opacity, transform;
+}

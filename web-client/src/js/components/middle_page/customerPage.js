@@ -8,6 +8,22 @@ import React, { useEffect, useState } from "react";
 import { Modal } from "antd";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import dayjs from "dayjs"; // เพิ่มบรรทัดนี้
+
+// เพิ่มฟังก์ชันแปลงวันที่เป็นภาษาไทย
+function formatThaiDate(dateStr) {
+  if (!dateStr) return '';
+  const months = [
+    '', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+  ];
+  const d = dayjs(dateStr);
+  if (!d.isValid()) return dateStr;
+  const day = d.date();
+  const month = months[d.month() + 1];
+  const year = d.year() + 543;
+  return `${day} ${month} ${year}`;
+}
 
 function CustomerPage({ id }) {
   const location = useLocation();
@@ -383,7 +399,7 @@ function CustomerPage({ id }) {
                         <div className="appointment-badge">
                           <span className="appointment-icon">📅</span>
                           <span className="appointment-text">
-                            นัดครั้งถัดไป: <strong>{followUpDate}</strong>
+                            นัดครั้งถัดไป: <strong>{formatThaiDate(followUpDate)}</strong>
                           </span>
                         </div>
                       </div>

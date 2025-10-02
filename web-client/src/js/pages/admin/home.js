@@ -310,7 +310,7 @@ function AdminHome() {
       <HomeHeader isLoggedIn={true} onSearch={setSearchText} />
       <main className="main-content">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between', marginBottom: 20 }}>
-          <h2 style={{ margin: 0 }}>ร้านยาของฉัน: (อัพเดท: {new Date().toLocaleTimeString()})</h2>
+          <h2 style={{ margin: 0 }}>ร้านยาของฉัน:</h2>
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               className="detail-button"

@@ -5,6 +5,7 @@ import '../../../css/pages/default/home.css';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import Footer from '../../components/footer';
+import AnimationWrapper from '../../components/AnimationWrapper'; // เพิ่มบรรทัดนี้
 
 function PharmacyItem({ id, documentId, name_th, address, time_open, time_close, phone_store, photo_front, pharmacy_profiles }) {
 	const navigate = useNavigate();
@@ -287,9 +288,11 @@ function PharmacyHome() {
 			<div className="app-container">
 				<HomeHeader onSearch={setSearchText} isLoggedIn={true} />
 				<main className="main-content">
-					<div style={{ textAlign: 'center', marginTop: '40px' }}>
-						{refreshing ? 'กำลังรีเฟรชข้อมูล...' : 'กำลังโหลดข้อมูล...'}
-					</div>
+					<AnimationWrapper>
+						<div style={{ textAlign: 'center', marginTop: '40px' }}>
+							{refreshing ? 'กำลังรีเฟรชข้อมูล...' : 'กำลังโหลดข้อมูล...'}
+						</div>
+					</AnimationWrapper>
 				</main>
 				<Footer />
 			</div>
@@ -302,24 +305,26 @@ function PharmacyHome() {
 				<ToastContainer />
 				<HomeHeader onSearch={setSearchText} isLoggedIn={true} />
 				<main className="main-content">
-					<div style={{ color: '#e57373', textAlign: 'center', marginTop: '40px' }}>
-						ไม่พบข้อมูลโปรไฟล์เภสัชกร<br />
-						กรุณาติดต่อผู้ดูแลระบบ
-						<br /><br />
-						<button 
-							onClick={refreshData}
-							style={{
-								padding: '8px 16px',
-								backgroundColor: '#4CAF50',
-								color: 'white',
-								border: 'none',
-								borderRadius: '4px',
-								cursor: 'pointer'
-							}}
-						>
-							รีเฟรชข้อมูล
-						</button>
-					</div>
+					<AnimationWrapper>
+						<div style={{ color: '#e57373', textAlign: 'center', marginTop: '40px' }}>
+							ไม่พบข้อมูลโปรไฟล์เภสัชกร<br />
+							กรุณาติดต่อผู้ดูแลระบบ
+							<br /><br />
+							<button 
+								onClick={refreshData}
+								style={{
+									padding: '8px 16px',
+									backgroundColor: '#4CAF50',
+									color: 'white',
+									border: 'none',
+									borderRadius: '4px',
+									cursor: 'pointer'
+								}}
+							>
+								รีเฟรชข้อมูล
+							</button>
+						</div>
+					</AnimationWrapper>
 				</main>
 				<Footer />
 			</div>
@@ -335,29 +340,31 @@ function PharmacyHome() {
 					<h2>ร้านยาของฉัน: </h2>
 				</div>
 
-				{filteredPharmacies.length === 0 ? (
-					<div style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>
-						{pharmacies.length === 0 
-							? 'ยังไม่มีร้านยาที่คุณรับผิดชอบ' 
-							: 'ไม่พบร้านยาที่ตรงกับการค้นหา'
-						}
-					</div>
-				) : (
-					filteredPharmacies.map(pharmacy => (
-						<PharmacyItem
-							key={pharmacy.documentId || pharmacy.id} // use documentId as stable key
-							id={pharmacy.id}
-							documentId={pharmacy.documentId}
-							name_th={pharmacy.name_th}
-							address={pharmacy.address}
-							time_open={formatTime(pharmacy.time_open)}
-							time_close={formatTime(pharmacy.time_close)}
-							phone_store={pharmacy.phone_store}
-							photo_front={pharmacy.photo_front}
-							pharmacy_profiles={pharmacy.pharmacy_profiles}
-						/>
-					))
-				)}
+				<AnimationWrapper>
+					{filteredPharmacies.length === 0 ? (
+						<div style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>
+							{pharmacies.length === 0 
+								? 'ยังไม่มีร้านยาที่คุณรับผิดชอบ' 
+								: 'ไม่พบร้านยาที่ตรงกับการค้นหา'
+							}
+						</div>
+					) : (
+						filteredPharmacies.map(pharmacy => (
+							<PharmacyItem
+								key={pharmacy.documentId || pharmacy.id}
+								id={pharmacy.id}
+								documentId={pharmacy.documentId}
+								name_th={pharmacy.name_th}
+								address={pharmacy.address}
+								time_open={formatTime(pharmacy.time_open)}
+								time_close={formatTime(pharmacy.time_close)}
+								phone_store={pharmacy.phone_store}
+								photo_front={pharmacy.photo_front}
+								pharmacy_profiles={pharmacy.pharmacy_profiles}
+							/>
+						))
+					)}
+				</AnimationWrapper>
 			</main>
 			<Footer />
 		</div>

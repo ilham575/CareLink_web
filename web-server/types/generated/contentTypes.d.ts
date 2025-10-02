@@ -442,6 +442,8 @@ export interface ApiCustomerProfileCustomerProfile
     > &
       Schema.Attribute.Private;
     publishedAt: Schema.Attribute.DateTime;
+    symptom_history: Schema.Attribute.Text;
+    symptom_note: Schema.Attribute.Text;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;

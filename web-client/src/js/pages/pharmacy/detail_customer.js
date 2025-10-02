@@ -8,6 +8,21 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Modal, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 
+// เพิ่มฟังก์ชันแปลงวันที่เป็นภาษาไทย
+function formatThaiDate(dateStr) {
+  if (!dateStr) return '';
+  const months = [
+    '', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+  ];
+  const d = dayjs(dateStr);
+  if (!d.isValid()) return dateStr;
+  const day = d.date();
+  const month = months[d.month() + 1];
+  const year = d.year() + 543;
+  return `${day} ${month} ${year}`;
+}
+
 function CustomerDetail() {
   const { customerDocumentId } = useParams();
   const navigate = useNavigate();
@@ -20,6 +35,12 @@ function CustomerDetail() {
   const [appointmentDate, setAppointmentDate] = useState(null);
   const [medicalModal, setMedicalModal] = useState({ open: false, title: '', icon: '', value: '' });
   const [editMedicalModal, setEditMedicalModal] = useState({ open: false, type: '', label: '', value: '' });
+  const [editSymptomModal, setEditSymptomModal] = useState({
+    open: false,
+    main: '',
+    history: '',
+    note: ''
+  });
   const userRole = localStorage.getItem('role');
   
   // Get pharmacyId from URL params
@@ -131,6 +152,36 @@ function CustomerDetail() {
     }
   };
 
+  const handleDeleteAppointment = async () => {
+    try {
+      const token = localStorage.getItem('jwt');
+      const res = await fetch(`http://localhost:1337/api/customer-profiles/${customerDocumentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          data: {
+            Follow_up_appointment_date: null
+          }
+        })
+      });
+      if (!res.ok) throw new Error('ลบวันนัดไม่สำเร็จ');
+      toast.success('ลบวันนัดติดตามอาการสำเร็จ');
+      setIsAppointmentModalOpen(false);
+      // refresh customer data
+      const customerRes = await fetch(
+        `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
+        { headers: { Authorization: token ? `Bearer ${token}` : '' } }
+      );
+      const customerData = await customerRes.json();
+      setCustomer(customerData.data);
+    } catch (err) {
+      toast.error(err.message || 'เกิดข้อผิดพลาด');
+    }
+  };
+
   const openMedicalModal = (type) => {
     let title = '';
     let icon = '';
@@ -170,6 +221,16 @@ function CustomerDetail() {
     setEditMedicalModal({ open: true, type, label, value });
   };
 
+  // เปิด modal แก้ไขอาการ
+  const openEditSymptomModal = () => {
+    setEditSymptomModal({
+      open: true,
+      main: customer.Customers_symptoms || '',
+      history: customer.symptom_history || '',
+      note: customer.symptom_note || ''
+    });
+  };
+
   const handleSaveEditMedical = async () => {
     try {
       const token = localStorage.getItem('jwt');
@@ -190,6 +251,39 @@ function CustomerDetail() {
       if (!res.ok) throw new Error('บันทึกข้อมูลไม่สำเร็จ');
       toast.success('บันทึกข้อมูลสำเร็จ');
       setEditMedicalModal({ ...editMedicalModal, open: false });
+      // refresh customer data
+      const customerRes = await fetch(
+        `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
+        { headers: { Authorization: token ? `Bearer ${token}` : '' } }
+      );
+      const customerData = await customerRes.json();
+      setCustomer(customerData.data);
+    } catch (err) {
+      toast.error(err.message || 'เกิดข้อผิดพลาด');
+    }
+  };
+
+  // ฟังก์ชันบันทึกอาการ
+  const handleSaveEditSymptom = async () => {
+    try {
+      const token = localStorage.getItem('jwt');
+      const res = await fetch(`http://localhost:1337/api/customer-profiles/${customerDocumentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          data: {
+            Customers_symptoms: editSymptomModal.main,
+            symptom_history: editSymptomModal.history,
+            symptom_note: editSymptomModal.note
+          }
+        })
+      });
+      if (!res.ok) throw new Error('บันทึกข้อมูลไม่สำเร็จ');
+      toast.success('บันทึกข้อมูลสำเร็จ');
+      setEditSymptomModal({ ...editSymptomModal, open: false });
       // refresh customer data
       const customerRes = await fetch(
         `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
@@ -300,7 +394,12 @@ function CustomerDetail() {
                 <div className="form-group full-width">
                   <label>โรคประจำตัว</label>
                   <div className="form-display">
-                    <span>{customer.congenital_disease || 'ไม่มีข้อมูล'}</span>
+                    <span
+                      className="long-text-ellipsis"
+                      title={customer.congenital_disease || 'ไม่มีข้อมูล'}
+                    >
+                      {customer.congenital_disease || 'ไม่มีข้อมูล'}
+                    </span>
                     <span className="form-display-actions">
                       {customer.congenital_disease && (
                         <button className="edit-btn-inline" onClick={() => openMedicalModal('disease')}>รายละเอียด</button>
@@ -316,7 +415,12 @@ function CustomerDetail() {
                 <div className="form-group full-width">
                   <label>ยาที่แพ้</label>
                   <div className="form-display">
-                    <span>{customer.Allergic_drugs || 'ไม่มีข้อมูล'}</span>
+                    <span
+                      className="long-text-ellipsis"
+                      title={customer.Allergic_drugs || 'ไม่มีข้อมูล'}
+                    >
+                      {customer.Allergic_drugs || 'ไม่มีข้อมูล'}
+                    </span>
                     <span className="form-display-actions">
                       {customer.Allergic_drugs && (
                         <button className="edit-btn-inline" onClick={() => openMedicalModal('allergy')}>รายละเอียด</button>
@@ -337,6 +441,15 @@ function CustomerDetail() {
                       {customer.Customers_symptoms && (
                         <button className="edit-btn-inline" onClick={() => openMedicalModal('symptom')}>รายละเอียด</button>
                       )}
+                      {userRole === 'pharmacy' && (
+                        <button
+                          className="edit-btn-inline"
+                          style={{ marginLeft: 8, background: 'linear-gradient(90deg,#10b981,#06b6d4)' }}
+                          onClick={openEditSymptomModal}
+                        >
+                          แก้ไข
+                        </button>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -350,7 +463,9 @@ function CustomerDetail() {
                 <div className="form-group full-width">
                   <label>วันนัดติดตามอาการ</label>
                   <div className="form-display">
-                    {customer.Follow_up_appointment_date || 'ไม่มีข้อมูล'}
+                    {customer.Follow_up_appointment_date
+                      ? formatThaiDate(customer.Follow_up_appointment_date)
+                      : 'ไม่มีข้อมูล'}
                   </div>
                 </div>
               </div>
@@ -405,164 +520,104 @@ function CustomerDetail() {
         okText="บันทึก"
         cancelText="ยกเลิก"
         centered
-        styles={{
-          body: {
-            padding: '32px 24px 24px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)',
-            borderRadius: 18,
-          }
-        }}
-        style={{
-          borderRadius: 18,
-          maxWidth: 400,
-        }}
+        className="modal-appointment"
+        footer={[
+          <button
+            key="delete"
+            className="btn-appointment-delete"
+            style={{
+              display: customer?.Follow_up_appointment_date ? 'inline-block' : 'none'
+            }}
+            onClick={handleDeleteAppointment}
+          >
+            ลบวันนัด
+          </button>,
+          <button
+            key="cancel"
+            className="btn-appointment-cancel"
+            onClick={() => setIsAppointmentModalOpen(false)}
+          >
+            ยกเลิก
+          </button>,
+          <button
+            key="ok"
+            className="btn-appointment-ok"
+            onClick={handleSaveAppointment}
+          >
+            บันทึก
+          </button>
+        ]}
       >
-        <div style={{ width: '100%', textAlign: 'center', marginBottom: 18 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#2563eb', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <div className="modal-appointment-header">
+          <div className="modal-appointment-title">
             <span role="img" aria-label="calendar">📅</span>
             {customer?.Follow_up_appointment_date ? 'เลือกวันใหม่' : 'เลือกวันนัด'}
           </div>
-          <div style={{ color: '#64748b', fontSize: 15, marginBottom: 18 }}>
+          <div className="modal-appointment-desc">
             กรุณาเลือกวันที่ต้องการนัดติดตามอาการของลูกค้า
           </div>
         </div>
         <DatePicker
           value={appointmentDate ? dayjs(appointmentDate) : null}
           onChange={date => setAppointmentDate(date ? date.format('YYYY-MM-DD') : null)}
-          style={{
-            width: '100%',
-            fontSize: 18,
-            borderRadius: 12,
-            boxShadow: '0 2px 12px rgba(59,130,246,0.08)',
-            padding: '12px 16px',
-            background: '#fff',
-            marginBottom: 8,
-          }}
+          className="modal-appointment-datepicker"
           placeholder="เลือกวันนัดติดตามอาการ"
           format="YYYY-MM-DD"
           size="large"
         />
         {appointmentDate && (
-          <div style={{ marginTop: 12, color: '#10b981', fontWeight: 600, fontSize: 16 }}>
-            วันที่เลือก: {dayjs(appointmentDate).format('DD/MM/YYYY')}
+          <div className="modal-appointment-selected">
+            วันที่เลือก: {formatThaiDate(appointmentDate)}
           </div>
         )}
       </Modal>
 
       {/* Modal สำหรับดูรายละเอียดข้อมูลทางการแพทย์ */}
       <Modal
-        title={<div style={{display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:22,color:'#2563eb'}}><span role="img" aria-label="icon">{medicalModal.icon}</span>{medicalModal.title}</div>}
+        title={
+          <div className="modal-medical-title">
+            <span role="img" aria-label="icon">{medicalModal.icon}</span>{medicalModal.title}
+          </div>
+        }
         open={medicalModal.open}
         onCancel={() => setMedicalModal({ ...medicalModal, open: false })}
         footer={null}
         centered
-        styles={{
-          body: {
-            padding: '32px 24px 24px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)',
-            borderRadius: 18,
-          }
-        }}
-        style={{ borderRadius: 18, maxWidth: 480 }}
+        className="modal-medical"
       >
         {medicalModal.title === 'อาการ' && medicalModal.extra ? (
-          <div style={{ width: '100%', textAlign: 'left', marginBottom: 18 }}>
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontWeight: 700, color: '#2563eb', fontSize: 18, marginBottom: 6, display:'flex',alignItems:'center',gap:6 }}>
+          <div className="modal-medical-symptom">
+            <div className="modal-medical-symptom-section">
+              <div className="modal-medical-symptom-label main">
                 <span role="img" aria-label="main">🩺</span> อาการนำ
               </div>
-              <div style={{
-                background: '#fff',
-                borderRadius: 10,
-                boxShadow: '0 2px 12px rgba(59,130,246,0.08)',
-                padding: '14px 16px',
-                fontSize: 16,
-                color: '#0f172a',
-                fontWeight: 500,
-                minHeight: 36,
-                marginBottom: 8,
-                wordBreak: 'break-word',
-              }}>{medicalModal.extra.main}</div>
+              <div className="modal-medical-symptom-value main">{medicalModal.extra.main}</div>
             </div>
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontWeight: 700, color: '#0ea5e9', fontSize: 17, marginBottom: 6, display:'flex',alignItems:'center',gap:6 }}>
+            <div className="modal-medical-symptom-section">
+              <div className="modal-medical-symptom-label history">
                 <span role="img" aria-label="history">📖</span> ประวัติการเจ็บป่วย
               </div>
-              <div style={{
-                background: '#fff',
-                borderRadius: 10,
-                boxShadow: '0 2px 12px rgba(59,130,246,0.08)',
-                padding: '14px 16px',
-                fontSize: 15,
-                color: '#334155',
-                minHeight: 36,
-                wordBreak: 'break-word',
-                maxHeight: 120,
-                overflowY: 'auto',
-              }}>{medicalModal.extra.history}</div>
+              <div className="modal-medical-symptom-value history">{medicalModal.extra.history}</div>
             </div>
-            <div>
-              <div style={{ fontWeight: 700, color: '#10b981', fontSize: 16, marginBottom: 6, display:'flex',alignItems:'center',gap:6 }}>
+            <div className="modal-medical-symptom-section">
+              <div className="modal-medical-symptom-label note">
                 <span role="img" aria-label="note">📝</span> รายละเอียดเพิ่มเติม
               </div>
-              <div style={{
-                background: '#fff',
-                borderRadius: 10,
-                boxShadow: '0 2px 12px rgba(59,130,246,0.08)',
-                padding: '14px 16px',
-                fontSize: 15,
-                color: '#64748b',
-                minHeight: 36,
-                wordBreak: 'break-word',
-                maxHeight: 100,
-                overflowY: 'auto',
-              }}>{medicalModal.extra.note}</div>
+              <div className="modal-medical-symptom-value note">{medicalModal.extra.note}</div>
             </div>
           </div>
         ) : (
-          <div style={{ width: '100%', textAlign: 'center', marginBottom: 18 }}>
-            <div style={{ color: '#64748b', fontSize: 16, marginBottom: 18 }}>
+          <div className="modal-medical-content">
+            <div className="modal-medical-desc">
               ข้อมูล{medicalModal.title}ของลูกค้า
             </div>
-            <div style={{
-              background: '#fff',
-              borderRadius: 12,
-              boxShadow: '0 2px 12px rgba(59,130,246,0.08)',
-              padding: '24px 18px',
-              fontSize: 18,
-              color: '#0f172a',
-              fontWeight: 600,
-              minHeight: 60,
-              wordBreak: 'break-word',
-              marginBottom: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
+            <div className="modal-medical-value">
               {medicalModal.value}
             </div>
           </div>
         )}
         <button
-          style={{
-            background: 'linear-gradient(90deg, #6366f1, #06b6d4)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 10,
-            padding: '10px 32px',
-            fontSize: 16,
-            fontWeight: 700,
-            cursor: 'pointer',
-            marginTop: 8,
-            boxShadow: '0 2px 8px rgba(59,130,246,0.10)',
-            transition: 'background 0.2s',
-          }}
+          className="btn-medical-close"
           onClick={() => setMedicalModal({ ...medicalModal, open: false })}
         >
           ปิด
@@ -571,46 +626,80 @@ function CustomerDetail() {
 
       {/* Modal สำหรับแก้ไขข้อมูลทางการแพทย์ (pharmacy) */}
       <Modal
-        title={<div style={{fontWeight:700,fontSize:20,color:'#10b981',display:'flex',alignItems:'center',gap:8}}><span role="img" aria-label="edit">✏️</span>แก้ไข{editMedicalModal.label}</div>}
+        title={
+          <div className="modal-editmedical-title">
+            <span role="img" aria-label="edit">✏️</span>แก้ไข{editMedicalModal.label}
+          </div>
+        }
         open={editMedicalModal.open}
         onCancel={() => setEditMedicalModal({ ...editMedicalModal, open: false })}
         onOk={handleSaveEditMedical}
         okText="บันทึก"
         cancelText="ยกเลิก"
         centered
-        styles={{
-          body: {
-            padding: '32px 24px 24px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)',
-            borderRadius: 18,
-          }
-        }}
-        style={{ borderRadius: 18, maxWidth: 400 }}
+        className="modal-editmedical"
       >
-        <div style={{ width: '100%', textAlign: 'center', marginBottom: 18 }}>
-          <div style={{ color: '#64748b', fontSize: 16, marginBottom: 18 }}>
+        <div className="modal-editmedical-content">
+          <div className="modal-editmedical-desc">
             กรุณากรอกข้อมูล{editMedicalModal.label}ใหม่
           </div>
           <textarea
             value={editMedicalModal.value}
             onChange={e => setEditMedicalModal({ ...editMedicalModal, value: e.target.value })}
             rows={4}
-            style={{
-              width: '100%',
-              fontSize: 16,
-              borderRadius: 10,
-              border: '1.5px solid #a5b4fc',
-              padding: '12px 14px',
-              boxShadow: '0 2px 8px rgba(59,130,246,0.07)',
-              resize: 'vertical',
-              background: '#fff',
-              color: '#0f172a',
-            }}
+            className="modal-editmedical-textarea"
             placeholder={`ระบุ${editMedicalModal.label}`}
           />
+        </div>
+      </Modal>
+
+      {/* Modal สำหรับแก้ไขอาการ */}
+      <Modal
+        title={
+          <div className="modal-editmedical-title">
+            <span role="img" aria-label="edit">✏️</span>แก้ไขอาการ
+          </div>
+        }
+        open={editSymptomModal.open}
+        onCancel={() => setEditSymptomModal({ ...editSymptomModal, open: false })}
+        onOk={handleSaveEditSymptom}
+        okText="บันทึก"
+        cancelText="ยกเลิก"
+        centered
+        className="modal-editmedical"
+      >
+        <div className="modal-editmedical-content">
+          <div className="modal-editmedical-desc">กรุณากรอกข้อมูลอาการ</div>
+          <div className="form-group">
+            <label>อาการนำ</label>
+            <textarea
+              value={editSymptomModal.main}
+              onChange={e => setEditSymptomModal({ ...editSymptomModal, main: e.target.value })}
+              rows={2}
+              className="modal-editmedical-textarea"
+              placeholder="ระบุอาการนำ"
+            />
+          </div>
+          <div className="form-group">
+            <label>ประวัติการเจ็บป่วย</label>
+            <textarea
+              value={editSymptomModal.history}
+              onChange={e => setEditSymptomModal({ ...editSymptomModal, history: e.target.value })}
+              rows={3}
+              className="modal-editmedical-textarea"
+              placeholder="ระบุประวัติการเจ็บป่วย"
+            />
+          </div>
+          <div className="form-group">
+            <label>รายละเอียดเพิ่มเติม</label>
+            <textarea
+              value={editSymptomModal.note}
+              onChange={e => setEditSymptomModal({ ...editSymptomModal, note: e.target.value })}
+              rows={3}
+              className="modal-editmedical-textarea"
+              placeholder="ระบุรายละเอียดเพิ่มเติม"
+            />
+          </div>
         </div>
       </Modal>
     </div>
