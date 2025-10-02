@@ -273,7 +273,7 @@ function FormCustomerPage() {
       }
 
       toast.success('เพิ่มลูกค้าสำเร็จ');
-      navigate(`/drug_store_pharmacy/${pharmacyId}/followup-customers`, {
+      navigate(`/drug_store_pharmacy/${targetStore.documentId}/followup-customers`, {
         state: { toastMessage: 'เพิ่มลูกค้าสำเร็จ' }
       });
     } catch (error) {
@@ -381,14 +381,26 @@ function FormCustomerPage() {
       throw new Error(errorData.error?.message || 'ไม่สามารถอัปเดตโปรไฟล์ลูกค้าได้');
     }
 
+    // Get pharmacy documentId for redirect
+    const drugStoreRes = await fetch(
+      `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const drugStoreJson = await drugStoreRes.json();
+    const targetStore = drugStoreJson.data?.find(store => store.documentId === pharmacyId);
+    
     toast.success('อัปเดตข้อมูลลูกค้าสำเร็จ');
-    navigate(`/drug_store_pharmacy/${pharmacyId}/followup-customers`, {
+    navigate(`/drug_store_pharmacy/${targetStore?.documentId || pharmacyId}/followup-customers`, {
       state: { toastMessage: 'อัปเดตข้อมูลลูกค้าสำเร็จ' }
     });
   };
 
   const handleCancel = () => {
-    navigate(`/drug_store_pharmacy/${pharmacyId}/followup-customers`);
+    if (isEditMode) {
+      navigate(`/customer_detail/${customerDocumentId}?pharmacyId=${pharmacyId}`);
+    } else {
+      navigate(`/drug_store_pharmacy/${pharmacyId}/followup-customers`);
+    }
   };
 
   return (

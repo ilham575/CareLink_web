@@ -4,7 +4,7 @@ import logo from '../../images/image 3.png';
 import '../../css/component/HomeHeader.css'; // เพิ่มบรรทัดนี้
 import ProfileAvatar from "./ProfileAvatar";
 
-function HomeHeader({ pharmacyName, onSearch }) {
+function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchText, setSearchText] = useState('');
@@ -142,7 +142,8 @@ function HomeHeader({ pharmacyName, onSearch }) {
     location.pathname.startsWith('/drug_store/') ||
     location.pathname.startsWith('/drug_store_pharmacy/') ||
     location.pathname.startsWith('/drug_store_admin/') ||
-    location.pathname.startsWith('/drug_store_staff/');
+    location.pathname.startsWith('/drug_store_staff/') ||
+    location.pathname.startsWith('/customer_detail/');
   
   const isSignup = location.pathname === '/signup';
   
@@ -222,9 +223,18 @@ function HomeHeader({ pharmacyName, onSearch }) {
         <div className="detail-title">
           {(() => {
             const name = pharmacyName || 'ชื่อร้านยา';
-            if (name === 'ชื่อร้านยา') return name;
-            const needsPrefix = !name.startsWith('ร้านยา');
-            return needsPrefix ? `ร้านยา${name}` : name;
+            let displayName = name;
+            if (name !== 'ชื่อร้านยา') {
+              const needsPrefix = !name.startsWith('ร้านยา');
+              displayName = needsPrefix ? `ร้านยา${name}` : name;
+            }
+            
+            // เพิ่มชื่อเภสัชกรถ้ามี
+            if (pharmacistName) {
+              displayName += ` - เภสัชกร ${pharmacistName}`;
+            }
+            
+            return displayName;
           })()}
         </div>
       ) : (

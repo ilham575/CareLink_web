@@ -27,6 +27,7 @@ import AddPharmacyAdmin from './js/pages/admin/AddPharmacy_admin';
 import CustomerPage from './js/components/middle_page/customerPage';
 import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
 import FormCustomerPage from './js/components/middle_page/formcustomerPage';
+import CustomerDetail from './js/pages/pharmacy/detail_customer';
 import 'antd/dist/reset.css';
 
 
@@ -88,6 +89,7 @@ function App() {
             <Route path="/drug_store_pharmacy/:id/followup-customers" element={<CustomerPage />} />
             <Route path="/form_customer" element={<FormCustomerPage />} />
             <Route path="/form_customer/:id" element={<FormCustomerPage />} />
+            <Route path="/customer_detail/:customerDocumentId" element={<CustomerDetail />} />
           </Route>
         </Routes>
         <Footer />
