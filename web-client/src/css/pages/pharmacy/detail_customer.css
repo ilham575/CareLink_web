@@ -82,7 +82,7 @@
   border-bottom: 3px dotted #cbd5e1;
   min-height: 28px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: transparent;
@@ -131,6 +131,14 @@
   background: linear-gradient(135deg, #2563eb, #1e40af);
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+}
+
+.form-display-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  margin-left: 12px;
 }
 
 /* Right Panel - Actions Grid */
@@ -593,6 +601,8 @@
     font-size: 12px;
   }
 }
+
+
 
 /* Header Section Styles */
 .form-header-section {
