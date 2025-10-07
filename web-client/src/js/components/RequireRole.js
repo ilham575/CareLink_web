@@ -14,7 +14,7 @@ function isJwtExpired(token) {
   }
 }
 
-export const MAX_TOKEN_AGE = 30 * 60 * 1000; // 30 นาที
+export const MAX_TOKEN_AGE = 60 * 60 * 1000; // 90 นาที
 
 // ฟังก์ชัน logout และ redirect
 function logoutAndRedirect(navigate, message) {

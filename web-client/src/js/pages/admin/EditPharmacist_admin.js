@@ -47,6 +47,7 @@ function EditPharmacist_admin() {
   const [selectedDrugStore, setSelectedDrugStore] = useState(null);
   const [allProfiles, setAllProfiles] = useState([]); // เก็บ profile ทุกร้าน (กรณี pharmacy)
   const [workingTimesByStore, setWorkingTimesByStore] = useState({}); // เก็บ working_time แยกตาม store
+  const [storeOpenClose, setStoreOpenClose] = useState([]); // เพิ่ม state สำหรับ store opening/closing time
 
   useEffect(() => {
     const load = async () => {
@@ -362,6 +363,60 @@ function EditPharmacist_admin() {
     }
   }, [selectedDrugStore, allProfiles, userRole, workingTimesByStore]);
 
+  useEffect(() => {
+    // ดึงเวลาทำการของร้าน (เฉพาะร้านที่เลือก)
+    let storeId = null;
+    if (userRole === "pharmacy" && selectedDrugStore) {
+      storeId = selectedDrugStore;
+    } else if (formData?.drug_store) {
+      storeId = formData.drug_store;
+    }
+    if (storeId && jwt) {
+      fetch(
+        `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${storeId}&populate=*`,
+        { headers: { Authorization: `Bearer ${jwt}` } }
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.data && data.data.length > 0) {
+            const store = data.data[0];
+            let openCloseArr = [];
+            if (Array.isArray(store.time_open) && Array.isArray(store.time_close)) {
+              openCloseArr = store.time_open.map((open, idx) => ({
+                day: [
+                  "จันทร์",
+                  "อังคาร",
+                  "พุธ",
+                  "พฤหัสบดี",
+                  "ศุกร์",
+                  "เสาร์",
+                  "อาทิตย์",
+                ][idx],
+                open,
+                close: store.time_close[idx],
+              }));
+            } else {
+              openCloseArr = [
+                "จันทร์",
+                "อังคาร",
+                "พุธ",
+                "พฤหัสบดี",
+                "ศุกร์",
+                "เสาร์",
+                "อาทิตย์",
+              ].map((day) => ({
+                day,
+                open: store.time_open || "08:00",
+                close: store.time_close || "20:00",
+              }));
+            }
+            setStoreOpenClose(openCloseArr);
+          }
+        });
+    }
+    // eslint-disable-next-line
+  }, [selectedDrugStore, formData?.drug_store, jwt]);
+
   if (formData === null) return <div className="p-6 text-red-600">ไม่พบข้อมูลเภสัชกรที่ต้องการแก้ไข</div>;
 
   const handleChange = (e) => {
@@ -542,6 +597,39 @@ function EditPharmacist_admin() {
     return false;
   }
 
+  // ฟังก์ชันตรวจสอบเวลาทำงานเภสัชกรเทียบกับเวลาร้าน
+  function isWorkingTimeWithinStoreTime(workingTimes) {
+    // workingTimes: [{ day, time_in, time_out }]
+    // storeOpenClose: [{ day, open, close }]
+    function toMinutes(t) {
+      if (!t) return null;
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    }
+    for (const wt of workingTimes) {
+      if (!wt.day || !wt.time_in || !wt.time_out) continue;
+      const storeDay = storeOpenClose.find((s) => s.day === wt.day);
+      if (!storeDay) continue;
+      const open = toMinutes(storeDay.open);
+      const close = toMinutes(storeDay.close);
+      const minIn = open - 60; // เร็วสุดก่อนร้านเปิด 1 ชม.
+      const maxOut = close + 60; // ช้าสุดหลังร้านปิด 1 ชม.
+      const inTime = toMinutes(wt.time_in);
+      const outTime = toMinutes(wt.time_out);
+      if (inTime < minIn || outTime > maxOut) {
+        return {
+          valid: false,
+          day: wt.day,
+          storeOpen: storeDay.open,
+          storeClose: storeDay.close,
+          inTime: wt.time_in,
+          outTime: wt.time_out,
+        };
+      }
+    }
+    return { valid: true };
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -553,6 +641,14 @@ function EditPharmacist_admin() {
     // 🟢 ตรวจสอบเวลาทำงานซ้ำกับร้านอื่น (ข้ามร้าน) สำหรับทุกกรณี (admin/owner)
     if (hasOverlapWithOtherStores(formData.working_times)) {
       toast.error("เวลาทำงานซ้ำกับร้านอื่น กรุณาตรวจสอบวันและเวลา");
+      return;
+    }
+    // 🟢 ตรวจสอบเวลาทำงานเภสัชกรต้องอยู่ในช่วงเวลาร้าน (อนุโลม +/- 1 ชม.)
+    const storeTimeCheck = isWorkingTimeWithinStoreTime(formData.working_times);
+    if (!storeTimeCheck.valid) {
+      toast.error(
+        `วัน${storeTimeCheck.day}: เวลาทำงานต้องอยู่ในช่วง ${storeTimeCheck.storeOpen} - ${storeTimeCheck.storeClose} (อนุโลมเข้าเร็วสุด 1 ชม.ก่อนเปิด, ออกช้าสุด 1 ชม.หลังปิด)`
+      );
       return;
     }
 
@@ -903,6 +999,15 @@ function EditPharmacist_admin() {
             </button>
           </div>
         </form>
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <button
+            className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300"
+            type="button"
+            onClick={() => navigate(-1)}
+          >
+            กลับ
+          </button>
+        </div>
       </div>
       <ToastContainer />
     </>

@@ -43,6 +43,11 @@ body {
   border-radius: var(--radius-md);
   background: #fff;
   box-shadow: var(--shadow-md);
+  transition: transform 0.2s ease;
+}
+
+.carelink-logo:hover {
+  transform: scale(1.05);
 }
 
 /* Main content (green and dark green sections) */
@@ -70,13 +75,13 @@ body {
   min-width: 320px;
   padding: 0;
   width: 500px;
-  height: 60vh; /* Full height to match the background image */
+  height: 60vh;
   border-radius: var(--radius-lg) 0 0 var(--radius-lg);
   box-shadow: var(--shadow-sm);
 }
 
 .welcome-section h1 {
-  font-size: 3em;
+  font-size: clamp(2rem, 4vw, 3rem);
   font-weight: bold;
   margin: 0;
   padding: 0;
@@ -84,7 +89,7 @@ body {
 }
 
 .welcome-section h2 {
-  font-size: 2em;
+  font-size: clamp(1.5rem, 3vw, 2rem);
   font-weight: 600;
   margin-top: 10px;
   letter-spacing: 1px;
@@ -121,7 +126,7 @@ body {
 .input-group label {
   display: block;
   margin-bottom: 8px;
-  font-size: 1em;
+  font-size: clamp(0.9rem, 2vw, 1rem);
   font-weight: 500;
   color: #fff;
   letter-spacing: 1px;
@@ -136,10 +141,11 @@ body {
   border-radius: 30px;
   background-color: #eaeaea;
   color: var(--text-main);
-  font-size: 1.1em;
+  font-size: clamp(1rem, 2.5vw, 1.1rem);
   box-sizing: border-box;
   outline: none;
   transition: box-shadow 0.2s, background 0.2s;
+  min-height: 48px; /* Better touch target */
 }
 
 .input-group input[type="text"]:focus,
@@ -148,13 +154,11 @@ body {
   background: #fff;
 }
 
-
-
 .checkbox-group {
   display: flex;
   align-items: center;
   margin-bottom: 15px;
-  font-size: 1em;
+  font-size: clamp(0.9rem, 2vw, 1rem);
 }
 
 .checkbox-group input[type="checkbox"] {
@@ -162,18 +166,20 @@ body {
   width: 20px;
   height: 20px;
   accent-color: var(--color-primary);
+  min-width: 20px; /* Prevent shrinking */
 }
 
 .checkbox-group label {
   color: #fff;
-  font-size: 1em;
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  cursor: pointer;
 }
 
 .forgot-password {
   text-align: left;
   margin-bottom: 25px;
   color: #fff;
-  font-size: 0.98em;
+  font-size: clamp(0.85rem, 2vw, 0.98rem);
 }
 
 .forgot-password a {
@@ -182,6 +188,7 @@ body {
   margin-left: 5px;
   font-weight: 500;
   transition: color 0.2s;
+  cursor: pointer;
 }
 
 .forgot-password a:hover {
@@ -196,13 +203,14 @@ body {
   border: none;
   font-weight: 600;
   border-radius: 30px;
-  font-size: 1.1em;
+  font-size: clamp(1rem, 2.5vw, 1.1rem);
   font-family: var(--font-main);
   cursor: pointer;
   margin-top: 10px;
   transition: background 0.2s, box-shadow 0.2s;
   letter-spacing: 1px;
   box-shadow: var(--shadow-sm);
+  min-height: 48px; /* Better touch target */
 }
 
 .login-button:hover {
@@ -216,46 +224,288 @@ body {
   box-shadow: 0 0 0 2px var(--color-primary);
 }
 
-/* Responsive adjustments */
+/* Tablet Landscape (1024px and below) */
+@media (max-width: 1024px) {
+  .login-content {
+    margin-top: 6%;
+    min-width: 350px;
+  }
+  
+  .welcome-section, .login-form-section {
+    padding: 0 30px;
+  }
+  
+  .login-header-logo {
+    top: 20px;
+    left: 20px;
+  }
+  
+  .carelink-logo {
+    width: 100px;
+  }
+}
+
+/* Tablet Portrait (900px and below) */
 @media (max-width: 900px) {
+  .login-page-container {
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  
+  .login-background-image {
+    border-radius: var(--radius-lg);
+  }
+  
   .login-content {
     min-width: 0;
     flex-direction: column;
     border-radius: var(--radius-lg);
-    margin-top: 24px;
+    margin-top: 4%;
+    max-width: 600px;
+    width: 100%;
   }
-  .welcome-section, .login-form-section {
+  
+  .welcome-section {
     min-width: 0;
     width: 100%;
-    padding: 30px 10vw;
-    border-radius: var(--radius-lg);
+    padding: 40px 20px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     height: auto;
+    min-height: 200px;
   }
+  
+  .login-form-section {
+    min-width: 0;
+    width: 100%;
+    padding: 40px 20px;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    height: auto;
+    min-height: auto;
+  }
+  
   .login-form {
     max-width: 100%;
   }
 }
 
+/* Mobile Landscape (768px and below) */
+@media (max-width: 768px) {
+  .login-page-container {
+    padding: 15px;
+  }
+  
+  .login-content {
+    margin-top: 2%;
+  }
+  
+  .welcome-section {
+    padding: 30px 15px;
+    min-height: 180px;
+  }
+  
+  .login-form-section {
+    padding: 30px 15px;
+  }
+  
+  .login-header-logo {
+    top: 15px;
+    left: 15px;
+  }
+  
+  .carelink-logo {
+    width: 80px;
+  }
+  
+  .input-group {
+    margin-bottom: 16px;
+  }
+  
+  .forgot-password {
+    margin-bottom: 20px;
+  }
+}
+
+/* Mobile Portrait (600px and below) */
 @media (max-width: 600px) {
   .login-page-container {
     flex-direction: column;
-    background: #fff;
+    background: var(--bg-gradient);
+    padding: 10px;
+    height: 100vh;
+    overflow-y: auto;
   }
+  
   .login-background-image {
-    display: none;
-  }
-  .login-content {
-    min-width: 0;
-    flex-direction: column;
-    margin-top: 0;
-    border-radius: 0;
-    box-shadow: none;
-  }
-  .welcome-section, .login-form-section {
-    min-width: 0;
-    width: 100%;
-    padding: 30px 5vw;
-    border-radius: 0;
+    flex: none;
     height: auto;
+    min-height: 100vh;
+    border-radius: var(--radius-md);
+    padding: 20px 0;
+    box-sizing: border-box;
+  }
+  
+  .login-content {
+    margin-top: 20px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    max-width: none;
+    width: 100%;
+  }
+  
+  .welcome-section {
+    padding: 25px 15px;
+    min-height: 150px;
+  }
+  
+  .login-form-section {
+    padding: 25px 15px 35px;
+  }
+  
+  .login-header-logo {
+    position: relative;
+    top: 0;
+    left: 0;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  .carelink-logo {
+    width: 70px;
+  }
+  
+  .input-group input[type="text"],
+  .input-group input[type="password"] {
+    padding: 16px 20px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .login-button {
+    padding: 18px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+}
+
+/* Small Mobile (480px and below) */
+@media (max-width: 480px) {
+  .login-page-container {
+    padding: 5px;
+  }
+  
+  .login-background-image {
+    border-radius: var(--radius-sm);
+    padding: 15px 0;
+  }
+  
+  .login-content {
+    margin-top: 15px;
+    border-radius: var(--radius-md);
+  }
+  
+  .welcome-section {
+    padding: 20px 10px;
+    min-height: 120px;
+  }
+  
+  .welcome-section h1 {
+    font-size: 1.8rem;
+  }
+  
+  .welcome-section h2 {
+    font-size: 1.4rem;
+    margin-top: 5px;
+  }
+  
+  .login-form-section {
+    padding: 20px 10px 30px;
+  }
+  
+  .carelink-logo {
+    width: 60px;
+  }
+  
+  .input-group {
+    margin-bottom: 14px;
+  }
+  
+  .input-group label {
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+  }
+  
+  .checkbox-group {
+    margin-bottom: 12px;
+  }
+  
+  .forgot-password {
+    margin-bottom: 18px;
+    font-size: 0.85rem;
+  }
+}
+
+/* Extra Small Mobile (360px and below) */
+@media (max-width: 360px) {
+  .login-page-container {
+    padding: 2px;
+  }
+  
+  .login-background-image {
+    padding: 10px 0;
+  }
+  
+  .login-content {
+    margin-top: 10px;
+    border-radius: var(--radius-sm);
+  }
+  
+  .welcome-section {
+    padding: 15px 8px;
+    min-height: 100px;
+  }
+  
+  .login-form-section {
+    padding: 15px 8px 25px;
+  }
+  
+  .input-group input[type="text"],
+  .input-group input[type="password"] {
+    padding: 14px 16px;
+  }
+  
+  .login-button {
+    padding: 16px;
+  }
+}
+
+/* Landscape orientation for mobile devices */
+@media (max-height: 500px) and (orientation: landscape) {
+  .login-page-container {
+    height: auto;
+    min-height: 100vh;
+  }
+  
+  .login-background-image {
+    min-height: auto;
+  }
+  
+  .welcome-section {
+    min-height: auto;
+    padding: 20px 15px;
+  }
+  
+  .welcome-section h1 {
+    font-size: 1.5rem;
+  }
+  
+  .welcome-section h2 {
+    font-size: 1.2rem;
+    margin-top: 5px;
+  }
+  
+  .login-form-section {
+    padding: 20px 15px;
+  }
+  
+  .login-header-logo {
+    margin-bottom: 10px;
   }
 }

@@ -51,6 +51,11 @@ function AddPharmacist_admin() {
     { day: "จันทร์", time_in: "", time_out: "" },
   ]);
 
+  // เพิ่ม state สำหรับ store opening/closing time
+  const [storeOpenClose, setStoreOpenClose] = useState([
+    // { day: "จันทร์", open: "08:00", close: "20:00" }
+  ]);
+
   // ✅ Fetch existing pharmacists - แก้ไขการ debug
   useEffect(() => {
     const fetchExistingPharmacists = async () => {
@@ -82,6 +87,58 @@ function AddPharmacist_admin() {
 
     fetchExistingPharmacists();
   }, [jwt]);
+
+  // ดึงเวลาทำการของร้าน
+  useEffect(() => {
+    if (!storeId || !jwt) return;
+    fetch(
+      `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${storeId}&populate=*`,
+      {
+        headers: { Authorization: `Bearer ${jwt}` },
+      }
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.data && data.data.length > 0) {
+          const store = data.data[0];
+          // สมมติว่า store.time_open, store.time_close เป็นเวลาเปิด/ปิดร้าน (string "HH:mm")
+          // ถ้าเก็บเป็น array รายวัน ให้ map ให้ครบ 7 วัน
+          let openCloseArr = [];
+          if (Array.isArray(store.time_open) && Array.isArray(store.time_close)) {
+            // กรณีเก็บเป็น array รายวัน
+            openCloseArr = store.time_open.map((open, idx) => ({
+              day: [
+                "จันทร์",
+                "อังคาร",
+                "พุธ",
+                "พฤหัสบดี",
+                "ศุกร์",
+                "เสาร์",
+                "อาทิตย์",
+              ][idx],
+              open,
+              close: store.time_close[idx],
+            }));
+          } else {
+            // กรณีเก็บเป็น string เดียว ใช้กับทุกวัน
+            openCloseArr = [
+              "จันทร์",
+              "อังคาร",
+              "พุธ",
+              "พฤหัสบดี",
+              "ศุกร์",
+              "เสาร์",
+              "อาทิตย์",
+            ].map((day) => ({
+              day,
+              open: store.time_open || "08:00",
+              close: store.time_close || "20:00",
+            }));
+          }
+          setStoreOpenClose(openCloseArr);
+        }
+      });
+  }, [storeId, jwt]);
 
   // ✅ Handle Change
   const handleChange = (e) => {
@@ -240,7 +297,7 @@ function AddPharmacist_admin() {
     for (const cur of storeWorkingTime) {
       if (!cur.time_in || !cur.time_out) continue;
       const curStart = toMinutes(cur.time_in);
-      const curEnd = toMinutes(cur.time_out);
+      const curEnd = toMinutes(cur.time.out);
       for (const other of otherTimes) {
         if (cur.day !== other.day) continue;
         if (!other.time_in || !other.time_out) continue;
@@ -252,6 +309,39 @@ function AddPharmacist_admin() {
       }
     }
     return false;
+  }
+
+  // ฟังก์ชันตรวจสอบเวลาทำงานเภสัชกรเทียบกับเวลาร้าน
+  function isWorkingTimeWithinStoreTime(workingTimes) {
+    // workingTimes: [{ day, time_in, time_out }]
+    // storeOpenClose: [{ day, open, close }]
+    function toMinutes(t) {
+      if (!t) return null;
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    }
+    for (const wt of workingTimes) {
+      if (!wt.day || !wt.time_in || !wt.time_out) continue;
+      const storeDay = storeOpenClose.find((s) => s.day === wt.day);
+      if (!storeDay) continue;
+      const open = toMinutes(storeDay.open);
+      const close = toMinutes(storeDay.close);
+      const minIn = open - 60; // เร็วสุดก่อนร้านเปิด 1 ชม.
+      const maxOut = close + 60; // ช้าสุดหลังร้านปิด 1 ชม.
+      const inTime = toMinutes(wt.time_in);
+      const outTime = toMinutes(wt.time_out);
+      if (inTime < minIn || outTime > maxOut) {
+        return {
+          valid: false,
+          day: wt.day,
+          storeOpen: storeDay.open,
+          storeClose: storeDay.close,
+          inTime: wt.time_in,
+          outTime: wt.time_out,
+        };
+      }
+    }
+    return { valid: true };
   }
 
   // ✅ Modified Submit - แก้ไขการเข้าถึงข้อมูล
@@ -279,6 +369,15 @@ function AddPharmacist_admin() {
         // 🟢 ตรวจสอบเวลาทำงานซ้ำกับร้านอื่น (ข้ามร้าน)
         if (hasOverlapWithOtherStoresForSelectedPharmacist(storeWorkingTime)) {
           toast.error("เวลาทำงานซ้ำกับร้านอื่น กรุณาตรวจสอบวันและเวลา");
+          return;
+        }
+
+        // 🟢 ตรวจสอบเวลาทำงานเภสัชกรต้องอยู่ในช่วงเวลาร้าน (อนุโลม +/- 1 ชม.)
+        const storeTimeCheck = isWorkingTimeWithinStoreTime(storeWorkingTime);
+        if (!storeTimeCheck.valid) {
+          toast.error(
+            `วัน${storeTimeCheck.day}: เวลาทำงานต้องอยู่ในช่วง ${storeTimeCheck.storeOpen} - ${storeTimeCheck.storeClose} (อนุโลมเข้าเร็วสุด 1 ชม.ก่อนเปิด, ออกช้าสุด 1 ชม.หลังปิด)`
+          );
           return;
         }
 
@@ -347,6 +446,15 @@ function AddPharmacist_admin() {
         // 🟢 ตรวจสอบเวลาทำงานซ้ำ
         if (hasOverlappingWorkingTimes(formData.working_time)) {
           toast.error("เวลาทำงานซ้ำกัน กรุณาตรวจสอบวันและเวลา");
+          return;
+        }
+
+        // 🟢 ตรวจสอบเวลาทำงานเภสัชกรต้องอยู่ในช่วงเวลาร้าน (อนุโลม +/- 1 ชม.)
+        const storeTimeCheck = isWorkingTimeWithinStoreTime(formData.working_time);
+        if (!storeTimeCheck.valid) {
+          toast.error(
+            `วัน${storeTimeCheck.day}: เวลาทำงานต้องอยู่ในช่วง ${storeTimeCheck.storeOpen} - ${storeTimeCheck.storeClose} (อนุโลมเข้าเร็วสุด 1 ชม.ก่อนเปิด, ออกช้าสุด 1 ชม.หลังปิด)`
+          );
           return;
         }
 
@@ -451,7 +559,7 @@ function AddPharmacist_admin() {
       // Force refresh หน้าที่เกี่ยวข้อง
       setTimeout(() => {
         navigate(`/pharmacist_detail_admin/${storeId}`, {
-          state: { forceRefresh: true, timestamp: Date.now() }
+          state: { forceRefresh: true, timestamp: Date.now() },
         });
       }, 1000);
     } catch (err) {

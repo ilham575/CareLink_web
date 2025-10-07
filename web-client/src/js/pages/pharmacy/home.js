@@ -94,7 +94,7 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
 				<button className="detail-button" onClick={handleClick}>
 					กด<br />เพื่อดูรายละเอียด
 				</button>
-				<button className="detail-button" onClick={handleDrugList}>
+				<button className="detail-button" onClick={handleDrugList} disabled>
 					รายการยา
 				</button>
 				<button className="detail-button" onClick={handleFollowUp}>
@@ -140,36 +140,6 @@ function PharmacyHome() {
 			setRefreshing(false);
 		}, 1000);
 	};
-
-	// เพิ่ม useEffect สำหรับ refresh เมื่อกลับมาที่หน้า (ปิดการ auto refresh)
-	// useEffect(() => {
-	// 	const handleFocus = () => {
-	// 		refreshData();
-	// 	};
-		
-	// 	// เพิ่ม refresh เมื่อ component mount ใหม่
-	// 	const handleVisibilityChange = () => {
-	// 		if (!document.hidden) {
-	// 			refreshData();
-	// 		}
-	// 	};
-
-	// 	window.addEventListener('focus', handleFocus);
-	// 	document.addEventListener('visibilitychange', handleVisibilityChange);
-		
-	// 	// Auto refresh ทุก 30 วินาที
-	// 	const interval = setInterval(() => {
-	// 		if (!document.hidden) {
-	// 			refreshData();
-	// 		}
-	// 	}, 30000);
-
-	// 	return () => {
-	// 		window.removeEventListener('focus', handleFocus);
-	// 		document.removeEventListener('visibilitychange', handleVisibilityChange);
-	// 		clearInterval(interval);
-	// 	};
-	// }, []);
 
 	// ขั้นตอนที่ 1: ดึง user.id จาก /api/users/me
 	useEffect(() => {
@@ -279,9 +249,37 @@ function PharmacyHome() {
 		}
 	}, [location.state]);
 
-	const filteredPharmacies = pharmacies.filter(pharmacy =>
-		pharmacy.name_th?.toLowerCase().includes(searchText.toLowerCase())
-	);
+	// function isStoreOpenNow(time_open, time_close) {
+	// 	// time_open, time_close: "HH:mm" หรือ null
+	// 	if (!time_open || !time_close) return true; // ถ้าไม่มีข้อมูล ให้ถือว่าเปิดเสมอ
+
+	// 	const now = new Date();
+	// 	const [openH, openM] = time_open.split(':').map(Number);
+	// 	const [closeH, closeM] = time_close.split(':').map(Number);
+
+	// 	const open = new Date(now);
+	// 	open.setHours(openH, openM, 0, 0);
+
+	// 	const close = new Date(now);
+	// 	close.setHours(closeH, closeM, 0, 0);
+
+	// 	// handle overnight (close < open)
+	// 	if (close <= open) {
+	// 		// เปิดข้ามวัน เช่น 22:00 - 06:00
+	// 		if (now >= open) return true;
+	// 		if (now <= close) return true;
+	// 		return false;
+	// 	}
+	// 	return now >= open && now <= close;
+	// }
+
+	const filteredPharmacies = pharmacies
+		.filter(pharmacy =>
+			pharmacy.name_th?.toLowerCase().includes(searchText.toLowerCase())
+		);
+		// .filter(pharmacy =>
+		// 	isStoreOpenNow(pharmacy.time_open, pharmacy.time_close)
+		// );
 
 	if (loading || profileLoading || refreshing) {
 		return (
