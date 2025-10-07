@@ -48,6 +48,7 @@ function EditPharmacist_admin() {
   const [allProfiles, setAllProfiles] = useState([]); // เก็บ profile ทุกร้าน (กรณี pharmacy)
   const [workingTimesByStore, setWorkingTimesByStore] = useState({}); // เก็บ working_time แยกตาม store
   const [storeOpenClose, setStoreOpenClose] = useState([]); // เพิ่ม state สำหรับ store opening/closing time
+  const [currentStoreName, setCurrentStoreName] = useState(""); // เพิ่ม state สำหรับชื่อร้านปัจจุบัน
 
   useEffect(() => {
     const load = async () => {
@@ -84,6 +85,20 @@ function EditPharmacist_admin() {
           return;
         }
 
+        // 🔧 ดึง storeId จาก referrer หรือ state ถ้ามี
+        let targetStoreId = null;
+        if (location.state?.fromStoreId) {
+          targetStoreId = location.state.fromStoreId;
+        } else {
+          // ลองดึงจาก document.referrer
+          const referrer = document.referrer;
+          const pharmacistDetailMatch = referrer.match(/pharmacist_detail_admin\/([a-zA-Z0-9]+)/);
+          if (pharmacistDetailMatch) {
+            targetStoreId = pharmacistDetailMatch[1];
+          }
+        }
+        console.log('🔍 Target store ID from context:', targetStoreId);
+
         // 🟢 สำหรับ admin: หลังจากได้ profile เดียวแล้ว ให้ดึง profile อื่นๆ ของ user เดียวกัน
         if (!isOwner && data.data.length > 0) {
           const firstProfile = data.data[0];
@@ -105,38 +120,64 @@ function EditPharmacist_admin() {
 
         // 🟢 กรณี pharmacy (isOwner) มีหลาย profile (หลายร้าน)
         if (isOwner && data.data.length > 0) {
+          console.log('🟢 Owner Edit - data.data:', data.data);
+          
           // สร้าง drugStores จากทุก profile ที่มี drug_stores
-          const storesList = data.data
-            .map(p => {
-              const store = p.drug_stores?.[0];
-              return store
-                ? {
+          const storesList = [];
+          data.data.forEach(p => {
+            if (Array.isArray(p.drug_stores) && p.drug_stores.length > 0) {
+              // ดึงทุกร้านจาก drug_stores array
+              p.drug_stores.forEach(store => {
+                if (store) {
+                  storesList.push({
                     id: store.documentId || store.id,
                     name: store.name_th || store.name || 'ไม่ระบุชื่อร้าน'
-                  }
-                : null;
-            })
-            .filter(Boolean);
+                  });
+                }
+              });
+            }
+          });
 
+          console.log('🟢 Owner Edit - storesList:', storesList);
           setDrugStores(storesList);
 
-          // สร้าง workingTimesByStore สำหรับแต่ละร้าน
+          // สร้าง workingTimesByStore จากทุก profile ที่มี drug_stores
           const wtByStore = {};
           data.data.forEach(p => {
-            const storeId = p.drug_stores?.[0]?.documentId || p.drug_stores?.[0]?.id;
-            if (!storeId) return;
-            let workingTimes = [];
-            if (Array.isArray(p.working_time) && p.working_time.length > 0) {
-              workingTimes = p.working_time.map(wt => ({
-                day: dayMap[wt.day] || wt.day,
-                time_in: wt.time_in,
-                time_out: wt.time_out,
-              }));
-            } else {
-              workingTimes = [{ day: "จันทร์", time_in: "", time_out: "" }];
+            if (Array.isArray(p.drug_stores) && p.drug_stores.length > 0) {
+              // วนลูปทุกร้านใน drug_stores array
+              p.drug_stores.forEach(store => {
+                const storeDocId = store?.documentId || store?.id;
+                if (!storeDocId) return;
+                
+                console.log(`🔍 Processing store: ${storeDocId}`);
+                
+                let workingTimes = [];
+                if (Array.isArray(p.working_time) && p.working_time.length > 0) {
+                  // กรองเฉพาะเวลาทำงานที่เป็นของร้านนี้
+                  const storeWorkingTimes = p.working_time.filter(wt => {
+                    console.log(`🔍 Checking working_time:`, wt, `store_id: ${wt.store_id} vs target: ${storeDocId}`);
+                    return wt.store_id === storeDocId || (!wt.store_id && p.drug_stores.length === 1);
+                  });
+                  
+                  console.log(`🔍 Filtered working times for store ${storeDocId}:`, storeWorkingTimes);
+                  
+                  // 🔧 แก้ไขการแปลงวัน - ไม่ต้องแปลงถ้าเป็นภาษาไทยอยู่แล้ว
+                  workingTimes = storeWorkingTimes.map(wt => ({
+                    day: wt.day, // ใช้วันตามที่มีใน DB โดยไม่แปลง
+                    time_in: wt.time_in,
+                    time_out: wt.time_out,
+                  }));
+                }
+                if (workingTimes.length === 0) {
+                  workingTimes = [{ day: "จันทร์", time_in: "", time_out: "" }];
+                }
+                wtByStore[storeDocId] = workingTimes;
+              });
             }
-            wtByStore[storeId] = workingTimes;
           });
+          
+          console.log('🟢 Working times by store:', wtByStore);
           setWorkingTimesByStore(wtByStore);
 
           // default เลือกร้านแรก
@@ -199,6 +240,9 @@ function EditPharmacist_admin() {
         // ...กรณี admin หรือปกติ (profile เดียว)...
         const p = data.data[0];
         if (p) {
+          console.log('🔵 Admin/Normal Edit - profile:', p);
+          console.log('🔍 Target store ID:', targetStoreId);
+          
           const fullName = p.users_permissions_user?.full_name || "";
           const [firstname, ...lastnameParts] = fullName.split(" ");
           const lastname = lastnameParts.join(" ");
@@ -236,12 +280,32 @@ function EditPharmacist_admin() {
 
           // ดึงข้อมูลร้านยาทั้งหมดที่เภสัชกรคนนี้ทำงาน (สำหรับกรณีแก้ไขตัวเอง)
           let storesList = [];
-          if (isOwner && p.drug_stores && p.drug_stores.length > 0) {
-            storesList = p.drug_stores.map(store => ({
-              id: store.documentId || store.id,
-              name: store.name_th || store.name || 'ไม่ระบุชื่อร้าน'
-            }));
+          if (isOwner) {
+            console.log('🔵 isOwner true - allProfiles:', allProfiles);
+            
+            // สำหรับ pharmacy ที่มีเพียง profile เดียว แต่อาจจะมีร้านอื่นๆ ด้วย
+            // ให้ดึงร้านจาก allProfiles ที่โหลดมาแล้ว
+            if (allProfiles.length > 0) {
+              storesList = allProfiles
+                .map(profile => {
+                  const store = profile.drug_stores?.[0];
+                  return store
+                    ? {
+                        id: store.documentId || store.id,
+                        name: store.name_th || store.name || 'ไม่ระบุชื่อร้าน'
+                      }
+                    : null;
+                })
+                .filter(Boolean);
+            } else if (p.drug_stores && p.drug_stores.length > 0) {
+              storesList = p.drug_stores.map(store => ({
+                id: store.documentId || store.id,
+                name: store.name_th || store.name || 'ไม่ระบุชื่อร้าน'
+              }));
+            }
           }
+
+          console.log('🔵 Admin/Normal Edit - storesList:', storesList); // ย้าย console.log มาไว้ที่นี่
 
           // ถ้า pharmacy มีหลาย profile (หลายร้าน) ให้เลือก documentId แรกเป็น default
           let defaultDrugStore = null;
@@ -250,17 +314,39 @@ function EditPharmacist_admin() {
             setSelectedDrugStore(defaultDrugStore);
           }
 
-          // ✅ ใช้ working_time ของ profile นี้เท่านั้น (ไม่รวมข้ามร้าน)
+          // ✅ ใช้ working_time ของ profile นี้เท่านั้น - กรองตาม store_id อย่างถูกต้อง
           let workingTimes = [];
           if (Array.isArray(p.working_time) && p.working_time.length > 0) {
-            workingTimes = p.working_time.map(wt => ({
-              day: dayMap[wt.day] || wt.day,
-              time_in: wt.time_in,
-              time_out: wt.time_out,
-            }));
-          } else {
-            workingTimes = [{ day: "จันทร์", time_in: "", time_out: "" }];
+            // 🔧 ใช้ targetStoreId ถ้ามี ไม่งั้นใช้ร้านแรก
+            const currentStoreId = targetStoreId || p.drug_stores?.[0]?.documentId || p.drug_stores?.[0]?.id;
+            console.log(`🔍 Current store ID: ${currentStoreId} (target: ${targetStoreId})`);
+            console.log(`🔍 All working times:`, p.working_time);
+            
+            // กรองเฉพาะเวลาทำงานที่เป็นของร้านนี้
+            const storeWorkingTimes = p.working_time.filter(wt => {
+              console.log(`🔍 Checking wt.store_id: ${wt.store_id} vs currentStoreId: ${currentStoreId}`);
+              return wt.store_id === currentStoreId || (!wt.store_id && p.drug_stores.length === 1);
+            });
+            
+            console.log(`🔍 Filtered working times:`, storeWorkingTimes);
+            
+            // 🔧 แก้ไขการแปลงวัน - เพิ่มการตรวจสอบว่าข้อมูลเป็นภาษาไทยแล้วหรือยัง
+            workingTimes = storeWorkingTimes.map(wt => {
+              console.log(`🔍 Processing working time:`, wt);
+              return {
+                day: dayMap[wt.day] || wt.day, // แปลงจากอังกฤษเป็นไทยถ้าจำเป็น
+                time_in: wt.time_in,
+                time_out: wt.time_out,
+              };
+            });
           }
+          
+          // 🔧 เพิ่มการตรวจสอบว่าถ้าไม่มีเวลาทำงาน ให้ใส่ default ที่เหมาะสม
+          if (workingTimes.length === 0) {
+            workingTimes = []; // เปลี่ยนจาก default จันทร์ เป็น array ว่าง
+          }
+
+          console.log(`🔍 Final working times:`, workingTimes);
 
           setFormData({
             id: p.id,
@@ -274,13 +360,13 @@ function EditPharmacist_admin() {
               wholesale: false,
               delivery: false,
             },
-            drug_store: p.drug_stores?.[0]?.documentId || p.drug_stores?.[0]?.id || null,
+            // 🔧 ใช้ targetStoreId ถ้ามี
+            drug_store: targetStoreId || p.drug_stores?.[0]?.documentId || p.drug_stores?.[0]?.id || null,
             user: p.users_permissions_user?.id || null,
             username: p.users_permissions_user?.username || "",
             password: "********",
             working_times: workingTimes,
           });
-
           setImagePreview(previewUrl);
           setImageId(profileImgId);
           setDrugStores(storesList);
@@ -299,18 +385,24 @@ function EditPharmacist_admin() {
   useEffect(() => {
     if (
       userRole === "pharmacy" &&
-      allProfiles.length > 1 &&
+      drugStores.length > 1 &&
       selectedDrugStore &&
       workingTimesByStore[selectedDrugStore]
     ) {
       // อัพเดท formData ด้วย working_time ของร้านที่เลือก
       // หา profile ที่ตรงกับร้านที่เลือก
       const profile = allProfiles.find(
-        (p) =>
-          p.drug_stores?.[0]?.documentId === selectedDrugStore ||
-          p.drug_stores?.[0]?.id === selectedDrugStore
+        (p) => {
+          // ค้นหาร้านที่ตรงกันในอาร์เรย์ drug_stores
+          return p.drug_stores?.some(store => 
+            (store.documentId === selectedDrugStore || store.id === selectedDrugStore)
+          );
+        }
       );
+      
       if (profile) {
+        console.log(`🟢 Selected profile for store ${selectedDrugStore}:`, profile);
+        
         // ดึงข้อมูลรูปภาพของ profile ที่เลือก
         let previewUrl = null;
         let profileImgId = null;
@@ -338,6 +430,26 @@ function EditPharmacist_admin() {
         setImagePreview(previewUrl);
         setImageId(profileImgId);
 
+        // ดึงเวลาทำงานเฉพาะของร้านที่เลือก
+        let workingTimesForStore = [];
+        if (workingTimesByStore[selectedDrugStore]) {
+          workingTimesForStore = workingTimesByStore[selectedDrugStore];
+        } else if (Array.isArray(profile.working_time)) {
+          // กรองเฉพาะเวลาทำงานที่เป็นของร้านที่เลือก
+          const storeWorkingTimes = profile.working_time.filter(wt => {
+            console.log(`🔍 Filtering working_time: store_id=${wt.store_id} vs selected=${selectedDrugStore}`);
+            return wt.store_id === selectedDrugStore || (!wt.store_id && profile.drug_stores.length === 1);
+          });
+          
+          workingTimesForStore = storeWorkingTimes.map(wt => ({
+            day: wt.day, // ใช้วันตามที่มีใน DB โดยไม่แปลง
+            time_in: wt.time_in,
+            time_out: wt.time_out,
+          }));
+        }
+
+        console.log(`🟢 Working times for selected store:`, workingTimesForStore);
+
         setFormData((prev) => ({
           ...prev,
           id: profile.id,
@@ -355,16 +467,16 @@ function EditPharmacist_admin() {
           user: profile.users_permissions_user?.id || null,
           username: profile.users_permissions_user?.username || "",
           password: "********",
-          working_times: workingTimesByStore[selectedDrugStore],
+          working_times: workingTimesForStore.length > 0 ? workingTimesForStore : [{ day: "จันทร์", time_in: "", time_out: "" }],
         }));
 
         setActualDocumentId(profile.documentId);
       }
     }
-  }, [selectedDrugStore, allProfiles, userRole, workingTimesByStore]);
+  }, [selectedDrugStore, allProfiles, userRole, workingTimesByStore, drugStores.length]);
 
+  // ดึงเวลาทำการของร้าน (เฉพาะร้านที่เลือก)
   useEffect(() => {
-    // ดึงเวลาทำการของร้าน (เฉพาะร้านที่เลือก)
     let storeId = null;
     if (userRole === "pharmacy" && selectedDrugStore) {
       storeId = selectedDrugStore;
@@ -416,6 +528,52 @@ function EditPharmacist_admin() {
     }
     // eslint-disable-next-line
   }, [selectedDrugStore, formData?.drug_store, jwt]);
+
+  // เพิ่ม useEffect สำหรับดึงชื่อร้านเพื่อแสดงใน Header
+  useEffect(() => {
+    const fetchStoreName = async () => {
+      let storeId = null;
+      
+      if (userRole === "admin" && formData?.drug_store) {
+        // สำหรับ admin ใช้ร้านจาก formData
+        storeId = formData.drug_store;
+      } else if (userRole === "pharmacy" && selectedDrugStore) {
+        // สำหรับ pharmacy ใช้ร้านที่เลือก
+        storeId = selectedDrugStore;
+      } else if (userRole === "pharmacy" && drugStores.length === 1) {
+        // สำหรับ pharmacy ที่มีร้านเดียว
+        storeId = drugStores[0]?.id;
+      } else if (formData?.drug_store) {
+        // fallback ใช้จาก formData
+        storeId = formData.drug_store;
+      }
+
+      console.log(`🔍 Fetching store name for storeId: ${storeId}`);
+
+      if (storeId && jwt) {
+        try {
+          const response = await fetch(
+            `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${storeId}`,
+            { headers: { Authorization: `Bearer ${jwt}` } }
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            const store = data.data?.[0];
+            if (store) {
+              const storeName = store.name_th || store.attributes?.name_th || "";
+              console.log(`🔍 Found store name: ${storeName}`);
+              setCurrentStoreName(storeName);
+            }
+          }
+        } catch (error) {
+          console.error("ไม่สามารถดึงชื่อร้านได้:", error);
+        }
+      }
+    };
+
+    fetchStoreName();
+  }, [formData?.drug_store, selectedDrugStore, drugStores, jwt, userRole]);
 
   if (formData === null) return <div className="p-6 text-red-600">ไม่พบข้อมูลเภสัชกรที่ต้องการแก้ไข</div>;
 
@@ -485,8 +643,11 @@ function EditPharmacist_admin() {
     });
 
     // อัพเดท workingTimesByStore ด้วย
-    const currentStoreId = formData.drug_store || (allProfiles[0]?.drug_stores?.[0]?.documentId);
+    const currentStoreId = userRole === "pharmacy" && selectedDrugStore 
+      ? selectedDrugStore 
+      : formData.drug_store || (allProfiles[0]?.drug_stores?.[0]?.documentId);
     if (currentStoreId) {
+      console.log(`🟢 Updating workingTimesByStore for store: ${currentStoreId}`);
       setWorkingTimesByStore(prev => ({
         ...prev,
         [currentStoreId]: newWorkingTimes
@@ -501,8 +662,11 @@ function EditPharmacist_admin() {
     // อัพเดททั้งใน formData และ workingTimesByStore
     setFormData({ ...formData, working_times: updated });
     
-    const currentStoreId = formData.drug_store || (allProfiles[0]?.drug_stores?.[0]?.documentId);
+    const currentStoreId = userRole === "pharmacy" && selectedDrugStore 
+      ? selectedDrugStore 
+      : formData.drug_store || (allProfiles[0]?.drug_stores?.[0]?.documentId);
     if (currentStoreId) {
+      console.log(`🟢 Updating workingTimesByStore for store: ${currentStoreId}`);
       setWorkingTimesByStore(prev => ({
         ...prev,
         [currentStoreId]: updated
@@ -517,8 +681,11 @@ function EditPharmacist_admin() {
     setFormData({ ...formData, working_times: updated });
 
     // อัพเดท workingTimesByStore ด้วย
-    const currentStoreId = formData.drug_store || (allProfiles[0]?.drug_stores?.[0]?.documentId);
+    const currentStoreId = userRole === "pharmacy" && selectedDrugStore 
+      ? selectedDrugStore 
+      : formData.drug_store || (allProfiles[0]?.drug_stores?.[0]?.documentId);
     if (currentStoreId) {
+      console.log(`🟢 Updating workingTimesByStore for store: ${currentStoreId}`);
       setWorkingTimesByStore(prev => ({
         ...prev,
         [currentStoreId]: updated
@@ -565,9 +732,14 @@ function EditPharmacist_admin() {
     let otherTimes = [];
     otherProfiles.forEach(p => {
       if (Array.isArray(p.working_time)) {
+        // กรองเฉพาะเวลาทำงานของร้านอื่นๆ
+        const otherStoreId = p.drug_stores?.[0]?.documentId || p.drug_stores?.[0]?.id;
+        const storeWorkingTimes = p.working_time.filter(wt => 
+          wt.store_id === otherStoreId || !wt.store_id
+        );
         otherTimes = otherTimes.concat(
-          p.working_time.map(wt => ({
-            day: dayMap[wt.day] || wt.day,
+          storeWorkingTimes.map(wt => ({
+            day: wt.day, // 🔧 ไม่ต้องแปลงวัน ใช้ตามที่มีใน DB
             time_in: wt.time_in,
             time_out: wt.time_out,
             store: p.drug_stores?.[0]?.name_th || p.drug_stores?.[0]?.name || "ร้านอื่น"
@@ -675,16 +847,43 @@ function EditPharmacist_admin() {
       });
 
       // ✅ Update Pharmacy Profile เฉพาะ profile เดียว (ไม่รวม working_time ข้ามร้าน)
+      const currentStoreId = userRole === "pharmacy" && selectedDrugStore 
+        ? selectedDrugStore 
+        : formData.drug_store;
+      
+      // รวมเวลาทำงานเดิมที่ไม่ใช่ของร้านปัจจุบัน + เวลาทำงานใหม่ของร้านปัจจุบัน
+      let finalWorkingTime = [];
+      
+      if (isOwnerEdit && allProfiles.length > 1) {
+        // กรณีเภสัชกรที่ทำงานหลายร้าน - ต้องรวมเวลาทำงานจากร้านอื่นด้วย
+        const currentProfile = allProfiles.find(p => p.documentId === actualDocumentId);
+        if (currentProfile && Array.isArray(currentProfile.working_time)) {
+          // เก็บเวลาทำงานจากร้านอื่นๆ (ที่ไม่ใช่ร้านปัจจุบัน)
+          const otherStoreWorkingTimes = currentProfile.working_time.filter(wt => 
+            wt.store_id && wt.store_id !== currentStoreId
+          );
+          finalWorkingTime = [...otherStoreWorkingTimes];
+          console.log(`🟢 Preserved working times from other stores:`, otherStoreWorkingTimes);
+        }
+      }
+      
+      // เพิ่มเวลาทำงานใหม่ของร้านปัจจุบัน
+      const currentStoreWorkingTimes = formData.working_times.map((wt) => ({
+        day: dayMapReverse[wt.day] || wt.day,
+        time_in: wt.time_in,
+        time_out: wt.time_out,
+        store_id: currentStoreId, // เพิ่ม store_id เพื่อระบุว่าเวลาทำงานนี้เป็นของร้านไหน
+      }));
+      
+      finalWorkingTime = [...finalWorkingTime, ...currentStoreWorkingTimes];
+      console.log(`🟢 Final working times to save:`, finalWorkingTime);
+
       const payload = {
         data: {
           license_number: formData.license_number,
           services: formData.services,
           profileimage: newImageId ? newImageId : (imageId || null),
-          working_time: formData.working_times.map((wt) => ({
-            day: dayMapReverse[wt.day] || wt.day,
-            time_in: wt.time_in,
-            time_out: wt.time_out,
-          })),
+          working_time: finalWorkingTime,
         },
       };
 
@@ -733,14 +932,22 @@ function EditPharmacist_admin() {
 
   return (
     <>
-      <HomeHeader />
+      <HomeHeader 
+        pharmacyName={
+          userRole === "admin" && currentStoreName 
+            ? currentStoreName 
+            : userRole === "pharmacy" && !isOwnerEdit && currentStoreName
+            ? currentStoreName
+            : undefined
+        }
+      />
       <div className="max-w-3xl mx-auto bg-white shadow-md rounded-lg p-6 mt-6">
         <h2 className="text-2xl font-bold text-green-700 mb-4">
           {isOwnerEdit ? "แก้ไขโปรไฟล์ของฉัน" : "แก้ไขข้อมูลเภสัชกร"}
         </h2>
 
         {/* กรณี pharmacy มีหลายร้าน ให้เลือก dropdown */}
-        {userRole === "pharmacy" && allProfiles.length > 1 && (
+        {userRole === "pharmacy" && drugStores.length > 1 && ( /* เปลี่ยนเงื่อนไข */
           <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <label className="block font-semibold mb-1 text-blue-700">
               เลือกร้านยาที่ต้องการแก้ไขเวลาเข้างาน
@@ -753,27 +960,11 @@ function EditPharmacist_admin() {
               <option value="" disabled>
                 -- เลือกร้านยา --
               </option>
-              {allProfiles.map((p) => {
-                const store = p.drug_stores?.[0];
-                const storeId = store?.documentId || store?.id;
-                // ถ้าไม่มีชื่อร้านเลย ให้แสดง id/documentId แทน
-                let storeName = store?.name_th || store?.name;
-                if (!storeName) {
-                  if (store?.documentId) {
-                    storeName = `ID:${store.documentId}`;
-                  } else if (store?.id) {
-                    storeName = `ID:${store.id}`;
-                  } else {
-                    storeName = "(ไม่มีข้อมูลร้าน)";
-                  }
-                }
-                // ใช้ profile documentId + storeId เพื่อให้ key ไม่ซ้ำ
-                return (
-                  <option key={`${p.documentId || p.id}-${storeId}`} value={storeId}>
-                    {storeName.startsWith("ร้านยา") ? storeName : `ร้านยา${storeName}`}
-                  </option>
-                );
-              })}
+              {drugStores.map((store, index) => ( /* เปลี่ยนจาก allProfiles เป็น drugStores */
+                <option key={store.id || index} value={store.id}>
+                  {store.name.startsWith("ร้านยา") ? store.name : `ร้านยา${store.name}`}
+                </option>
+              ))}
             </select>
             <div className="text-sm text-blue-600 mt-2 p-2 bg-blue-50 rounded">
               ⚠️ <strong>สำคัญ:</strong> การแก้ไขเวลาทำงานจะมีผลเฉพาะร้านที่เลือกเท่านั้น 
@@ -914,48 +1105,57 @@ function EditPharmacist_admin() {
           {/* Working Times */}
           <div className="md:col-span-2">
             <label className="block font-semibold mb-2">วันและเวลาเข้างาน*</label>
-            {formData.working_times.map((item, index) => (
-              <div key={index} className="flex gap-2 items-center mb-2">
-                <select
-                  value={item.day}
-                  onChange={(e) =>
-                    handleWorkingTimeChange(index, "day", e.target.value)
-                  }
-                  className="border p-2 rounded"
-                >
-                  {Object.values(dayMap).map((thDay) => (
-                    <option key={thDay} value={thDay}>
-                      {thDay}
-                    </option>
-                  ))}
-                </select>
+            {formData.working_times && formData.working_times.length > 0 ? (
+              formData.working_times.map((item, index) => (
+                <div key={index} className="flex gap-2 items-center mb-2">
+                  <select
+                    value={item.day}
+                    onChange={(e) =>
+                      handleWorkingTimeChange(index, "day", e.target.value)
+                    }
+                    className="border p-2 rounded"
+                  >
+                    {/* 🔧 ใช้วันภาษาไทยโดยตรง ไม่ใช้ dayMap */}
+                    <option value="จันทร์">จันทร์</option>
+                    <option value="อังคาร">อังคาร</option>
+                    <option value="พุธ">พุธ</option>
+                    <option value="พฤหัสบดี">พฤหัสบดี</option>
+                    <option value="ศุกร์">ศุกร์</option>
+                    <option value="เสาร์">เสาร์</option>
+                    <option value="อาทิตย์">อาทิตย์</option>
+                  </select>
 
-                <input
-                  type="time"
-                  value={item.time_in}
-                  onChange={(e) =>
-                    handleWorkingTimeChange(index, "time_in", e.target.value)
-                  }
-                  className="border p-2 rounded"
-                />
-                <input
-                  type="time"
-                  value={item.time_out}
-                  onChange={(e) =>
-                    handleWorkingTimeChange(index, "time_out", e.target.value)
-                  }
-                  className="border p-2 rounded"
-                />
+                  <input
+                    type="time"
+                    value={item.time_in || ""}
+                    onChange={(e) =>
+                      handleWorkingTimeChange(index, "time_in", e.target.value)
+                    }
+                    className="border p-2 rounded"
+                  />
+                  <input
+                    type="time"
+                    value={item.time_out || ""}
+                    onChange={(e) =>
+                      handleWorkingTimeChange(index, "time_out", e.target.value)
+                    }
+                    className="border p-2 rounded"
+                  />
 
-                <button
-                  type="button"
-                  onClick={() => removeWorkingTime(index)}
-                  className="text-red-500 ml-2"
-                >
-                  ลบ
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => removeWorkingTime(index)}
+                    className="text-red-500 ml-2"
+                  >
+                    ลบ
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="text-gray-500 mb-2">
+                ยังไม่มีเวลาทำงาน กรุณาเพิ่มเวลาทำงาน
               </div>
-            ))}
+            )}
 
             <button
               type="button"

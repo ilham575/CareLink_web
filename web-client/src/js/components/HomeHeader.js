@@ -143,8 +143,11 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
     location.pathname.startsWith('/drug_store_pharmacy/') ||
     location.pathname.startsWith('/drug_store_admin/') ||
     location.pathname.startsWith('/drug_store_staff/') ||
-    location.pathname.startsWith('/customer_detail/');
-  
+    location.pathname.startsWith('/customer_detail/') ||
+    location.pathname.startsWith('/pharmacist_detail_admin/') ||
+    location.pathname.startsWith('/add_pharmacy_admin/') ||
+    location.pathname.startsWith('/edit_pharmacist_admin/'); // เพิ่มบรรทัดนี้
+
   const isSignup = location.pathname === '/signup';
   
   // เพิ่มการเช็คหน้า form_staff และ form_customer
@@ -232,6 +235,21 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
             // เพิ่มชื่อเภสัชกรถ้ามี
             if (pharmacistName) {
               displayName += ` - เภสัชกร ${pharmacistName}`;
+            }
+            
+            // เช็คถ้าเป็นหน้า add_pharmacy_admin ให้แสดงข้อความเพิ่มเภสัชกร
+            if (location.pathname.startsWith('/add_pharmacy_admin/')) {
+              displayName = `เพิ่มเภสัชกร${displayName}`;
+            }
+            
+            // เช็คถ้าเป็นหน้า edit_pharmacist_admin ให้แสดงข้อความแก้ไขเภสัชกร
+            if (location.pathname.startsWith('/edit_pharmacist_admin/')) {
+              // ถ้าไม่มี pharmacyName (กรณี pharmacy แก้ไขตัวเอง) ให้แสดงข้อความทั่วไป
+              if (name === 'ชื่อร้านยา') {
+                displayName = 'แก้ไขโปรไฟล์ของฉัน';
+              } else {
+                displayName = `แก้ไขเภสัชกร${displayName}`;
+              }
             }
             
             return displayName;

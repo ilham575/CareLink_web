@@ -74,74 +74,122 @@ function PharmacistDetail_admin() {
     loadData();
   }, [storeId, pharmacistId, jwt, navigate]);
 
-  // ✅ ฟังก์ชันลบเภสัช
+  // ✅ ฟังก์ชันลบเภสัชกร (แก้ไขใหม่) - ไม่ลบ profile ทั้งหมด
   const handleDelete = async (documentId) => {
-    if (!window.confirm("คุณต้องการลบเภสัชกรคนนี้หรือไม่?")) return;
+    if (!window.confirm("คุณต้องการลบเภสัชกรจากร้านนี้หรือไม่?")) return;
 
     try {
-      // 1. ดึง pharmacy-profile ที่จะลบ
+      // 1. ดึง pharmacy-profile ที่จะแก้ไข
       const profileRes = await fetch(
-        `http://localhost:1337/api/pharmacy-profiles?filters[documentId][$eq]=${documentId}&populate=users_permissions_user`,
+        `http://localhost:1337/api/pharmacy-profiles?filters[documentId][$eq]=${documentId}&populate=*`,
         { headers: { Authorization: `Bearer ${jwt}` } }
       );
       const profileData = await profileRes.json();
       const profile = profileData.data?.[0];
-      const pharmacyProfileId = profile?.documentId;
-      const user =
-        profile?.users_permissions_user?.id ||
-        profile?.users_permissions_user?.data?.id ||
-        null;
+      
+      if (!profile) {
+        toast.error("ไม่พบข้อมูลเภสัชกร");
+        return;
+      }
 
-      // 2. ตัด relation user-permission ออกจาก pharmacy-profile
-      if (pharmacyProfileId) {
-        await fetch(
-          `http://localhost:1337/api/pharmacy-profiles/${pharmacyProfileId}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${jwt}`,
+      const pharmacyProfileDocId = profile.documentId;
+      const userId = profile.users_permissions_user?.data?.documentId || 
+                    profile.users_permissions_user?.documentId || null;
+      
+      // 🔧 แก้ไขการเข้าถึง drug_stores - ลองหลายรูปแบบ
+      const currentStores = profile.drug_stores?.data || profile.drug_stores || [];
+
+      console.log("=== ข้อมูลที่จะลบ ===");
+      console.log("Pharmacy Profile DocumentId:", pharmacyProfileDocId);
+      console.log("Document ID:", documentId);
+      console.log("User DocumentId:", userId);
+      console.log("Store to remove:", storeId);
+      console.log("Current stores:", currentStores);
+      
+      // 🔍 Debug เพิ่มเติม - ดูโครงสร้างข้อมูลทั้งหมด
+      console.log("=== DEBUG: โครงสร้างข้อมูล profile ทั้งหมด ===");
+      console.log("Full profile object:", profile);
+      console.log("profile.drug_stores:", profile.drug_stores);
+      console.log("profile.working_time:", profile.working_time);
+
+      // 2. กรอง working_time ให้เหลือเฉพาะของร้านอื่น
+      const currentWorkingTime = Array.isArray(profile.working_time) ? profile.working_time : [];
+      const filteredWorkingTime = currentWorkingTime.filter(wt => 
+        wt.store_id !== storeId && wt.store_id !== parseInt(storeId)
+      );
+
+      // 3. กรอง drug_stores ให้เหลือเฉพาะร้านอื่น
+      const filteredStores = currentStores.filter(store => {
+        const storeDocId = store.documentId || store.attributes?.documentId || store.id;
+        console.log(`🔍 Comparing store: ${storeDocId} with target: ${storeId}`);
+        return storeDocId !== storeId;
+      });
+
+      console.log("=== ข้อมูลหลังกรอง ===");
+      console.log("Current working time:", currentWorkingTime);
+      console.log("Filtered working time:", filteredWorkingTime);
+      console.log("Filtered stores:", filteredStores);
+
+      // 🔍 เพิ่มการตรวจสอบว่ามี working_time ของร้านนี้หรือไม่
+      const currentStoreWorkingTime = currentWorkingTime.filter(wt => 
+        wt.store_id === storeId || wt.store_id === parseInt(storeId)
+      );
+      console.log("🔍 Working time ของร้านนี้:", currentStoreWorkingTime);
+
+      // 🟢 เปลี่ยนเงื่อนไข: ไม่ลบ profile ทั้งหมด แค่อัพเดท working_time และ drug_stores เสมอ
+      console.log("=== การตัดสินใจ (ใหม่) ===");
+      console.log("🟢 ระบบใหม่: ไม่ลบ profile ทั้งหมด แค่อัพเดท working_time และ drug_stores");
+      console.log("Working time ที่เหลือหลังลบร้านนี้:", filteredWorkingTime);
+      console.log("Stores ที่เหลือหลังลบร้านนี้:", filteredStores);
+
+      // 🟢 เปิดการลบจริง
+      console.log("=== เริ่มดำเนินการลบจริง ===");
+
+      // 5. อัพเดท working_time และ drug_stores เท่านั้น (ไม่ลบ profile)
+      console.log("กำลังอัพเดท working_time และ drug_stores...");
+      
+      const storeIds = filteredStores.map(store => {
+        return store.documentId || store.attributes?.documentId || store.id;
+      });
+      
+      console.log("Store IDs ที่จะเหลือ:", storeIds);
+      
+      const updateRes = await fetch(
+        `http://localhost:1337/api/pharmacy-profiles/${pharmacyProfileDocId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({
+            data: {
+              working_time: filteredWorkingTime,
+              drug_stores: storeIds
             },
-            body: JSON.stringify({
-              data: { users_permissions_user: null },
-            }),
-          }
-        );
-      }
-
-      // 3. ลบ pharmacy-profile
-      if (pharmacyProfileId) {
-        await fetch(
-          `http://localhost:1337/api/pharmacy-profiles/${pharmacyProfileId}`,
-          {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${jwt}` },
-          }
-        );
-      }
-
-      // 4. เช็กว่ามี pharmacy-profile อื่นที่ยังเชื่อม user-permission นี้อยู่ไหม
-      if (user) {
-        const checkRes = await fetch(
-          `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${user}`,
-          { headers: { Authorization: `Bearer ${jwt}` } }
-        );
-        const checkData = await checkRes.json();
-        const relatedProfiles = Array.isArray(checkData?.data) ? checkData.data : [];
-        if (relatedProfiles.length === 0) {
-          // 5. ถ้าไม่มี profile อื่น ลบ user-permission
-          await fetch(
-            `http://localhost:1337/api/users/${user}`,
-            { method: "DELETE", headers: { Authorization: `Bearer ${jwt}` } }
-          );
+          }),
         }
+      );
+
+      if (!updateRes.ok) {
+        const errorText = await updateRes.text();
+        throw new Error(`Update failed: ${updateRes.status} - ${errorText}`);
+      }
+      
+      console.log("อัพเดท working_time และ drug_stores สำเร็จ");
+      
+      if (filteredWorkingTime.length === 0 && filteredStores.length === 0) {
+        toast.success("ลบเภสัชกรจากร้านนี้เรียบร้อยแล้ว (profile ว่างเปล่าแต่ยังคงอยู่)");
+      } else {
+        toast.success("ลบเภสัชกรจากร้านนี้เรียบร้อยแล้ว (profile ยังคงอยู่สำหรับร้านอื่น)");
       }
 
+      // อัพเดท state: ลบเภสัชกรออกจากรายการหน้านี้
       setPharmacists((prev) => prev.filter((p) => p.documentId !== documentId));
-      toast.success("ลบเภสัชกรเรียบร้อยแล้ว");
+      
     } catch (err) {
-      console.error(err);
-      toast.error("เกิดข้อผิดพลาดในการลบ");
+      console.error("เกิดข้อผิดพลาด:", err);
+      toast.error(`เกิดข้อผิดพลาดในการลบ: ${err.message}`);
     }
   };
 
@@ -176,7 +224,7 @@ function PharmacistDetail_admin() {
 
   return (
     <>
-      <HomeHeader pharmacyName={pharmacy.attributes?.name_th} />
+      <HomeHeader pharmacyName={pharmacy.attributes?.name_th || pharmacy.name_th} />
       <div className="max-w-5xl mx-auto bg-white shadow-md rounded-lg p-6 mt-6">
         {/* หัวข้อ */}
         <div className="flex justify-between items-center mb-4">
@@ -201,13 +249,13 @@ function PharmacistDetail_admin() {
                 ? getImageUrl(pharmacist.profileimage.data.attributes)
                 : null;
               const userId =
-                pharmacist.users_permissions_user?.id ||
-                pharmacist.users_permissions_user?.data?.id ||
+                pharmacist.users_permissions_user?.documentId ||
+                pharmacist.users_permissions_user?.data?.documentId ||
                 null;
 
               return (
                 <div
-                  key={pharmacist.id}
+                  key={pharmacist.documentId}
                   className="border rounded-lg p-6 bg-gray-50 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center"
                 >
                   <div className="flex-1 space-y-2 text-left">
@@ -241,15 +289,29 @@ function PharmacistDetail_admin() {
                     <div>
                       <span className="font-semibold">วันและเวลาเข้างาน:</span>
                       <ul className="ml-6 list-disc space-y-1">
-                        {Array.isArray(pharmacist.working_time) && pharmacist.working_time.length > 0 ? (
-                          pharmacist.working_time.map((wt, idx) => (
-                            <li key={idx}>
-                              {wt.day} : {wt.time_in} - {wt.time_out}
-                            </li>
-                          ))
-                        ) : (
-                          <li>-</li>
-                        )}
+                        {(() => {
+                          // กรองเวลาทำงานเฉพาะของร้านนี้
+                          const storeWorkingTimes = Array.isArray(pharmacist.working_time) 
+                            ? pharmacist.working_time.filter(wt => {
+                                const isMatch = wt.store_id === storeId || (!wt.store_id && pharmacist.drug_stores?.length === 1);
+                                console.log(`🔍 Detail: wt.day: ${wt.day}, wt.store_id: ${wt.store_id}, storeId: ${storeId}, isMatch: ${isMatch}`);
+                                return isMatch;
+                              })
+                            : [];
+                          
+                          console.log(`🔍 Detail: All working times:`, pharmacist.working_time);
+                          console.log(`🔍 Detail: filtered working times for store ${storeId}:`, storeWorkingTimes);
+                          
+                          return storeWorkingTimes.length > 0 ? (
+                            storeWorkingTimes.map((wt, idx) => (
+                              <li key={idx}>
+                                {wt.day} : {wt.time_in} - {wt.time_out}
+                              </li>
+                            ))
+                          ) : (
+                            <li>-</li>
+                          );
+                        })()}
                       </ul>
                     </div>
                     <div>
@@ -279,7 +341,9 @@ function PharmacistDetail_admin() {
                   <div className="flex flex-row md:flex-col gap-2 mt-4 md:mt-0 ml-0 md:ml-4">
                     <button
                       onClick={() =>
-                        navigate(`/edit_pharmacist_admin/${pharmacist.documentId}`)
+                        navigate(`/edit_pharmacist_admin/${pharmacist.documentId}`, {
+                          state: { fromStoreId: storeId }
+                        })
                       }
                       className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
                     >

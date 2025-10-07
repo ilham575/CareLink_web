@@ -60,24 +60,31 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
 				{pharmacy_profiles && pharmacy_profiles.length > 0 && (
 					<div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
 						<strong>เวลาทำงานของเภสัชกร:</strong>
-						{pharmacy_profiles.map((profile, index) => (
-							<div key={profile.id || index} style={{ marginLeft: '8px', marginTop: '4px' }}>
-								<span style={{ fontWeight: 'bold', color: '#4CAF50' }}>
-									{profile.firstname} {profile.lastname}
-								</span>
-								{profile.working_time && profile.working_time.length > 0 ? (
-									<ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
-										{profile.working_time.map((time, timeIndex) => (
-											<li key={timeIndex} style={{ fontSize: '12px' }}>
-												{time.day}: {time.time_in || '-'} - {time.time_out || '-'}
-											</li>
-										))}
-									</ul>
-								) : (
-									<span style={{ fontSize: '12px', color: '#999' }}> - ไม่ได้กำหนดเวลาทำงาน</span>
-								)}
-							</div>
-						))}
+						{pharmacy_profiles.map((profile, index) => {
+							// กรองเวลาทำงานเฉพาะของร้านนี้
+							const storeWorkingTimes = Array.isArray(profile.working_time) 
+								? profile.working_time.filter(wt => wt.store_id === (documentId || id) || !wt.store_id)
+								: [];
+							
+							return (
+								<div key={profile.id || index} style={{ marginLeft: '8px', marginTop: '4px' }}>
+									<span style={{ fontWeight: 'bold', color: '#4CAF50' }}>
+										{profile.users_permissions_user?.full_name || `เภสัชกร ${profile.id}`}
+									</span>
+									{storeWorkingTimes.length > 0 ? (
+										<ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
+											{storeWorkingTimes.map((time, timeIndex) => (
+												<li key={timeIndex} style={{ fontSize: '12px' }}>
+													{time.day}: {time.time_in || '-'} - {time.time_out || '-'}
+												</li>
+											))}
+										</ul>
+									) : (
+										<span style={{ fontSize: '12px', color: '#999' }}> - ไม่ได้กำหนดเวลาทำงานสำหรับร้านนี้</span>
+									)}
+								</div>
+							);
+						})}
 					</div>
 				)}
 			</div>

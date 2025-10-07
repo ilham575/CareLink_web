@@ -26,6 +26,7 @@ function AddPharmacist_admin() {
   const [existingPharmacists, setExistingPharmacists] = useState([]);
   const [selectedPharmacist, setSelectedPharmacist] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [storeName, setStoreName] = useState(""); // เพิ่ม state สำหรับชื่อร้าน
 
   const [formData, setFormData] = useState({
     firstname: "",
@@ -138,6 +139,34 @@ function AddPharmacist_admin() {
           setStoreOpenClose(openCloseArr);
         }
       });
+  }, [storeId, jwt]);
+
+  // เพิ่ม useEffect สำหรับดึงชื่อร้าน
+  useEffect(() => {
+    const fetchStoreName = async () => {
+      if (!storeId || !jwt) return;
+
+      try {
+        const response = await fetch(
+          `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${storeId}`,
+          {
+            headers: { Authorization: `Bearer ${jwt}` },
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          const store = data.data?.[0];
+          if (store) {
+            setStoreName(store.name_th || store.attributes?.name_th || "");
+          }
+        }
+      } catch (error) {
+        console.error("ไม่สามารถดึงชื่อร้านได้:", error);
+      }
+    };
+
+    fetchStoreName();
   }, [storeId, jwt]);
 
   // ✅ Handle Change
@@ -297,7 +326,7 @@ function AddPharmacist_admin() {
     for (const cur of storeWorkingTime) {
       if (!cur.time_in || !cur.time_out) continue;
       const curStart = toMinutes(cur.time_in);
-      const curEnd = toMinutes(cur.time.out);
+      const curEnd = toMinutes(cur.time_out);
       for (const other of otherTimes) {
         if (cur.day !== other.day) continue;
         if (!other.time_in || !other.time_out) continue;
@@ -403,42 +432,98 @@ function AddPharmacist_admin() {
           return;
         }
 
-        // เตรียมข้อมูลสำหรับสร้าง profile ใหม่ (ไม่แก้ไข profile เดิม)
-        const workingTimeForStore = storeWorkingTime
-          .filter((wt) => wt.time_in && wt.time_out)
-          .map((wt) => ({
-            day: dayMapReverse[wt.day] || wt.day,
-            time_in: wt.time_in,
-            time_out: wt.time_out,
-          }));
+        // ดึงข้อมูล pharmacy profile ที่มีอยู่ของ user นี้
+        const existingProfileRes = await fetch(
+          `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=drug_stores`,
+          { headers: { Authorization: `Bearer ${jwt}` } }
+        );
+        const existingProfileData = await existingProfileRes.json();
+        const existingProfile = existingProfileData.data?.[0];
 
-        const payload = {
-          data: {
-            license_number: selectedPharmacist.license_number || "",
-            services: selectedPharmacist.services || {},
-            drug_stores: [storeId],
-            users_permissions_user: userId,
-            profileimage:
-              selectedPharmacist.profileimage?.[0]?.id ||
-              selectedPharmacist.profileimage?.id ||
-              null,
-            working_time: workingTimeForStore,
-          },
-        };
+        if (existingProfile) {
+          // อัปเดต profile ที่มีอยู่โดยเพิ่มร้านใหม่เข้าไป
+          const currentStores = existingProfile.drug_stores || [];
+          const currentStoreIds = currentStores.map(store => store.documentId || store.id);
+          
+          // เพิ่มร้านใหม่ถ้ายังไม่มี
+          if (!currentStoreIds.includes(storeId)) {
+            // แยกเวลาทำงานตามร้าน - เก็บเฉพาะเวลาทำงานที่ไม่ใช่ของร้านปัจจุบัน
+            const existingWorkingTime = existingProfile.working_time || [];
+            const newWorkingTime = storeWorkingTime
+              .filter((wt) => wt.time_in && wt.time_out)
+              .map((wt) => ({
+                day: dayMapReverse[wt.day] || wt.day,
+                time_in: wt.time_in,
+                time_out: wt.time_out,
+                store_id: storeId, // เพิ่ม store_id เพื่อระบุว่าเวลาทำงานนี้เป็นของร้านไหน
+              }));
 
-        // สร้าง pharmacy profile ใหม่
-        const res = await fetch("http://localhost:1337/api/pharmacy-profiles", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${jwt}`,
-          },
-          body: JSON.stringify(payload),
-        });
+            // รวมเวลาทำงานเดิม (จากร้านอื่น) กับเวลาทำงานใหม่ (ร้านปัจจุบัน)
+            const combinedWorkingTime = [...existingWorkingTime, ...newWorkingTime];
 
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error?.message || "เพิ่มเภสัชกรให้ร้านไม่สำเร็จ");
+            const updatePayload = {
+              data: {
+                drug_stores: { connect: [storeId] },
+                working_time: combinedWorkingTime,
+              },
+            };
+
+            const updateRes = await fetch(
+              `http://localhost:1337/api/pharmacy-profiles/${existingProfile.documentId}`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${jwt}`,
+                },
+                body: JSON.stringify(updatePayload),
+              }
+            );
+
+            if (!updateRes.ok) {
+              const errorData = await updateRes.json();
+              console.error("Update pharmacy profile error:", errorData);
+              throw new Error(errorData.error?.message || "อัปเดตข้อมูลเภสัชกรไม่สำเร็จ");
+            }
+          }
+        } else {
+          // สร้าง profile ใหม่ถ้าไม่มี
+          const workingTimeForStore = storeWorkingTime
+            .filter((wt) => wt.time_in && wt.time_out)
+            .map((wt) => ({
+              day: dayMapReverse[wt.day] || wt.day,
+              time_in: wt.time_in,
+              time_out: wt.time_out,
+              store_id: storeId, // เพิ่ม store_id
+            }));
+
+          const payload = {
+            data: {
+              license_number: selectedPharmacist.license_number || "",
+              services: selectedPharmacist.services || {},
+              drug_stores: { connect: [storeId] },
+              users_permissions_user: userId,
+              profileimage:
+                selectedPharmacist.profileimage?.[0]?.id ||
+                selectedPharmacist.profileimage?.id ||
+                null,
+              working_time: workingTimeForStore,
+            },
+          };
+
+          const res = await fetch("http://localhost:1337/api/pharmacy-profiles", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${jwt}`,
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error?.message || "เพิ่มเภสัชกรให้ร้านไม่สำเร็จ");
+          }
         }
 
         toast.success(`✅ เพิ่มเภสัชกรให้ร้านเรียบร้อย!`);
@@ -522,17 +607,18 @@ function AddPharmacist_admin() {
           uploadedImageId = uploadData[0].id;
         }
 
-        // 5. สร้าง Pharmacy Profile (1 profile ต่อ 1 ร้าน)
+        // 5. สร้าง Pharmacy Profile สำหรับเภสัชกรใหม่
         const workingTimeForStore = formData.working_time.map((wt) => ({
           ...wt,
           day: dayMapReverse[wt.day] || wt.day,
+          store_id: storeId, // เพิ่ม store_id
         }));
 
         const payload = {
           data: {
             license_number: formData.license_number,
             services: formData.services,
-            drug_stores: [storeId],
+            drug_stores: { connect: [storeId] },
             users_permissions_user: userData.user.id,
             profileimage: uploadedImageId || null,
             working_time: workingTimeForStore,
@@ -550,8 +636,12 @@ function AddPharmacist_admin() {
 
         if (!res.ok) {
           const error = await res.json();
+          console.error("Create pharmacy profile error:", error);
           throw new Error(error.error?.message || "เพิ่มเภสัชกรไม่สำเร็จ");
         }
+
+        const createdProfile = await res.json();
+        console.log("Created profile:", createdProfile);
 
         toast.success(`✅ เพิ่มเภสัชกรใหม่เรียบร้อย!`);
       }
@@ -569,7 +659,7 @@ function AddPharmacist_admin() {
 
   return (
     <>
-      <Header />
+      <Header pharmacyName={storeName} />
 
       <div className="max-w-3xl mx-auto bg-white shadow-md rounded-lg p-6 mt-6">
         <h2 className="text-2xl font-bold text-green-700 mb-4 text-center">
@@ -734,16 +824,53 @@ function AddPharmacist_admin() {
                         })()} ร้าน
                       </div>
                     </div>
+
+                    {/* แสดงเวลาทำงานปัจจุบัน */}
+                    <div className="mt-4 p-3 bg-blue-50 rounded border">
+                      <h4 className="font-semibold text-blue-700 mb-2">เวลาทำงานปัจจุบัน</h4>
+                      {(() => {
+                        const workingTime = selectedPharmacist.working_time || selectedPharmacist.attributes?.working_time;
+                        if (!workingTime || workingTime.length === 0) {
+                          return <p className="text-gray-500 text-sm">ไม่มีข้อมูลเวลาทำงาน</p>;
+                        }
+
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+                            {workingTime.map((wt, index) => (
+                              <div key={index} className="bg-white p-2 rounded border">
+                                <span className="font-medium">{wt.day}:</span>{" "}
+                                <span className="text-green-600">
+                                  {wt.time_in} - {wt.time_out}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
 
                   {/* เพิ่มฟอร์มเวลาทำงานสำหรับร้านนี้ */}
-                  <div className="bg-blue-50 p-4 rounded border">
-                    <h3 className="font-semibold text-lg mb-2">
+                  <div className="bg-green-50 p-4 rounded border">
+                    <h3 className="font-semibold text-lg mb-2 text-green-700">
                       กำหนดเวลาทำงานสำหรับร้านนี้*
                     </h3>
                     <p className="text-sm text-gray-600 mb-3">
                       กรุณากำหนดเวลาทำงานของเภสัชกรสำหรับร้านนี้โดยเฉพาะ (Store ID: {storeId})
                     </p>
+                    
+                    {/* แสดงคำเตือนถ้ามีเวลาทำงานอื่นที่อาจชนกัน */}
+                    {(() => {
+                      const workingTime = selectedPharmacist.working_time || selectedPharmacist.attributes?.working_time || [];
+                      const hasOtherStoreWorkingTime = workingTime.some(wt => wt.store_id && wt.store_id !== storeId);
+                      
+                      return hasOtherStoreWorkingTime && (
+                        <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-700">
+                          ⚠️ <strong>ข้อควรระวัง:</strong> เภสัชกรคนนี้มีเวลาทำงานในร้านอื่นอยู่แล้ว กรุณาตรวจสอบให้แน่ใจว่าเวลาทำงานไม่ซ้อนทับกัน
+                        </div>
+                      );
+                    })()}
+
                     {storeWorkingTime.map((item, index) => (
                       <div key={index} className="flex gap-2 items-center mb-2">
                         <select
@@ -787,7 +914,7 @@ function AddPharmacist_admin() {
                             onClick={() => {
                               removeStoreWorkingTime(index);
                             }}
-                            className="text-red-500 ml-2"
+                            className="text-red-500 ml-2 hover:text-red-700"
                           >
                             ลบ
                           </button>
@@ -800,7 +927,7 @@ function AddPharmacist_admin() {
                         onClick={() => {
                           addStoreWorkingTime();
                         }}
-                        className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
+                        className="bg-green-200 px-3 py-1 rounded hover:bg-green-300 text-green-700 font-medium"
                       >
                         + เพิ่มวัน/เวลา
                       </button>
