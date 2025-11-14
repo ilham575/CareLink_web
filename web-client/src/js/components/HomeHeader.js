@@ -90,35 +90,58 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
       });
   }, [isLoggedIn]);
 
-  // เพิ่ม useEffect สำหรับดึงชื่อร้านเมื่ออยู่ในหน้า form_staff หรือ form_customer
+  // เพิ่ม useEffect สำหรับดึงชื่อร้านเมื่ออยู่ในหน้า form_staff, form_customer หรือหน้า add/edit staff (admin)
   useEffect(() => {
-    // เช็คว่าอยู่ในหน้า form_staff หรือ form_customer หรือไม่
-    if (location.pathname === '/form_staff' || location.pathname === '/form_customer') {
+    const isFormStaffRoute = location.pathname === '/form_staff';
+    const isFormCustomerRoute = location.pathname === '/form_customer';
+    const isAddStaffAdmin = location.pathname.startsWith('/add_staff_admin');
+    const isEditStaffAdmin = location.pathname.startsWith('/edit_staff_admin');
+
+    // ฟังก์ชันช่วยดึงชื่อร้านจาก pharmacyId
+    const fetchStoreName = (pharmacyId, forStaff) => {
+      if (!pharmacyId) return;
+      fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`)
+        .then(res => res.json())
+        .then(json => {
+          const store = json.data?.[0];
+          const storeName = store?.attributes?.name_th || store?.name_th || '';
+          if (forStaff) {
+            setFormStaffPharmacyName(storeName);
+          } else {
+            setFormCustomerPharmacyName(storeName);
+          }
+        })
+        .catch(() => {
+          if (forStaff) setFormStaffPharmacyName('');
+          else setFormCustomerPharmacyName('');
+        });
+    };
+
+    if (isFormStaffRoute || isFormCustomerRoute || isAddStaffAdmin || isEditStaffAdmin) {
       const searchParams = new URLSearchParams(location.search);
-      const pharmacyId = searchParams.get('pharmacyId');
-      
-      if (pharmacyId) {
-        // ดึงข้อมูลร้านยาจาก pharmacyId
-        fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`)
-          .then(res => res.json())
-          .then(json => {
-            const store = json.data?.find(item => item.documentId === pharmacyId);
-            if (store) {
-              const storeName = store.name_th || store.attributes?.name_th || '';
-              if (location.pathname === '/form_staff') {
-                setFormStaffPharmacyName(storeName);
-              } else if (location.pathname === '/form_customer') {
-                setFormCustomerPharmacyName(storeName);
-              }
-            }
-          })
-          .catch(() => {
-            if (location.pathname === '/form_staff') {
-              setFormStaffPharmacyName('');
-            } else if (location.pathname === '/form_customer') {
-              setFormCustomerPharmacyName('');
-            }
-          });
+      // pharmacyId might be in query (e.g. ?pharmacyId=...) or in the pathname for add_admin
+      let pharmacyId = searchParams.get('pharmacyId');
+
+      if (!pharmacyId && isAddStaffAdmin) {
+        const m = location.pathname.match(/\/add_staff_admin\/([^/?#]+)/);
+        if (m) pharmacyId = m[1];
+      }
+
+      if (!pharmacyId && isEditStaffAdmin) {
+        // edit route often has ?pharmacyId=..., try search params already handled
+        const m = location.pathname.match(/\/edit_staff_admin\/([^/?#]+)/);
+        if (m && !pharmacyId) {
+          // we don't have the pharmacyId in the edit path itself, typically it's provided in query
+          pharmacyId = searchParams.get('pharmacyId');
+        }
+      }
+
+      if (isFormStaffRoute || isAddStaffAdmin || isEditStaffAdmin) {
+        fetchStoreName(pharmacyId, true);
+      }
+
+      if (isFormCustomerRoute) {
+        fetchStoreName(pharmacyId, false);
       }
     } else {
       // ถ้าไม่ใช่หน้า form ให้เคลียร์ชื่อร้าน
@@ -143,6 +166,7 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
     location.pathname.startsWith('/drug_store_pharmacy/') ||
     location.pathname.startsWith('/drug_store_admin/') ||
     location.pathname.startsWith('/drug_store_staff/') ||
+    location.pathname.startsWith('/staff_detail_admin/') ||
     location.pathname.startsWith('/customer_detail/') ||
     location.pathname.startsWith('/pharmacist_detail_admin/') ||
     location.pathname.startsWith('/add_pharmacy_admin/') ||
@@ -153,19 +177,25 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
   // เพิ่มการเช็คหน้า form_staff และ form_customer
   const isFormStaff = location.pathname === '/form_staff';
   const isFormCustomer = location.pathname === '/form_customer';
+  const isAddStaffAdmin = location.pathname.startsWith('/add_staff_admin');
+  const isEditStaffAdmin = location.pathname.startsWith('/edit_staff_admin');
 
   // ฟังก์ชันสำหรับสร้างหัวข้อหน้า form_staff
   const getFormStaffTitle = () => {
     const searchParams = new URLSearchParams(location.search);
     const documentId = searchParams.get('documentId');
-    const isEdit = !!documentId; // ถ้ามี documentId แสดงว่าเป็นการแก้ไข
+    // For admin routes, edit is indicated by pathname like /edit_staff_admin/:documentId
+    const isEditPath = location.pathname.startsWith('/edit_staff_admin');
+    const isEdit = !!documentId || isEditPath; // ถ้ามี documentId หรือเป็น edit path => แก้ไข
     
     const action = isEdit ? 'แก้ไขพนักงาน' : 'เพิ่มพนักงาน';
     let storeName = '';
-    if (formStaffPharmacyName) {
+    // prefer fetched formStaffPharmacyName, then prop pharmacyName
+    const resolvedName = formStaffPharmacyName || pharmacyName || '';
+    if (resolvedName) {
       // เช็คว่าชื่อร้านเริ่มต้นด้วย "ร้านยา" หรือไม่
-      const needsPrefix = !formStaffPharmacyName.startsWith('ร้านยา');
-      storeName = needsPrefix ? `ร้านยา${formStaffPharmacyName}` : formStaffPharmacyName;
+      const needsPrefix = !resolvedName.startsWith('ร้านยา');
+      storeName = needsPrefix ? `ร้านยา${resolvedName}` : resolvedName;
     }
     
     return `${action}${storeName}`;
@@ -212,8 +242,8 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
         alt="Logo"
         className="app-logo"
       />
-      {isFormStaff ? (
-        // แสดงหัวข้อสำหรับหน้า form_staff
+      {(isFormStaff || isAddStaffAdmin || isEditStaffAdmin) ? (
+        // แสดงหัวข้อสำหรับหน้า form_staff และหน้าเพิ่ม/แก้ไขพนักงานของแอดมิน
         <div className="detail-title">
           {getFormStaffTitle()}
         </div>

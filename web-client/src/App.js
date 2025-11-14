@@ -23,6 +23,9 @@ import Footer from './js/components/footer';
 
 import AddStoreAdmin from './js/pages/admin/AddStore_admin';
 import AddPharmacyAdmin from './js/pages/admin/AddPharmacy_admin';
+import AddStaffAdmin from './js/pages/admin/AddStaff_admin';
+import EditStaffAdmin from './js/pages/admin/EditStaff_admin';
+import StaffDetailAdmin from './js/pages/admin/StaffDetail_admin';
 
 import CustomerPage from './js/components/middle_page/customerPage';
 import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
@@ -49,11 +52,15 @@ function App() {
           
           {/* -------------------- ADMIN -------------------- */}
           <Route element={<RequireRole role="admin" />}>
+            <Route path="/admin" element={<AdminHome />} />
             <Route path="/adminHome" element={<AdminHome />} />
             <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
             <Route path="/add_store_admin" element={<AddStoreAdmin />} />
             <Route path="/add_pharmacy_admin/:storeId" element={<AddPharmacyAdmin />} />
             <Route path="/pharmacist_detail_admin/:storeId" element={<PharmacistDetailAdmin />} />
+            <Route path="/staff_detail_admin/:pharmacyId" element={<StaffDetailAdmin />} />
+            <Route path="/add_staff_admin/:pharmacyId" element={<AddStaffAdmin />} />
+            <Route path="/edit_staff_admin/:documentId" element={<EditStaffAdmin />} />
           </Route>
 
           {/* -------------------- PHARMACY -------------------- */}

@@ -66,6 +66,16 @@ function PharmacyItem({ documentId, name_th, address, time_open, time_close, pho
 
         <button
           className="detail-button"
+          style={{ background: '#FF9800' }}
+          onClick={() => navigate(`/staff_detail_admin/${documentId}`, {
+            state: { from: "adminHome" }
+          })}
+        >
+          พนักงาน<br />ร้านยา
+        </button>
+
+        <button
+          className="detail-button"
           style={{ background: '#f44336' }}
           onClick={() => onDelete(documentId)}
         >

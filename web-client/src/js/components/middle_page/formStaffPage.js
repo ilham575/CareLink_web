@@ -8,11 +8,23 @@ import "../../../css/theme.css";
 import "../../../css/pages/default/middle_page/formStaffPage.css";
 
 function FormStaffPage() {
-  const { documentId: paramId, id } = useParams();
+  const { documentId: paramId, id, pharmacyId: paramPharmacyId } = useParams();
   const [searchParams] = useSearchParams();
   const queryId = searchParams.get("documentId");
+  // pharmacyId may be passed as a path param (/:pharmacyId) or as a query (?pharmacyId=...)
+  const pharmacyId = searchParams.get('pharmacyId') || paramPharmacyId || null;
   const documentId = paramId || id || queryId;
-  const pharmacyId = searchParams.get('pharmacyId');
+
+  console.log('🔍 FormStaffPage params:', {
+    paramId,
+    id,
+    paramPharmacyId,
+    queryId,
+    documentId,
+    pharmacyId,
+    fullParams: useParams(),
+    searchParams: Object.fromEntries(searchParams.entries())
+  });
 
   // State - เปลี่ยนโครงสร้าง
   const [form, setForm] = useState({
@@ -94,6 +106,10 @@ function FormStaffPage() {
   // ===== 2. โหลดข้อมูล staff-profile เดิม (อัพเดต) =====
   useEffect(() => {
     if (!documentId) return;
+    
+    console.log('🔍 Loading staff data for documentId:', documentId);
+    console.log('🏪 pharmacyId:', pharmacyId);
+    
     const token = localStorage.getItem('jwt');
     fetch(
       `http://localhost:1337/api/staff-profiles?filters[documentId][$eq]=${documentId}&populate=*`,
@@ -101,11 +117,14 @@ function FormStaffPage() {
     )
       .then(res => res.json())
       .then(json => {
+        console.log('📋 API Response:', json);
         const staffRaw = json.data?.[0];
         if (!staffRaw) {
           toast.error("ไม่พบข้อมูลพนักงาน");
           return;
         }
+        
+        console.log('👨‍💼 Staff data found:', staffRaw);
         const user = staffRaw.users_permissions_user || {};
         setOriginalStaff(staffRaw);
         
@@ -135,9 +154,15 @@ function FormStaffPage() {
           workSchedule = [];
         }
 
+        // แปลงชื่อ-นามสกุล
+        const fullName = user.full_name || "";
+        const nameParts = fullName.trim().split(" ");
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
         setForm({
-          firstName: user.full_name?.split(" ")[0] || "",
-          lastName: user.full_name?.split(" ")[1] || "",
+          firstName: firstName,
+          lastName: lastName,
           phone: user.phone || "",
           username: user.username || "",
           password: "",
@@ -145,6 +170,16 @@ function FormStaffPage() {
           position: staffRaw.position || "",
           profileImage: null,
           workSchedule: workSchedule,
+        });
+
+        console.log('📝 Form data set:', {
+          fullName: fullName,
+          firstName: firstName,
+          lastName: lastName,
+          phone: user.phone || "",
+          username: user.username || "",
+          position: staffRaw.position || "",
+          workSchedule: workSchedule
         });
 
         // รูปจริงจาก Strapi
