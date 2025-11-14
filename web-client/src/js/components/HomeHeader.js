@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../images/image 3.png';
 import '../../css/component/HomeHeader.css'; // เพิ่มบรรทัดนี้
+import ProfileAvatar from "./ProfileAvatar";
 
-function HomeHeader({ pharmacyName, onSearch }) {
+function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchText, setSearchText] = useState('');
@@ -12,6 +13,7 @@ function HomeHeader({ pharmacyName, onSearch }) {
   );
   const [profileUrl, setProfileUrl] = useState(null);
   const [profileFullName, setProfileFullName] = useState('');
+  const [userId, setUserId] = useState(null); // เพิ่ม state สำหรับ userId
   const [formStaffPharmacyName, setFormStaffPharmacyName] = useState(''); // เพิ่ม state สำหรับชื่อร้านในหน้า form staff
   const [formCustomerPharmacyName, setFormCustomerPharmacyName] = useState(''); // เพิ่ม state สำหรับชื่อร้านในหน้า form customer
 
@@ -28,11 +30,11 @@ function HomeHeader({ pharmacyName, onSearch }) {
     })
       .then(res => res.json())
       .then(user => {
-        const userId = user.id;
+        const userIdFromApi = user.id;
+        setUserId(userIdFromApi); // เก็บ userId ใน state
         const role = user.role?.name || localStorage.getItem('role');
-        // ดึง full_name จาก user โดยตรง
         setProfileFullName(user.full_name || '');
-        if (!userId || !role) {
+        if (!userIdFromApi || !role) {
           setProfileUrl(null);
           return;
         }
@@ -40,13 +42,13 @@ function HomeHeader({ pharmacyName, onSearch }) {
         let profileApi = '';
         let imagePath = '';
         if (role === 'admin') {
-          profileApi = `http://localhost:1337/api/admin-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage`;
+          profileApi = `http://localhost:1337/api/admin-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
           imagePath = 'profileimage';
         } else if (role === 'pharmacy') {
-          profileApi = `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage`;
+          profileApi = `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
           imagePath = 'profileimage';
         } else if (role === 'staff') {
-          profileApi = `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage`;
+          profileApi = `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
           imagePath = 'profileimage';
         } else {
           setProfileUrl(null);
@@ -57,10 +59,16 @@ function HomeHeader({ pharmacyName, onSearch }) {
           .then(res => res.json())
           .then(profileRes => {
             const profile = profileRes.data && profileRes.data[0];
-            const img =
-              profile?.[imagePath]?.formats?.thumbnail?.url ||
-              profile?.[imagePath]?.url ||
-              null;
+            // แก้ตรงนี้
+            let img = null;
+            if (profile?.[imagePath]) {
+              // ถ้าเป็น array ให้ใช้ index 0
+              const imageObj = Array.isArray(profile[imagePath]) ? profile[imagePath][0] : profile[imagePath];
+              img =
+                imageObj?.formats?.thumbnail?.url ||
+                imageObj?.url ||
+                null;
+            }
             if (img) {
               setProfileUrl(
                 img.startsWith('/')
@@ -78,38 +86,62 @@ function HomeHeader({ pharmacyName, onSearch }) {
       .catch(() => {
         setProfileUrl(null);
         setProfileFullName('');
+        setUserId(null); // เคลียร์ userId เมื่อเกิดข้อผิดพลาด
       });
   }, [isLoggedIn]);
 
-  // เพิ่ม useEffect สำหรับดึงชื่อร้านเมื่ออยู่ในหน้า form_staff หรือ form_customer
+  // เพิ่ม useEffect สำหรับดึงชื่อร้านเมื่ออยู่ในหน้า form_staff, form_customer หรือหน้า add/edit staff (admin)
   useEffect(() => {
-    // เช็คว่าอยู่ในหน้า form_staff หรือ form_customer หรือไม่
-    if (location.pathname === '/form_staff' || location.pathname === '/form_customer') {
+    const isFormStaffRoute = location.pathname === '/form_staff';
+    const isFormCustomerRoute = location.pathname === '/form_customer';
+    const isAddStaffAdmin = location.pathname.startsWith('/add_staff_admin');
+    const isEditStaffAdmin = location.pathname.startsWith('/edit_staff_admin');
+
+    // ฟังก์ชันช่วยดึงชื่อร้านจาก pharmacyId
+    const fetchStoreName = (pharmacyId, forStaff) => {
+      if (!pharmacyId) return;
+      fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`)
+        .then(res => res.json())
+        .then(json => {
+          const store = json.data?.[0];
+          const storeName = store?.attributes?.name_th || store?.name_th || '';
+          if (forStaff) {
+            setFormStaffPharmacyName(storeName);
+          } else {
+            setFormCustomerPharmacyName(storeName);
+          }
+        })
+        .catch(() => {
+          if (forStaff) setFormStaffPharmacyName('');
+          else setFormCustomerPharmacyName('');
+        });
+    };
+
+    if (isFormStaffRoute || isFormCustomerRoute || isAddStaffAdmin || isEditStaffAdmin) {
       const searchParams = new URLSearchParams(location.search);
-      const pharmacyId = searchParams.get('pharmacyId');
-      
-      if (pharmacyId) {
-        // ดึงข้อมูลร้านยาจาก pharmacyId
-        fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`)
-          .then(res => res.json())
-          .then(json => {
-            const store = json.data?.find(item => item.documentId === pharmacyId);
-            if (store) {
-              const storeName = store.name_th || store.attributes?.name_th || '';
-              if (location.pathname === '/form_staff') {
-                setFormStaffPharmacyName(storeName);
-              } else if (location.pathname === '/form_customer') {
-                setFormCustomerPharmacyName(storeName);
-              }
-            }
-          })
-          .catch(() => {
-            if (location.pathname === '/form_staff') {
-              setFormStaffPharmacyName('');
-            } else if (location.pathname === '/form_customer') {
-              setFormCustomerPharmacyName('');
-            }
-          });
+      // pharmacyId might be in query (e.g. ?pharmacyId=...) or in the pathname for add_admin
+      let pharmacyId = searchParams.get('pharmacyId');
+
+      if (!pharmacyId && isAddStaffAdmin) {
+        const m = location.pathname.match(/\/add_staff_admin\/([^/?#]+)/);
+        if (m) pharmacyId = m[1];
+      }
+
+      if (!pharmacyId && isEditStaffAdmin) {
+        // edit route often has ?pharmacyId=..., try search params already handled
+        const m = location.pathname.match(/\/edit_staff_admin\/([^/?#]+)/);
+        if (m && !pharmacyId) {
+          // we don't have the pharmacyId in the edit path itself, typically it's provided in query
+          pharmacyId = searchParams.get('pharmacyId');
+        }
+      }
+
+      if (isFormStaffRoute || isAddStaffAdmin || isEditStaffAdmin) {
+        fetchStoreName(pharmacyId, true);
+      }
+
+      if (isFormCustomerRoute) {
+        fetchStoreName(pharmacyId, false);
       }
     } else {
       // ถ้าไม่ใช่หน้า form ให้เคลียร์ชื่อร้าน
@@ -133,26 +165,37 @@ function HomeHeader({ pharmacyName, onSearch }) {
     location.pathname.startsWith('/drug_store/') ||
     location.pathname.startsWith('/drug_store_pharmacy/') ||
     location.pathname.startsWith('/drug_store_admin/') ||
-    location.pathname.startsWith('/drug_store_staff/');
-  
+    location.pathname.startsWith('/drug_store_staff/') ||
+    location.pathname.startsWith('/staff_detail_admin/') ||
+    location.pathname.startsWith('/customer_detail/') ||
+    location.pathname.startsWith('/pharmacist_detail_admin/') ||
+    location.pathname.startsWith('/add_pharmacy_admin/') ||
+    location.pathname.startsWith('/edit_pharmacist_admin/'); // เพิ่มบรรทัดนี้
+
   const isSignup = location.pathname === '/signup';
   
   // เพิ่มการเช็คหน้า form_staff และ form_customer
   const isFormStaff = location.pathname === '/form_staff';
   const isFormCustomer = location.pathname === '/form_customer';
+  const isAddStaffAdmin = location.pathname.startsWith('/add_staff_admin');
+  const isEditStaffAdmin = location.pathname.startsWith('/edit_staff_admin');
 
   // ฟังก์ชันสำหรับสร้างหัวข้อหน้า form_staff
   const getFormStaffTitle = () => {
     const searchParams = new URLSearchParams(location.search);
     const documentId = searchParams.get('documentId');
-    const isEdit = !!documentId; // ถ้ามี documentId แสดงว่าเป็นการแก้ไข
+    // For admin routes, edit is indicated by pathname like /edit_staff_admin/:documentId
+    const isEditPath = location.pathname.startsWith('/edit_staff_admin');
+    const isEdit = !!documentId || isEditPath; // ถ้ามี documentId หรือเป็น edit path => แก้ไข
     
     const action = isEdit ? 'แก้ไขพนักงาน' : 'เพิ่มพนักงาน';
     let storeName = '';
-    if (formStaffPharmacyName) {
+    // prefer fetched formStaffPharmacyName, then prop pharmacyName
+    const resolvedName = formStaffPharmacyName || pharmacyName || '';
+    if (resolvedName) {
       // เช็คว่าชื่อร้านเริ่มต้นด้วย "ร้านยา" หรือไม่
-      const needsPrefix = !formStaffPharmacyName.startsWith('ร้านยา');
-      storeName = needsPrefix ? `ร้านยา${formStaffPharmacyName}` : formStaffPharmacyName;
+      const needsPrefix = !resolvedName.startsWith('ร้านยา');
+      storeName = needsPrefix ? `ร้านยา${resolvedName}` : resolvedName;
     }
     
     return `${action}${storeName}`;
@@ -176,6 +219,7 @@ function HomeHeader({ pharmacyName, onSearch }) {
   };
 
   if (isSignup) {
+    const isEditMode = !!location.state?.userId;
     return (
       <header className="app-header">
         <img
@@ -184,7 +228,9 @@ function HomeHeader({ pharmacyName, onSearch }) {
           className="app-logo"
           onClick={() => navigate('/login')}
         />
-        <div className="signup-title">สร้างบัญชี</div>
+        <div className="signup-title">
+          {isEditMode ? "แก้ไขข้อมูลโปรไฟล์" : "สร้างบัญชี"}
+        </div>
       </header>
     );
   }
@@ -196,8 +242,8 @@ function HomeHeader({ pharmacyName, onSearch }) {
         alt="Logo"
         className="app-logo"
       />
-      {isFormStaff ? (
-        // แสดงหัวข้อสำหรับหน้า form_staff
+      {(isFormStaff || isAddStaffAdmin || isEditStaffAdmin) ? (
+        // แสดงหัวข้อสำหรับหน้า form_staff และหน้าเพิ่ม/แก้ไขพนักงานของแอดมิน
         <div className="detail-title">
           {getFormStaffTitle()}
         </div>
@@ -210,9 +256,33 @@ function HomeHeader({ pharmacyName, onSearch }) {
         <div className="detail-title">
           {(() => {
             const name = pharmacyName || 'ชื่อร้านยา';
-            if (name === 'ชื่อร้านยา') return name;
-            const needsPrefix = !name.startsWith('ร้านยา');
-            return needsPrefix ? `ร้านยา${name}` : name;
+            let displayName = name;
+            if (name !== 'ชื่อร้านยา') {
+              const needsPrefix = !name.startsWith('ร้านยา');
+              displayName = needsPrefix ? `ร้านยา${name}` : name;
+            }
+            
+            // เพิ่มชื่อเภสัชกรถ้ามี
+            if (pharmacistName) {
+              displayName += ` - เภสัชกร ${pharmacistName}`;
+            }
+            
+            // เช็คถ้าเป็นหน้า add_pharmacy_admin ให้แสดงข้อความเพิ่มเภสัชกร
+            if (location.pathname.startsWith('/add_pharmacy_admin/')) {
+              displayName = `เพิ่มเภสัชกร${displayName}`;
+            }
+            
+            // เช็คถ้าเป็นหน้า edit_pharmacist_admin ให้แสดงข้อความแก้ไขเภสัชกร
+            if (location.pathname.startsWith('/edit_pharmacist_admin/')) {
+              // ถ้าไม่มี pharmacyName (กรณี pharmacy แก้ไขตัวเอง) ให้แสดงข้อความทั่วไป
+              if (name === 'ชื่อร้านยา') {
+                displayName = 'แก้ไขโปรไฟล์ของฉัน';
+              } else {
+                displayName = `แก้ไขเภสัชกร${displayName}`;
+              }
+            }
+            
+            return displayName;
           })()}
         </div>
       ) : (
@@ -236,27 +306,14 @@ function HomeHeader({ pharmacyName, onSearch }) {
         </div>
       )}
       {isLoggedIn ? (
-        // เพิ่ม div ครอบ avatar กับปุ่ม เพื่อจัดให้อยู่แถวเดียวกันตอน responsive
         <div className="profile-and-btn-row">
-          <div
-            className="profile-avatar"
-            title={profileFullName || "โปรไฟล์"}
-          >
-            {profileUrl ? (
-              <img
-                src={profileUrl}
-                alt="profile"
-                className="profile-avatar-img"
-              />
-            ) : (
-              <span>
-                {localStorage.getItem('profileInitial') ||
-                  (localStorage.getItem('username') &&
-                    localStorage.getItem('username')[0].toUpperCase()) ||
-                  'U'}
-              </span>
-            )}
-          </div>
+          <ProfileAvatar
+            profileUrl={profileUrl}
+            profileFullName={profileFullName}
+            userData={{
+              id: userId, // ใช้ userId จาก state
+            }}
+          />
           <button
             className="home-button"
             onClick={handleLogout}

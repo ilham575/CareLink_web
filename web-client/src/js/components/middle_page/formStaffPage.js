@@ -8,11 +8,23 @@ import "../../../css/theme.css";
 import "../../../css/pages/default/middle_page/formStaffPage.css";
 
 function FormStaffPage() {
-  const { documentId: paramId, id } = useParams();
+  const { documentId: paramId, id, pharmacyId: paramPharmacyId } = useParams();
   const [searchParams] = useSearchParams();
   const queryId = searchParams.get("documentId");
+  // pharmacyId may be passed as a path param (/:pharmacyId) or as a query (?pharmacyId=...)
+  const pharmacyId = searchParams.get('pharmacyId') || paramPharmacyId || null;
   const documentId = paramId || id || queryId;
-  const pharmacyId = searchParams.get('pharmacyId');
+
+  console.log('🔍 FormStaffPage params:', {
+    paramId,
+    id,
+    paramPharmacyId,
+    queryId,
+    documentId,
+    pharmacyId,
+    fullParams: useParams(),
+    searchParams: Object.fromEntries(searchParams.entries())
+  });
 
   // State - เปลี่ยนโครงสร้าง
   const [form, setForm] = useState({
@@ -94,6 +106,10 @@ function FormStaffPage() {
   // ===== 2. โหลดข้อมูล staff-profile เดิม (อัพเดต) =====
   useEffect(() => {
     if (!documentId) return;
+    
+    console.log('🔍 Loading staff data for documentId:', documentId);
+    console.log('🏪 pharmacyId:', pharmacyId);
+    
     const token = localStorage.getItem('jwt');
     fetch(
       `http://localhost:1337/api/staff-profiles?filters[documentId][$eq]=${documentId}&populate=*`,
@@ -101,11 +117,14 @@ function FormStaffPage() {
     )
       .then(res => res.json())
       .then(json => {
+        console.log('📋 API Response:', json);
         const staffRaw = json.data?.[0];
         if (!staffRaw) {
           toast.error("ไม่พบข้อมูลพนักงาน");
           return;
         }
+        
+        console.log('👨‍💼 Staff data found:', staffRaw);
         const user = staffRaw.users_permissions_user || {};
         setOriginalStaff(staffRaw);
         
@@ -135,9 +154,15 @@ function FormStaffPage() {
           workSchedule = [];
         }
 
+        // แปลงชื่อ-นามสกุล
+        const fullName = user.full_name || "";
+        const nameParts = fullName.trim().split(" ");
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
         setForm({
-          firstName: user.full_name?.split(" ")[0] || "",
-          lastName: user.full_name?.split(" ")[1] || "",
+          firstName: firstName,
+          lastName: lastName,
           phone: user.phone || "",
           username: user.username || "",
           password: "",
@@ -145,6 +170,16 @@ function FormStaffPage() {
           position: staffRaw.position || "",
           profileImage: null,
           workSchedule: workSchedule,
+        });
+
+        console.log('📝 Form data set:', {
+          fullName: fullName,
+          firstName: firstName,
+          lastName: lastName,
+          phone: user.phone || "",
+          username: user.username || "",
+          position: staffRaw.position || "",
+          workSchedule: workSchedule
         });
 
         // รูปจริงจาก Strapi
@@ -182,17 +217,6 @@ function FormStaffPage() {
     }
   };
   const handleUploadClick = () => fileInputRef.current.click();
-  
-  // ===== ฟังก์ชันที่ไม่ได้ใช้งาน - คอมเมนต์ไว้ =====
-  // const handleCheckboxChange = (e) => {
-  //   const { value, checked } = e.target;
-  //   setForm(f => ({
-  //     ...f,
-  //     workDays: checked
-  //       ? [...f.workDays, value]
-  //       : f.workDays.filter((day) => day !== value),
-  //   }));
-  // };
 
   // ===== 4. Unlink รูปเก่า (ถ้ามี) ก่อน upload ใหม่ =====
   const unlinkOldProfileImage = async (staffId, token) => {
@@ -202,80 +226,6 @@ function FormStaffPage() {
       body: JSON.stringify({ data: { profileimage: null } }),
     });
   };
-
-  // ===== ฟังก์ชันที่ไม่ได้ใช้งาน - คอมเมนต์ไว้ =====
-  // const uploadProfileImageAndUpdateStaff = async (profileImage, _documentId) => {
-  //   const token = localStorage.getItem('jwt');
-  //   if (!profileImage || !_documentId) return;
-  //   // หา staffId จาก documentId
-  //   const profileRes = await fetch(
-  //     `http://localhost:1337/api/staff-profiles?filters[documentId][$eq]=${_documentId}`,
-  //     { headers: { Authorization: `Bearer ${token}` } }
-  //   );
-  //   const profileJson = await profileRes.json();
-  //   const staff = profileJson?.data?.[0];
-  //   const staffId = profileJson?.data?.[0]?.id;
-  //   if (!staffId) {
-  //     toast.error("ไม่พบ staff-profile ที่จะอัพเดตรูป");
-  //     return;
-  //   }
-  //   // unlink รูปเก่า
-  //   await unlinkOldProfileImage(staffId, token);
-  //   // upload file
-  //   const formData = new FormData();
-  //   formData.append("files", profileImage);
-  //   const uploadRes = await fetch(`http://localhost:1337/api/upload`, {
-  //     method: "POST",
-  //     headers: { Authorization: `Bearer ${token}` },
-  //     body: formData,
-  //   });
-  //   const uploadJson = await uploadRes.json();
-  //   if (!Array.isArray(uploadJson) || !uploadJson[0]?.id) {
-  //     toast.error("อัพโหลดรูปไม่สำเร็จ");
-  //     return;
-  //   }
-  //   const imageId = uploadJson[0].id;
-  //   // patch profileimage
-  //   const patchRes = await fetch(
-  //     `http://localhost:1337/api/staff-profiles/${staffId}`,
-  //     {
-  //       method: "PUT",
-  //       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-  //       body: JSON.stringify({ data: { profileimage: imageId } }),
-  //     }
-  //   );
-  //   if (!patchRes.ok) {
-  //     toast.error("อัพเดตรูปใน staff-profile ไม่สำเร็จ");
-  //     return;
-  //   }
-  //   // ดึง url จริงมาแสดงใหม่
-  //   const profileAfter = await fetch(
-  //     `http://localhost:1337/api/staff-profiles/${staffId}?populate=profileimage`,
-  //     { headers: { Authorization: `Bearer ${token}` } }
-  //   );
-  //   const afterJson = await profileAfter.json();
-  //   let imageUrl = null;
-  //   if (afterJson?.data?.attributes?.profileimage?.data) {
-  //     const imgAttr = afterJson.data.attributes.profileimage.data.attributes;
-  //     imageUrl = imgAttr?.formats?.thumbnail?.url || imgAttr?.url || null;
-  //   }
-  //   if (imageUrl) {
-  //     const base = process.env.REACT_APP_API_URL || "http://localhost:1337";
-  //     setUploadedImageUrl(imageUrl.startsWith("/") ? `${base}${imageUrl}` : imageUrl);
-  //   }
-  //   setImagePreviewUrl(null); // ลบ preview ออก
-  //   toast.success("อัพโหลดรูปสำเร็จ");
-  // };
-
-  // const getDrugStoreIdFromDocumentId = async (documentId) => {
-  //   const token = localStorage.getItem('jwt');
-  //   const res = await fetch(
-  //     `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`,
-  //     { headers: { Authorization: `Bearer ${token}` } }
-  //   );
-  //   const json = await res.json();
-  //   return json.data?.[0]?.documentId;
-  // };
 
   // ===== เพิ่มฟังก์ชันเช็คเวลาชน =====
   const checkTimeConflict = async (userId, newWorkSchedule, excludeStaffId = null) => {

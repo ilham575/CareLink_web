@@ -1,11 +1,18 @@
+'use strict';
+
+const { PolicyError } = require('@strapi/utils').errors;
+
 module.exports = (policyContext, config, { strapi }) => {
-  const user = policyContext.state.user;
-  if (!user) {
-    return policyContext.unauthorized();
+  const ctx = policyContext;
+  
+  if (!ctx.state.user) {
+    throw new PolicyError('You must be logged in', { policy: 'is-admin' });
   }
-  const roleName = user.role?.name;
-  if (roleName !== 'admin') {
-    return policyContext.forbidden('Only admin can perform this action');
+
+  const userRole = ctx.state.user.role?.type;
+  if (userRole !== 'admin') {
+    throw new PolicyError('You must be an admin to access this resource', { policy: 'is-admin' });
   }
-  return true; // ผ่าน policy
+
+  return true;
 };

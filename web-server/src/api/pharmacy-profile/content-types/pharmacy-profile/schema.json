@@ -11,42 +11,36 @@
   },
   "pluginOptions": {},
   "attributes": {
-    "firstname": {
-      "type": "string"
-    },
-    "lastname": {
-      "type": "string",
-      "unique": true
-    },
     "license_number": {
-      "type": "string"
-    },
-    "phone": {
-      "type": "string"
-    },
-    "working_time": {
       "type": "string"
     },
     "services": {
       "type": "json"
     },
-    "is_primary": {
-      "type": "boolean"
-    },
-    "pharmacy_profile": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "api::pharmacy-profile.pharmacy-profile"
-    },
-    "drug_store": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "api::drug-store.drug-store"
-    },
     "users_permissions_user": {
       "type": "relation",
-      "relation": "oneToOne",
-      "target": "plugin::users-permissions.user"
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "pharmacy_profiles"
+    },
+    "drug_stores": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::drug-store.drug-store",
+      "mappedBy": "pharmacy_profiles"
+    },
+    "profileimage": {
+      "type": "media",
+      "multiple": true,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    },
+    "working_time": {
+      "type": "json"
     }
   }
 }

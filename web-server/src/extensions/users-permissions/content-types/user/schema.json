@@ -78,7 +78,8 @@
       "type": "relation",
       "relation": "oneToMany",
       "target": "api::admin-profile.admin-profile",
-      "mappedBy": "users_permissions_user"
+      "mappedBy": "users_permissions_user",
+      "populate": true
     },
     "staff_profiles": {
       "type": "relation",
@@ -92,10 +93,11 @@
       "target": "api::customer-profile.customer-profile",
       "mappedBy": "users_permissions_user"
     },
-    "pharmacy_profile": {
+    "pharmacy_profiles": {
       "type": "relation",
-      "relation": "oneToOne",
-      "target": "api::pharmacy-profile.pharmacy-profile"
+      "relation": "oneToMany",
+      "target": "api::pharmacy-profile.pharmacy-profile",
+      "mappedBy": "users_permissions_user"
     }
   }
 }

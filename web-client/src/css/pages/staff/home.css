@@ -34,3 +34,34 @@
   font-weight: bold;
   margin: 4px 0;
 }
+
+.view-detail-button {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  color: #fff;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1em;
+  cursor: pointer;
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(16,185,129,0.3);
+  transition: all 0.3s ease;
+  margin-top: 10px;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.view-detail-button:hover {
+  background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+  box-shadow: 0 6px 20px rgba(16,185,129,0.5);
+  transform: translateY(-2px);
+}

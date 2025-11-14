@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
@@ -9,6 +9,7 @@ import '../../../css/pages/staff/home.css';
 
 function StaffHome() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [pharmacyData, setPharmacyData] = useState([]);
 
   useEffect(() => {
@@ -63,7 +64,10 @@ function StaffHome() {
             pharmacyData.map((item, idx) => {
               const { pharmacy: ph, staffProfile } = item;
               return (
-                <div className="pharmacy-item" key={idx}>
+                <div
+                  className="pharmacy-item"
+                  key={idx}
+                >
                   {(() => {
                     // ใช้ logic เดียวกับ pharmacy home
                     const getImageUrl = (photo) => {
@@ -129,6 +133,12 @@ function StaffHome() {
                       </div>
                     )}
                   </div>
+                  <button
+                    className="view-detail-button"
+                    onClick={() => navigate(`/drug_store_staff_detail/${ph.documentId}`, { state: { pharmacy: ph, staffProfile } })}
+                  >
+                    กดเพื่อดูรายละเอียด
+                  </button>
                 </div>
               );
             })

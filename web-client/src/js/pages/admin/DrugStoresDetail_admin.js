@@ -11,12 +11,12 @@ function getImageUrl(photo) {
   if (typeof photo === "string") return photo;
   if (photo.formats?.large?.url) return photo.formats.large.url;
   if (photo.formats?.medium?.url) return photo.formats.medium.url;
-  if (photo.url) return photo.url; // original full-size
-  if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url; 
+  if (photo.url) return photo.url;
+  if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
   return null;
 }
 
-// ✅ แม็พ key → ป้ายภาษาไทย ให้ตรงกับ AddStore_admin
+// ✅ แม็พ key → ป้ายภาษาไทย
 const SERVICE_LABELS = {
   sell_products: "จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ",
   consulting: "ให้คำปรึกษาทางเภสัชกรรม",
@@ -30,7 +30,6 @@ function DrugStoresDetail_admin() {
   const [pharmacy, setPharmacy] = useState(null);
   const [pharmacists, setPharmacists] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState(null);
 
   const jwt = localStorage.getItem('jwt');
 
@@ -43,7 +42,7 @@ function DrugStoresDetail_admin() {
       }
 
       try {
-        // 1. ดึงข้อมูล user ปัจจุบัน (เหมือน home.js)
+        // 1. ดึงข้อมูล user
         const userRes = await fetch('http://localhost:1337/api/users/me', {
           headers: { Authorization: `Bearer ${jwt}` }
         });
@@ -59,14 +58,12 @@ function DrugStoresDetail_admin() {
         }
 
         const userData = await userRes.json();
-        setCurrentUserId(userData.id);
-        // ใช้ documentId ของ user แทน id
         const userDocumentId = userData.documentId;
 
-        // 2. ดึง admin_profile + drug_stores ที่ผูกกับ user.documentId (เหมือน home.js)
+        // 2. ดึง admin_profile + drug_stores
         const res = await fetch(
-            `http://localhost:1337/api/admin-profiles?populate[drug_stores][populate]=*` +
-  `&filters[users_permissions_user][documentId][$eq]=${userDocumentId}`,
+          `http://localhost:1337/api/admin-profiles?populate[drug_stores][populate]=*` +
+          `&filters[users_permissions_user][documentId][$eq]=${userDocumentId}`,
           {
             headers: { Authorization: `Bearer ${jwt}` }
           }
@@ -80,7 +77,7 @@ function DrugStoresDetail_admin() {
         const data = await res.json();
         const myDrugStores = data.data[0]?.drug_stores || [];
 
-        // 3. หาร้านยาที่ตรงกับ documentId ที่ส่งมา
+        // 3. หาร้านยาที่ตรงกับ documentId
         const store = myDrugStores.find(s => s.documentId === id);
 
         if (!store) {
@@ -88,45 +85,25 @@ function DrugStoresDetail_admin() {
           navigate(-1);
           return;
         }
-        
+
         setPharmacy(store);
 
-        // 4. ❌ ปิดการดึงข้อมูลเภสัชกรชั่วคราว
-        
-        try {
-          const pharmacistRes = await fetch(
-            `http://localhost:1337/api/pharmacy-profiles?populate=*&filters[drug_stores][documentId][$eq]=${id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${jwt}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-
-          if (pharmacistRes.ok) {
-            const pharmacistData = await pharmacistRes.json();
-            setPharmacists(pharmacistData.data || []);
-          } else {
+        // 4. ดึงเภสัชกรทั้งหมดในร้าน
+        const pharmacistRes = await fetch(
+          `http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user&filters[drug_stores][documentId][$eq]=${id}`,
+          {
+            headers: { Authorization: `Bearer ${jwt}` }
           }
-        } catch (pharmacistErr) {
-        }
-        
-        
-        // ตั้งค่าเภสัชกรเป็น array ว่าง
-        setPharmacists([]);
+        );
 
-      } catch (err) {        
-        if (err.message.includes('401') || err.message.includes('403')) {
-          toast.error('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
-          localStorage.removeItem('jwt');
-          navigate('/login');
-        } else {
-          // ⚠️ แก้ไข: ใช้ toast แทน navigate
-          toast.error(`ไม่สามารถโหลดข้อมูลได้: ${err.message}`);
-          // ไม่ navigate ไปไหน ให้อยู่หน้าเดิม หรือกลับไปหน้าก่อน
-          navigate(-1);
+        if (pharmacistRes.ok) {
+          const pharmacistData = await pharmacistRes.json();
+          setPharmacists(pharmacistData.data || []);
         }
+
+      } catch (err) {
+        toast.error(`ไม่สามารถโหลดข้อมูลได้: ${err.message}`);
+        navigate(-1);
       } finally {
         setLoading(false);
       }
@@ -135,7 +112,18 @@ function DrugStoresDetail_admin() {
     fetchData();
   }, [id, jwt, navigate]);
 
-  // ✅ เตรียมรายการบริการที่ติ๊กไว้
+  // ✅ เลือกเภสัชกรคนแรก
+  const primaryPharmacist = React.useMemo(() => {
+    if (pharmacists.length === 0) return null;
+    const first = pharmacists[0];
+    return {
+      full_name: first.users_permissions_user?.full_name || "-",
+      phone: first.users_permissions_user?.phone || "-",
+      license_number: first.license_number || "-"
+    };
+  }, [pharmacists]);
+
+  // ✅ เตรียมรายการบริการ
   const enabledServiceLabels = React.useMemo(() => {
     const services = pharmacy?.services;
     if (!services || typeof services !== "object") return [];
@@ -144,32 +132,9 @@ function DrugStoresDetail_admin() {
       .map(([, label]) => label);
   }, [pharmacy]);
 
-  // ✅ เตรียมข้อมูลเภสัชกรหลัก - ปิดชั่วคราว
-  const primaryPharmacist = React.useMemo(() => {
-    
-    if (pharmacists.length === 0) return null;
-    
-    // หาเภสัชกรหลัก หรือใช้คนแรก
-    const primary = pharmacists.find(p => p.is_primary) || pharmacists[0];
-    
-    return {
-      full_name: `${primary.firstname || ''} ${primary.lastname || ''}`.trim(),
-      phone: primary.phone || '-',
-      license_number: primary.license_number || '-'
-    };
-    
-    
-    // ส่งค่าเริ่มต้นเมื่อปิดการดึงข้อมูลเภสัชกร
-    return {
-      full_name: '-',
-      phone: '-',
-      license_number: '-'
-    };
-  }, [pharmacists]);
-
   if (loading) {
     return (
-      <div className="detail-container" >
+      <div className="detail-container">
         <HomeHeader pharmacyName="กำลังโหลด..." />
         <div style={{ textAlign: 'center', marginTop: 50 }}>
           กำลังโหลดข้อมูล...
@@ -181,7 +146,7 @@ function DrugStoresDetail_admin() {
 
   if (!pharmacy) {
     return (
-      <div className="detail-container" >
+      <div className="detail-container">
         <HomeHeader pharmacyName="ไม่พบข้อมูล" />
         <div style={{ textAlign: 'center', marginTop: 50 }}>
           <h3>ไม่พบข้อมูลร้านยา</h3>
@@ -207,10 +172,10 @@ function DrugStoresDetail_admin() {
   }
 
   return (
-    <div className="detail-container" >
+    <div className="detail-container">
       <HomeHeader pharmacyName={pharmacy?.name_th || "รายละเอียดร้านยา"} />
 
-      {/* ✅ แถวรูปภาพ */}
+      {/* ✅ รูปภาพร้าน */}
       <div
         className="image-row"
         style={{
@@ -223,7 +188,7 @@ function DrugStoresDetail_admin() {
       >
         {["photo_front", "photo_in", "photo_staff"].map((key, idx) => {
           const imageUrl = getImageUrl(pharmacy[key]);
-          const fullImageUrl = imageUrl && imageUrl.startsWith('/') 
+          const fullImageUrl = imageUrl && imageUrl.startsWith('/')
             ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}`
             : imageUrl;
 
@@ -255,17 +220,11 @@ function DrugStoresDetail_admin() {
                 />
               ) : (
                 <div className="img-placeholder">
-                  {(() => {
-                    let label;
-                    if (key === "photo_front") {
-                      label = "รูปด้านนอกร้านยา";
-                    } else if (key === "photo_in") {
-                      label = "รูปด้านในร้านยา";
-                    } else {
-                      label = "รูปเภสัชกรและพนักงาน";
-                    }
-                    return label;
-                  })()}
+                  {key === "photo_front"
+                    ? "รูปด้านนอกร้านยา"
+                    : key === "photo_in"
+                      ? "รูปด้านในร้านยา"
+                      : "รูปเภสัชกรและพนักงาน"}
                 </div>
               )}
             </div>
@@ -273,7 +232,7 @@ function DrugStoresDetail_admin() {
         })}
       </div>
 
-      {/* ✅ ข้อมูลร้านยา */}
+      {/* ✅ ข้อมูลร้าน */}
       <div
         className="info-service-row"
         style={{
@@ -294,13 +253,11 @@ function DrugStoresDetail_admin() {
           }}
         >
           <p><strong>ชื่อร้านยา:</strong> {pharmacy.name_th || "-"}</p>
-          {/* {pharmacy.name_en && <p><strong>ชื่อภาษาอังกฤษ:</strong> {pharmacy.name_en}</p>} */}
           <p><strong>ที่อยู่:</strong> {pharmacy.address || "-"}</p>
-          {/* <p><strong>เลขที่ใบอนุญาต:</strong> {pharmacy.license_number || "-"}</p> */}
-          
-          {/* ✅ แสดงเภสัชกร */}
-          <p><strong>ชื่อ-นามสกุลเภสัชกร:</strong> {primaryPharmacist?.full_name || "-"}</p>
-          <p><strong>เบอร์โทรศัพท์เภสัชกร:</strong> {primaryPharmacist?.phone || "-"}</p>
+
+          {/* ✅ แสดงเภสัชคนแรก */}
+          <p><strong>ชื่อ-นามสกุลเภสัชกร:</strong> {primaryPharmacist?.full_name}</p>
+          <p><strong>เบอร์โทรศัพท์เภสัชกร:</strong> {primaryPharmacist?.phone}</p>
           
           <p>
             <strong>เวลาทำการ:</strong>{" "}
@@ -309,10 +266,12 @@ function DrugStoresDetail_admin() {
           </p>
           <p><strong>เบอร์โทรศัพท์ร้านยา:</strong> {pharmacy.phone_store || "-"}</p>
 
-          {/* ✅ ปุ่ม เภสัชกรประจำร้าน + แก้ไขร้านยา */}
+          {/* ✅ ปุ่ม */}
           <div style={{ display: 'flex', gap: 10, marginTop: 15 }}>
-            { <button
-              onClick={() => navigate(`/pharmacist_detail_admin/${id}`)}
+            <button
+              onClick={() => navigate(`/pharmacist_detail_admin/${id}`, {
+                state: { from: "drugStore" }
+              })}
               style={{
                 background: '#4CAF50',
                 color: 'white',
@@ -323,7 +282,7 @@ function DrugStoresDetail_admin() {
               }}
             >
               เภสัชกรประจำร้าน
-            </button> }
+            </button>
             <button
               onClick={() => navigate(`/edit_store_admin/${id}`)}
               style={{
@@ -355,7 +314,6 @@ function DrugStoresDetail_admin() {
             <p className="section-title" style={{ fontWeight: "bold" }}>
               การให้บริการ
             </p>
-
             {enabledServiceLabels.length > 0 ? (
               <ul style={{ paddingLeft: 20 }}>
                 {enabledServiceLabels.map((label, idx) => (
@@ -417,7 +375,7 @@ function DrugStoresDetail_admin() {
             border: "none",
             cursor: "pointer",
           }}
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("adminHome" ? "/adminHome" : -1)}
         >
           กลับ
         </button>

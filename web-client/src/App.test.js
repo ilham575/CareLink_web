@@ -1,85 +1,86 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import App from './App';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import Home from './js/pages/default/home';
 
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
-});
+describe('Home page', () => {
+  test('renders loading state', () => {
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+    expect(screen.getByText(/กำลังโหลดข้อมูล/i)).toBeInTheDocument();
+  });
 
-test('renders without crashing', () => {
-  render(<App />);
-});
+  test('renders pharmacy list after loading', async () => {
+    // mock fetch
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        json: async () => ({
+          data: [
+            {
+              id: 1,
+              attributes: {
+                name_th: 'ร้านยาเอ',
+                address: '123 ถนนสุขภาพ',
+                time_open: '08:00',
+                time_close: '20:00',
+                phone_store: '0123456789',
+                photo_front: { url: '/img.jpg' },
+                pharmacy_profiles: { data: [] }
+              }
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        json: async () => ({ data: [] })
+      });
 
-test('displays app title correctly', () => {
-  render(<App />);
-  const titleElement = screen.getByRole('heading', { level: 1 });
-  expect(titleElement).toBeInTheDocument();
-});
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+    expect(await screen.findByText(/ร้านยาเอ/)).toBeInTheDocument();
+    expect(screen.getByText(/123 ถนนสุขภาพ/)).toBeInTheDocument();
+  });
 
-test('handles user click events', async () => {
-  const user = userEvent.setup();
-  render(<App />);
-  
-  const buttons = screen.getAllByRole('button');
-  if (buttons.length > 0) {
-    await user.click(buttons[0]);
-    // Add expectations based on your app's behavior
-  }
-});
+  test('shows no pharmacy found when search does not match', async () => {
+    // mock fetch
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        json: async () => ({
+          data: [
+            {
+              id: 1,
+              attributes: {
+                name_th: 'ร้านยาเอ',
+                address: '123 ถนนสุขภาพ',
+                time_open: '08:00',
+                time_close: '20:00',
+                phone_store: '0123456789',
+                photo_front: { url: '/img.jpg' },
+                pharmacy_profiles: { data: [] }
+              }
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        json: async () => ({ data: [] })
+      });
 
-test('renders navigation elements', () => {
-  render(<App />);
-  const navElement = screen.queryByRole('navigation');
-  if (navElement) {
-    expect(navElement).toBeInTheDocument();
-  }
-});
-
-test('handles form submissions', async () => {
-  const user = userEvent.setup();
-  render(<App />);
-  
-  const forms = screen.getAllByRole('form');
-  if (forms.length > 0) {
-    fireEvent.submit(forms[0]);
-    // Add expectations for form handling
-  }
-});
-
-test('displays loading state correctly', async () => {
-  render(<App />);
-  
-  const loadingElement = screen.queryByText(/loading/i);
-  if (loadingElement) {
-    expect(loadingElement).toBeInTheDocument();
-  }
-});
-
-test('handles error states gracefully', () => {
-  render(<App />);
-  
-  const errorElement = screen.queryByText(/error/i);
-  // Test should pass whether error element exists or not initially
-  expect(true).toBe(true);
-});
-
-test('responsive design elements render', () => {
-  render(<App />);
-  
-  const container = screen.getByTestId('app-container') || document.querySelector('.App');
-  if (container) {
-    expect(container).toBeInTheDocument();
-  }
-});
-
-test('accessibility features are present', () => {
-  render(<App />);
-  
-  const mainContent = screen.queryByRole('main');
-  const landmarks = screen.getAllByRole(/^(banner|navigation|main|contentinfo)$/);
-  
-  // At least some accessibility structure should be present
-  expect(landmarks.length).toBeGreaterThanOrEqual(0);
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+    // wait for data
+    await screen.findByText(/ร้านยาเอ/);
+    // ค้นหาด้วยข้อความที่ไม่มีในชื่อร้าน
+    const searchInput = screen.getByRole('textbox');
+    fireEvent.change(searchInput, { target: { value: 'ไม่มีร้านนี้' } });
+    expect(screen.getByText(/ไม่พบข้อมูลร้านยา/)).toBeInTheDocument();
+  });
 });

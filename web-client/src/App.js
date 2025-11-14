@@ -12,6 +12,7 @@ import StaffHome from './js/pages/staff/home';
 import CustomerHome from './js/pages/customer/home';
 import RequireRole from './js/components/RequireRole';
 import DrugStoresDetailPharmacist from './js/pages/pharmacy/DrugStoresDetail_pharmacist';
+import DrugList from './js/pages/pharmacy/DrugList';
 import DrugStoresDetailAdmin from './js/pages/admin/DrugStoresDetail_admin';
 import StaffPage from './js/components/middle_page/staffPage';
 import FormStaffPage from './js/components/middle_page/formStaffPage';
@@ -23,10 +24,14 @@ import Footer from './js/components/footer';
 
 import AddStoreAdmin from './js/pages/admin/AddStore_admin';
 import AddPharmacyAdmin from './js/pages/admin/AddPharmacy_admin';
+import AddStaffAdmin from './js/pages/admin/AddStaff_admin';
+import EditStaffAdmin from './js/pages/admin/EditStaff_admin';
+import StaffDetailAdmin from './js/pages/admin/StaffDetail_admin';
 
 import CustomerPage from './js/components/middle_page/customerPage';
 import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
 import FormCustomerPage from './js/components/middle_page/formcustomerPage';
+import CustomerDetail from './js/pages/pharmacy/detail_customer';
 import 'antd/dist/reset.css';
 
 
@@ -48,13 +53,15 @@ function App() {
           
           {/* -------------------- ADMIN -------------------- */}
           <Route element={<RequireRole role="admin" />}>
+            <Route path="/admin" element={<AdminHome />} />
             <Route path="/adminHome" element={<AdminHome />} />
             <Route path="/drug_store_admin/:id" element={<DrugStoresDetailAdmin />} />
             <Route path="/add_store_admin" element={<AddStoreAdmin />} />
             <Route path="/add_pharmacy_admin/:storeId" element={<AddPharmacyAdmin />} />
             <Route path="/pharmacist_detail_admin/:storeId" element={<PharmacistDetailAdmin />} />
-            <Route path="/edit_pharmacist_admin/:id" element={<EditPharmacistAdmin />}/>
-            <Route path="/edit_store_admin/:id" element={<EditStoreAdmin />}/>
+            <Route path="/staff_detail_admin/:pharmacyId" element={<StaffDetailAdmin />} />
+            <Route path="/add_staff_admin/:pharmacyId" element={<AddStaffAdmin />} />
+            <Route path="/edit_staff_admin/:documentId" element={<EditStaffAdmin />} />
           </Route>
 
           {/* -------------------- PHARMACY -------------------- */}
@@ -76,6 +83,8 @@ function App() {
 
           {/* -------------------- STAFF MANAGEMENT -------------------- */}
           <Route element={<RequireRole role={['admin', 'pharmacy']} />}>
+            <Route path="/edit_pharmacist_admin/:id" element={<EditPharmacistAdmin />}/>
+            <Route path="/edit_store_admin/:id" element={<EditStoreAdmin />}/>
             <Route path="/drug_store_staff/:id" element={<StaffPage />} />
             <Route path="/form_staff" element={<FormStaffPage />} />
           </Route>
@@ -86,8 +95,10 @@ function App() {
           {/* -------------------- CUSTOMER MANAGEMENT -------------------- */}
           <Route element={<RequireRole role={['pharmacy', 'staff']} />}>
             <Route path="/drug_store_pharmacy/:id/followup-customers" element={<CustomerPage />} />
+            <Route path="/drug_store_pharmacy/:id/drugs" element={<DrugList />} />
             <Route path="/form_customer" element={<FormCustomerPage />} />
             <Route path="/form_customer/:id" element={<FormCustomerPage />} />
+            <Route path="/customer_detail/:customerDocumentId" element={<CustomerDetail />} />
           </Route>
         </Routes>
         <Footer />

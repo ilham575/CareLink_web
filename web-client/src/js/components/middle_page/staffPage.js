@@ -273,6 +273,14 @@ function StaffPage({ id }) {
           )}
         </div>
       </main>
+      <div className="back-button-container" style={{ textAlign: 'center', margin: '24px 0' }}>
+        <button
+          className="back-button"
+          onClick={() => navigate("/pharmacyHome")}
+        >
+          กลับ
+        </button>
+      </div>
       <Footer />
     </div>
   );
