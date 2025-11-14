@@ -12,6 +12,7 @@ import StaffHome from './js/pages/staff/home';
 import CustomerHome from './js/pages/customer/home';
 import RequireRole from './js/components/RequireRole';
 import DrugStoresDetailPharmacist from './js/pages/pharmacy/DrugStoresDetail_pharmacist';
+import DrugList from './js/pages/pharmacy/DrugList';
 import DrugStoresDetailAdmin from './js/pages/admin/DrugStoresDetail_admin';
 import StaffPage from './js/components/middle_page/staffPage';
 import FormStaffPage from './js/components/middle_page/formStaffPage';
@@ -94,6 +95,7 @@ function App() {
           {/* -------------------- CUSTOMER MANAGEMENT -------------------- */}
           <Route element={<RequireRole role={['pharmacy', 'staff']} />}>
             <Route path="/drug_store_pharmacy/:id/followup-customers" element={<CustomerPage />} />
+            <Route path="/drug_store_pharmacy/:id/drugs" element={<DrugList />} />
             <Route path="/form_customer" element={<FormCustomerPage />} />
             <Route path="/form_customer/:id" element={<FormCustomerPage />} />
             <Route path="/customer_detail/:customerDocumentId" element={<CustomerDetail />} />

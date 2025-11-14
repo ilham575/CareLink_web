@@ -477,6 +477,7 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
       'manyToMany',
       'api::customer-profile.customer-profile'
     >;
+    drugs: Schema.Attribute.Relation<'oneToMany', 'api::drug.drug'>;
     license_doc: Schema.Attribute.String & Schema.Attribute.Required;
     license_number: Schema.Attribute.String & Schema.Attribute.Required;
     link_gps: Schema.Attribute.String & Schema.Attribute.Required;
@@ -509,6 +510,41 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
     time_open: Schema.Attribute.Time & Schema.Attribute.Required;
     type: Schema.Attribute.Enumeration<['type1', 'type2', 'type3']> &
       Schema.Attribute.DefaultTo<'type1'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiDrugDrug extends Struct.CollectionTypeSchema {
+  collectionName: 'drugs';
+  info: {
+    displayName: 'Drug';
+    pluralName: 'drugs';
+    singularName: 'drug';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    date_produced: Schema.Attribute.String;
+    description: Schema.Attribute.Text;
+    drug_store: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::drug-store.drug-store'
+    >;
+    expiry_date: Schema.Attribute.String;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::drug.drug'> &
+      Schema.Attribute.Private;
+    lot_number: Schema.Attribute.String;
+    name_en: Schema.Attribute.String;
+    name_th: Schema.Attribute.String;
+    price: Schema.Attribute.String;
+    publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1132,6 +1168,7 @@ declare module '@strapi/strapi' {
       'api::admin-profile.admin-profile': ApiAdminProfileAdminProfile;
       'api::customer-profile.customer-profile': ApiCustomerProfileCustomerProfile;
       'api::drug-store.drug-store': ApiDrugStoreDrugStore;
+      'api::drug.drug': ApiDrugDrug;
       'api::pharmacy-profile.pharmacy-profile': ApiPharmacyProfilePharmacyProfile;
       'api::staff-profile.staff-profile': ApiStaffProfileStaffProfile;
       'plugin::content-releases.release': PluginContentReleasesRelease;

@@ -101,7 +101,7 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
 				<button className="detail-button" onClick={handleClick}>
 					กด<br />เพื่อดูรายละเอียด
 				</button>
-				<button className="detail-button" onClick={handleDrugList} disabled>
+				<button className="detail-button" onClick={handleDrugList}>
 					รายการยา
 				</button>
 				<button className="detail-button" onClick={handleFollowUp}>
