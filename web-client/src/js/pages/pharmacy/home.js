@@ -68,9 +68,9 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
 							
 							return (
 								<div key={profile.id || index} style={{ marginLeft: '8px', marginTop: '4px' }}>
-									<span style={{ fontWeight: 'bold', color: '#4CAF50' }}>
+									{/* <span style={{ fontWeight: 'bold', color: '#4CAF50' }}>
 										{profile.users_permissions_user?.full_name || `เภสัชกร ${profile.id}`}
-									</span>
+									</span> */}
 									{storeWorkingTimes.length > 0 ? (
 										<ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
 											{storeWorkingTimes.map((time, timeIndex) => (

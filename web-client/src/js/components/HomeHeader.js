@@ -286,12 +286,12 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
           })()}
         </div>
       ) : (
-        <div className="search-bar-container">
+        <div className="home-search-bar-container">
           <span className="search-icon">🔍</span>
           <input
             type="text"
             placeholder="ค้นหา"
-            className="search-input"
+            className="home-search-input"
             value={searchText}
             onChange={e => {
               setSearchText(e.target.value);

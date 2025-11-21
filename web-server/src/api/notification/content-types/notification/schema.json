@@ -1,0 +1,90 @@
+{
+  "kind": "collectionType",
+  "collectionName": "notifications",
+  "info": {
+    "singularName": "notification",
+    "pluralName": "notifications",
+    "displayName": "notification"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "staff_profile": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::staff-profile.staff-profile",
+      "inversedBy": "notifications"
+    },
+    "pharmacy_profile": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::pharmacy-profile.pharmacy-profile",
+      "inversedBy": "notifications"
+    },
+    "customer_profile": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::customer-profile.customer-profile",
+      "inversedBy": "notifications"
+    },
+    "drug_store": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::drug-store.drug-store",
+      "inversedBy": "notifications"
+    },
+    "type": {
+      "type": "enumeration",
+      "enum": [
+        "customer_assignment",
+        "appointment_reminder",
+        "drug_stock_low",
+        "system_alert",
+        "message"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "message": {
+      "type": "text"
+    },
+    "data": {
+      "type": "json"
+    },
+    "is_read": {
+      "type": "boolean"
+    },
+    "read_at": {
+      "type": "datetime"
+    },
+    "priority": {
+      "type": "enumeration",
+      "enum": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ]
+    },
+    "action_url": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": "datetime"
+    },
+    "staff_work_status": {
+      "type": "json",
+      "default": {
+        "received": false,
+        "prepared": false,
+        "received_at": null,
+        "prepared_at": null,
+        "prepared_note": "",
+        "outOfStock": []
+      }
+    }
+  }
+}

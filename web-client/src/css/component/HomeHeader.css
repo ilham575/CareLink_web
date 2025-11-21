@@ -33,7 +33,7 @@
   margin-left: 16px;
 }
 
-.search-bar-container {
+.home-search-bar-container {
   background: rgba(255,255,255,0.15);
   border-radius: 24px;
   padding: 10px 20px;
@@ -45,7 +45,7 @@
   transition: background 0.2s;
 }
 
-.search-bar-container:focus-within {
+.home-search-bar-container:focus-within {
   background: rgba(255,255,255,0.25);
 }
 
@@ -54,7 +54,7 @@
   font-size: 1.3em;
 }
 
-.search-input {
+.home-search-input {
   border: none;
   background: transparent;
   outline: none;
@@ -65,7 +65,7 @@
   transition: color 0.2s;
 }
 
-.search-input::placeholder {
+.home-search-input::placeholder {
   color: rgba(255, 255, 255, 0.8);
 }
 
@@ -133,7 +133,7 @@
     margin-right: 0;
     margin-bottom: 8px;
   }
-  .search-bar-container {
+  .home-search-bar-container {
     margin-right: 0;
     width: 100%;
     margin-top: 10px;
@@ -175,7 +175,7 @@
     height: 42px;
     margin-bottom: 6px;
   }
-  .search-bar-container {
+  .home-search-bar-container {
     padding: 7px 10px;
     font-size: 0.95em;
     margin-bottom: 6px;

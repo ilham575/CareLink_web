@@ -40,6 +40,21 @@
     },
     "symptom_note": {
       "type": "text"
+    },
+    "prescribed_drugs": {
+      "type": "json"
+    },
+    "notifications": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::notification.notification",
+      "mappedBy": "customer_profile"
+    },
+    "assigned_by_staff": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::staff-profile.staff-profile",
+      "inversedBy": "assigned_customers"
     }
   }
 }

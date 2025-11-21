@@ -29,11 +29,18 @@ import EditStaffAdmin from './js/pages/admin/EditStaff_admin';
 import StaffDetailAdmin from './js/pages/admin/StaffDetail_admin';
 
 import CustomerPage from './js/components/middle_page/customerPage';
+import CustomerPageStaff from './js/pages/staff/CustomerPage_staff';
+import CustomerDetailStaff from './js/pages/staff/CustomerDetail_staff';
 import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
+import EditStaffProfile from './js/pages/staff/editStaffProfile';
 import FormCustomerPage from './js/components/middle_page/formcustomerPage';
 import CustomerDetail from './js/pages/pharmacy/detail_customer';
 import 'antd/dist/reset.css';
 
+
+
+// Override console.log to disable all console.log calls
+console.log = () => {};
 
 
 // Component สำหรับ redirect ตาม role
@@ -74,6 +81,9 @@ function App() {
           <Route element={<RequireRole role="staff" />}>
             <Route path="/staffHome" element={<StaffHome />} />
             <Route path="/drug_store_staff_detail/:id" element={<DrugStoresDetailStaff />} />
+            <Route path="/drug_store_staff/:id/customers" element={<CustomerPageStaff />} />
+            <Route path="/staff/customer_detail/:customerDocumentId" element={<CustomerDetailStaff />} />
+            <Route path="/edit_staff_profile" element={<EditStaffProfile />} />
           </Route>
 
           {/* -------------------- CUSTOMER -------------------- */}
@@ -96,6 +106,7 @@ function App() {
           <Route element={<RequireRole role={['pharmacy', 'staff']} />}>
             <Route path="/drug_store_pharmacy/:id/followup-customers" element={<CustomerPage />} />
             <Route path="/drug_store_pharmacy/:id/drugs" element={<DrugList />} />
+            <Route path="/drugs/:id" element={<DrugList />} />
             <Route path="/form_customer" element={<FormCustomerPage />} />
             <Route path="/form_customer/:id" element={<FormCustomerPage />} />
             <Route path="/customer_detail/:customerDocumentId" element={<CustomerDetail />} />

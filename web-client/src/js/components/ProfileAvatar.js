@@ -35,6 +35,8 @@ function ProfileAvatar({ profileUrl, profileFullName, userData }) {
           alert("เกิดข้อผิดพลาดในการดึงข้อมูลเภสัชกร");
         }
       }
+    } else if (role === 'staff') {
+      navigate('/edit_staff_profile');
     }
   };
 

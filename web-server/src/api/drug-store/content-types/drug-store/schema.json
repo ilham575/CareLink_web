@@ -116,6 +116,12 @@
       "relation": "oneToMany",
       "target": "api::drug.drug",
       "mappedBy": "drug_store"
+    },
+    "notifications": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::notification.notification",
+      "mappedBy": "drug_store"
     }
   }
 }

@@ -133,12 +133,34 @@ function StaffHome() {
                       </div>
                     )}
                   </div>
-                  <button
-                    className="view-detail-button"
-                    onClick={() => navigate(`/drug_store_staff_detail/${ph.documentId}`, { state: { pharmacy: ph, staffProfile } })}
-                  >
-                    กดเพื่อดูรายละเอียด
-                  </button>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                    <button
+                      className="view-detail-button"
+                      onClick={() => navigate(`/drug_store_staff_detail/${ph.documentId}`, { state: { pharmacy: ph, staffProfile } })}
+                    >
+                      กดเพื่อดูรายละเอียด
+                    </button>
+                    <button
+                      className="view-detail-button"
+                      onClick={() => navigate(`/drug_store_staff/${ph.documentId}/customers`)}
+                      style={{ 
+                        background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
+                        border: 'none'
+                      }}
+                    >
+                      ข้อมูลลูกค้า
+                    </button>
+                    <button
+                      className="view-detail-button"
+                      onClick={() => navigate(`/drugs/${ph.documentId}`)}
+                      style={{ 
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        border: 'none'
+                      }}
+                    >
+                      รายการยา
+                    </button>
+                  </div>
                 </div>
               );
             })

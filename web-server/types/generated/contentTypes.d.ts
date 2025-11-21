@@ -441,6 +441,11 @@ export interface ApiCustomerProfileCustomerProfile
       'api::customer-profile.customer-profile'
     > &
       Schema.Attribute.Private;
+    notifications: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::notification.notification'
+    >;
+    prescribed_drugs: Schema.Attribute.JSON;
     publishedAt: Schema.Attribute.DateTime;
     symptom_history: Schema.Attribute.Text;
     symptom_note: Schema.Attribute.Text;
@@ -489,6 +494,10 @@ export interface ApiDrugStoreDrugStore extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     name_en: Schema.Attribute.String & Schema.Attribute.Required;
     name_th: Schema.Attribute.String & Schema.Attribute.Required;
+    notifications: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::notification.notification'
+    >;
     pharmacy_profiles: Schema.Attribute.Relation<
       'manyToMany',
       'api::pharmacy-profile.pharmacy-profile'
@@ -551,6 +560,67 @@ export interface ApiDrugDrug extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiNotificationNotification
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'notifications';
+  info: {
+    displayName: 'notification';
+    pluralName: 'notifications';
+    singularName: 'notification';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    action_url: Schema.Attribute.String;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    customer_profile: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::customer-profile.customer-profile'
+    >;
+    data: Schema.Attribute.JSON;
+    drug_store: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::drug-store.drug-store'
+    >;
+    expires_at: Schema.Attribute.DateTime;
+    is_read: Schema.Attribute.Boolean;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::notification.notification'
+    > &
+      Schema.Attribute.Private;
+    message: Schema.Attribute.Text;
+    pharmacy_profile: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::pharmacy-profile.pharmacy-profile'
+    >;
+    priority: Schema.Attribute.Enumeration<['low', 'normal', 'high', 'urgent']>;
+    publishedAt: Schema.Attribute.DateTime;
+    read_at: Schema.Attribute.DateTime;
+    staff_profile: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::staff-profile.staff-profile'
+    >;
+    title: Schema.Attribute.String;
+    type: Schema.Attribute.Enumeration<
+      [
+        'customer_assignment',
+        'appointment_reminder',
+        'drug_stock_low',
+        'system_alert',
+        'message',
+      ]
+    >;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiPharmacyProfilePharmacyProfile
   extends Struct.CollectionTypeSchema {
   collectionName: 'pharmacy_profiles';
@@ -577,6 +647,10 @@ export interface ApiPharmacyProfilePharmacyProfile
       'api::pharmacy-profile.pharmacy-profile'
     > &
       Schema.Attribute.Private;
+    notifications: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::notification.notification'
+    >;
     profileimage: Schema.Attribute.Media<
       'images' | 'files' | 'videos' | 'audios',
       true
@@ -620,6 +694,10 @@ export interface ApiStaffProfileStaffProfile
       'api::staff-profile.staff-profile'
     > &
       Schema.Attribute.Private;
+    notifications: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::notification.notification'
+    >;
     position: Schema.Attribute.String & Schema.Attribute.Required;
     profileimage: Schema.Attribute.Media<
       'images' | 'files' | 'videos' | 'audios'
@@ -1169,6 +1247,7 @@ declare module '@strapi/strapi' {
       'api::customer-profile.customer-profile': ApiCustomerProfileCustomerProfile;
       'api::drug-store.drug-store': ApiDrugStoreDrugStore;
       'api::drug.drug': ApiDrugDrug;
+      'api::notification.notification': ApiNotificationNotification;
       'api::pharmacy-profile.pharmacy-profile': ApiPharmacyProfilePharmacyProfile;
       'api::staff-profile.staff-profile': ApiStaffProfileStaffProfile;
       'plugin::content-releases.release': PluginContentReleasesRelease;
