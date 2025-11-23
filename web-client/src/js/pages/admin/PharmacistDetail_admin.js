@@ -53,13 +53,15 @@ function PharmacistDetail_admin() {
         // ✅ โหลดข้อมูลเภสัชกร
         let pharmacistRes;
         if (pharmacistId) {
+          // Get specific pharmacist by documentId
           pharmacistRes = await fetch(
-            API.pharmacyProfiles.list(`filters[documentId][$eq]=${pharmacistId}&populate=*`),
+            `${API.BASE_URL}/api/pharmacy-profiles?filters[documentId][$eq]=${pharmacistId}&populate=*`,
             { headers: { Authorization: `Bearer ${jwt}` } }
           );
         } else {
+          // Get all pharmacists for this store
           pharmacistRes = await fetch(
-            API.pharmacyProfiles.list(`filters[drug_stores][documentId][$eq]=${storeId}&populate=*`),
+            `${API.BASE_URL}/api/pharmacy-profiles?filters[drug_stores][documentId][$eq]=${storeId}&populate=*`,
             { headers: { Authorization: `Bearer ${jwt}` } }
           );
         }

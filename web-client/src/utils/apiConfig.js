@@ -21,6 +21,8 @@ console.log('🔗 API Base URL:', BASE_URL);
 // API Endpoints Structure
 // ============================================
 export const API = {
+  BASE_URL, // Export BASE_URL for use in direct fetch calls
+  
   // ==================
   // Authentication
   // ==================
