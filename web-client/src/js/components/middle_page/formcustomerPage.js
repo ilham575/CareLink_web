@@ -190,7 +190,7 @@ function FormCustomerPage() {
     const passwordToUse = formData.password?.trim() || formData.phone;
 
     // Create user with basic fields only
-    const userResponse = await fetch(API.auth.register(), {
+    const userResponse = await fetch(API.auth.register, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

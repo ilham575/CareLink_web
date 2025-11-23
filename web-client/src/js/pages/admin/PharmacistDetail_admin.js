@@ -84,7 +84,7 @@ function PharmacistDetail_admin() {
     try {
       // 1. ดึง pharmacy-profile ที่จะแก้ไข
       const profileRes = await fetch(
-        API.pharmacyProfiles.list(`filters[documentId][$eq]=${documentId}&populate=*`),
+        `${API.BASE_URL}/api/pharmacy-profiles?filters[documentId][$eq]=${documentId}&populate=*`,
         { headers: { Authorization: `Bearer ${jwt}` } }
       );
       const profileData = await profileRes.json();

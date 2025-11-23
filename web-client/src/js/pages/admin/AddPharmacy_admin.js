@@ -546,7 +546,7 @@ function AddPharmacist_admin() {
 
         // 1. สมัคร User
         const userRes = await fetch(
-          API.auth.register(),
+          API.auth.register,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

@@ -66,11 +66,11 @@ function EditPharmacist_admin() {
           if (!userRes.ok) throw new Error("ไม่สามารถโหลดข้อมูลผู้ใช้ได้");
           const userData = await userRes.json();
           // ดึง profile ของเภสัชกรนี้ "ทุกโปรไฟล์" (ทุก documentId)
-          apiUrl = API.pharmacyProfiles.list(`filters[users_permissions_user][id][$eq]=${userData.id}&populate=*`);
+          apiUrl = `${API.BASE_URL}/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userData.id}&populate=*`;
           isOwner = true;
         } else {
           // แก้ไขโดย admin หรือกรณีปกติ - ดึง profile เดียวก่อน
-          apiUrl = API.pharmacyProfiles.list(`filters[documentId][$eq]=${id}&populate=*`);
+          apiUrl = `${API.BASE_URL}/api/pharmacy-profiles?filters[documentId][$eq]=${id}&populate=*`;
         }
 
         const res = await fetch(apiUrl, {
@@ -107,7 +107,7 @@ function EditPharmacist_admin() {
           if (userId) {
             // ดึง profile ทั้งหมดของ user นี้
             const allProfilesRes = await fetch(
-              API.pharmacyProfiles.list(`filters[users_permissions_user][id][$eq]=${userId}&populate=*`),
+              `${API.BASE_URL}/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=*`,
               { headers: { Authorization: `Bearer ${jwt}` } }
             );
             if (allProfilesRes.ok) {
