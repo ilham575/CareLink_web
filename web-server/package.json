@@ -12,13 +12,16 @@
     "start": "strapi start",
     "strapi": "strapi",
     "upgrade": "npx @strapi/upgrade latest",
-    "upgrade:dry": "npx @strapi/upgrade latest --dry"
+    "upgrade:dry": "npx @strapi/upgrade latest --dry",
+    "db:migrate": "node -e \"const path = require('path'); const { execSync } = require('child_process'); execSync('npx knex migrate:latest --knexfile ./config/database.js', {stdio: 'inherit'});\"",
+    "db:rollback": "node -e \"const { execSync } = require('child_process'); execSync('npx knex migrate:rollback --knexfile ./config/database.js', {stdio: 'inherit'});\""
   },
   "dependencies": {
     "@strapi/plugin-cloud": "5.17.0",
     "@strapi/plugin-users-permissions": "5.17.0",
     "@strapi/strapi": "^5.23.3",
     "better-sqlite3": "^12.2.0",
+    "knex": "^3.1.0",
     "pg": "8.8.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
