@@ -64,9 +64,11 @@ function EditPharmacist_admin() {
             headers: { Authorization: `Bearer ${jwt}` }
           });
           if (!userRes.ok) throw new Error("ไม่สามารถโหลดข้อมูลผู้ใช้ได้");
-          const userData = await userRes.json();
+          const userResponse = await userRes.json();
+          const currentUser = userResponse.data?.[0];
+          if (!currentUser?.id) throw new Error("ไม่สามารถหา ID ผู้ใช้");
           // ดึง profile ของเภสัชกรนี้ "ทุกโปรไฟล์" (ทุก documentId)
-          apiUrl = `${API.BASE_URL}/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userData.id}&populate=*`;
+          apiUrl = `${API.BASE_URL}/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${currentUser.id}&populate=*`;
           isOwner = true;
         } else {
           // แก้ไขโดย admin หรือกรณีปกติ - ดึง profile เดียวก่อน
