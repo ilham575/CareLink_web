@@ -37,6 +37,8 @@ export const API = {
   // Users
   // ==================
   users: {
+    me: () => `${BASE_URL}/api/users/me?populate=role`,
+    getMeFull: () => `${BASE_URL}/api/users/me?populate=*`,
     getById: (id) => `${BASE_URL}/api/users/${id}?populate=role`,
     getByIdFull: (id) => `${BASE_URL}/api/users/${id}?populate=*`,
     list: () => `${BASE_URL}/api/users?populate=role`,

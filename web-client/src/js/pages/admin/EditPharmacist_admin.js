@@ -60,13 +60,13 @@ function EditPharmacist_admin() {
         // เช็คว่าเป็นการแก้ไขโดยตัวเองหรือไม่ (เภสัชกรเข้าผ่าน ProfileAvatar)
         if (userRole === 'pharmacy' && location.state?.isSelfEdit) {
           // ดึงข้อมูลผู้ใช้ปัจจุบัน
-          const userRes = await fetch(API.users.list(), {
+          const userRes = await fetch(API.users.me(), {
             headers: { Authorization: `Bearer ${jwt}` }
           });
-          if (!userRes.ok) throw new Error("ไม่สามารถโหลดข้อมูลผู้ใช้ได้");
-          const userResponse = await userRes.json();
-          const currentUser = userResponse.data?.[0];
-          if (!currentUser?.id) throw new Error("ไม่สามารถหา ID ผู้ใช้");
+          if (!userRes.ok) throw new Error(`ไม่สามารถโหลดข้อมูลผู้ใช้ได้: ${userRes.status}`);
+          const currentUser = await userRes.json();
+          console.log('🔍 Current user from API.users.me():', currentUser);
+          if (!currentUser?.id) throw new Error(`ไม่สามารถหา ID ผู้ใช้ - Response: ${JSON.stringify(currentUser)}`);
           // ดึง profile ของเภสัชกรนี้ "ทุกโปรไฟล์" (ทุก documentId)
           apiUrl = `${API.BASE_URL}/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${currentUser.id}&populate=*`;
           isOwner = true;
