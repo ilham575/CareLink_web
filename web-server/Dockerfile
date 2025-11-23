@@ -18,11 +18,19 @@ RUN npm config set fetch-retry-maxtimeout 600000 -g && npm install
 # 4. ย้ายโค้ดเข้า Container
 COPY . .
 
-# 5. Build หน้า Admin Panel
+# 5. สร้าง uploads directory
+RUN mkdir -p public/uploads && \
+    chmod -R 777 public/uploads
+
+# 6. Build หน้า Admin Panel
 RUN npm run build
 
-# 6. เปิด Port
+# 7. เปิด Port
 EXPOSE 1337
 
-# 7. สั่งรัน
+# 8. Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:1337/admin || exit 1
+
+# 9. สั่งรัน
 CMD ["npm", "run", "start"]

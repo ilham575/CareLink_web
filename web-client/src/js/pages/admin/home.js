@@ -162,6 +162,14 @@ function AdminHome() {
           }
         });
 
+        if (userRes.status === 401) {
+          console.error('🔐 Token invalid/expired - clearing and redirecting to login');
+          localStorage.removeItem('jwt');
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('role');
+          navigate('/login');
+          return;
+        }
         if (!userRes.ok) throw new Error("ไม่สามารถดึงข้อมูล user ได้");
 
         const userData = await userRes.json();
@@ -180,6 +188,14 @@ function AdminHome() {
             }
           }
         );
+        if (adminProfileRes.status === 401) {
+          console.error('🔐 Token invalid/expired - clearing and redirecting to login');
+          localStorage.removeItem('jwt');
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('role');
+          navigate('/login');
+          return;
+        }
         if (!adminProfileRes.ok) throw new Error("ไม่สามารถโหลดโปรไฟล์แอดมินได้");
         const adminProfileData = await adminProfileRes.json();
         const adminProfile = adminProfileData.data[0];
@@ -204,6 +220,14 @@ function AdminHome() {
           }
         );
 
+        if (drugStoreRes.status === 401) {
+          console.error('🔐 Token invalid/expired - clearing and redirecting to login');
+          localStorage.removeItem('jwt');
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('role');
+          navigate('/login');
+          return;
+        }
         if (!drugStoreRes.ok) {
           console.error("API error: ไม่สามารถดึงข้อมูล drug-stores ได้", await drugStoreRes.text());
           throw new Error("ไม่สามารถดึงข้อมูล drug-stores ได้");

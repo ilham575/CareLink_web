@@ -30,8 +30,20 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
     fetch(`${BASE_URL}/api/users/me?populate=role`, {
       headers: { Authorization: `Bearer ${jwt}` }
     })
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 401) {
+          console.warn('⚠️ Token expired/invalid - redirecting to login');
+          localStorage.removeItem('jwt');
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('role');
+          navigate('/login');
+          return null;
+        }
+        if (!res.ok) throw new Error('Failed to fetch user');
+        return res.json();
+      })
       .then(user => {
+        if (!user) return;
         const userIdFromApi = user.id;
         setUserId(userIdFromApi); // เก็บ userId ใน state
         const role = user.role?.name || localStorage.getItem('role');

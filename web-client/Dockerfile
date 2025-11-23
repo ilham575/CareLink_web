@@ -11,15 +11,12 @@ RUN npm ci && npm cache clean --force
 # Copy source code
 COPY . .
 
-# ตั้งค่า URL Backend (สำคัญ! ต้องเป็น https ของ Cloud Run Strapi)
-ENV REACT_APP_API_URL=https://carelink-strapi-ke4rorabaa-as.a.run.app
-ENV NODE_ENV=production
+# Build React App with production environment
+RUN NODE_ENV=production REACT_APP_API_URL=https://carelink-strapi-ke4rorabaa-as.a.run.app npm run build
 
-# Build React App
-RUN npm run build
-
-# ตรวจสอบว่า Build ผ่าน
-RUN test -d /app/build || (echo "Build failed: build directory not found" && exit 1)
+# ตรวจสอบว่า Build ผ่านและมีไฟล์ static
+RUN test -d /app/build || (echo "Build failed: build directory not found" && exit 1) && \
+    test -f /app/build/index.html || (echo "Build failed: index.html not found" && exit 1)
 
 
 # Stage 2: Runtime
