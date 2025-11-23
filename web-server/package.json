@@ -13,8 +13,8 @@
     "strapi": "strapi",
     "upgrade": "npx @strapi/upgrade latest",
     "upgrade:dry": "npx @strapi/upgrade latest --dry",
-    "db:migrate": "node -e \"const path = require('path'); const { execSync } = require('child_process'); execSync('npx knex migrate:latest --knexfile ./config/database.js', {stdio: 'inherit'});\"",
-    "db:rollback": "node -e \"const { execSync } = require('child_process'); execSync('npx knex migrate:rollback --knexfile ./config/database.js', {stdio: 'inherit'});\""
+    "db:migrate": "knex migrate:latest --env production",
+    "db:rollback": "knex migrate:rollback --env production"
   },
   "dependencies": {
     "@strapi/plugin-cloud": "5.17.0",

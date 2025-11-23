@@ -1,0 +1,56 @@
+/**
+ * Strapi Bootstrap - Run database migrations on startup
+ * This file runs when Strapi starts and adds any missing database columns
+ */
+
+'use strict';
+
+module.exports = (/*{ strapi }*/) => {
+  // Register an initializeEvent listener to run migrations after database connects
+  strapi.db.lifecycles.subscribe({
+    async afterCreate() {
+      // This runs after Strapi is initialized
+    }
+  });
+
+  strapi.events.on('server.start', async () => {
+    console.log('🔧 [BOOTSTRAP] Starting database migrations...');
+    
+    try {
+      const knex = strapi.db.connection;
+      
+      // Check if admin_profile_id column exists in drug_stores
+      const hasColumn = await knex.schema.hasColumn('drug_stores', 'admin_profile_id');
+      
+      if (!hasColumn) {
+        console.log('📝 [BOOTSTRAP] Adding admin_profile_id column to drug_stores table...');
+        
+        await knex.schema.table('drug_stores', (table) => {
+          table.integer('admin_profile_id').unsigned().nullable();
+        });
+        
+        console.log('✅ [BOOTSTRAP] Column admin_profile_id added successfully');
+        
+        // Try to add foreign key if table structure allows
+        try {
+          await knex.schema.table('drug_stores', (table) => {
+            table.foreign('admin_profile_id')
+              .references('id')
+              .inTable('admin_profiles')
+              .onDelete('SET NULL')
+              .onUpdate('CASCADE');
+          });
+          console.log('✅ [BOOTSTRAP] Foreign key constraint added successfully');
+        } catch (fkError) {
+          console.warn('⚠️  [BOOTSTRAP] Could not add foreign key:', fkError.message);
+        }
+      } else {
+        console.log('ℹ️  [BOOTSTRAP] Column admin_profile_id already exists - skipping');
+      }
+      
+      console.log('✅ [BOOTSTRAP] Database migrations completed');
+    } catch (error) {
+      console.error('❌ [BOOTSTRAP] Migration failed:', error);
+    }
+  });
+};
