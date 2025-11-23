@@ -86,15 +86,20 @@ export const API = {
     listFiltered: (filterObj = {}) => {
       const params = new URLSearchParams();
       params.append('populate', '*');
-      Object.entries(filterObj).forEach(([key, value]) => {
-        if (typeof value === 'object') {
-          Object.entries(value).forEach(([op, val]) => {
-            params.append(`filters[${key}][${op}]`, val);
-          });
-        } else {
-          params.append(`filters[${key}]`, value);
-        }
-      });
+      
+      const addFilters = (obj, prefix = 'filters') => {
+        Object.entries(obj).forEach(([key, value]) => {
+          const newPrefix = prefix ? `${prefix}[${key}]` : key;
+          if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+            // Recursively handle nested objects
+            addFilters(value, newPrefix);
+          } else {
+            params.append(newPrefix, value);
+          }
+        });
+      };
+      
+      addFilters(filterObj);
       return `${BASE_URL}/api/pharmacy-profiles?${params.toString()}`;
     },
     create: () => `${BASE_URL}/api/pharmacy-profiles`,
