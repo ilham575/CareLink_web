@@ -7,6 +7,7 @@ import '../../../css/pages/pharmacy/detail_customer.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { Modal, Tabs } from 'antd';
 import dayjs from 'dayjs';
+import { API, fetchWithAuth } from '../../../utils/apiConfig';
 
 // เพิ่มฟังก์ชันแปลงวันที่เป็นภาษาไทย
 function formatThaiDate(dateStr) {
@@ -50,6 +51,8 @@ function CustomerDetailStaff() {
     availableDrugs: []
   });
   const [activeTab, setActiveTab] = useState('1');
+  // Track selected batch (lot) for each drug: { drugId: batchDocumentId }
+  const [selectedBatches, setSelectedBatches] = useState({});
   
   // Get pharmacyId from URL params
   const searchParams = new URLSearchParams(location.search);
@@ -69,7 +72,7 @@ function CustomerDetailStaff() {
           
           // โหลด staff profile
           const staffRes = await fetch(
-            `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][documentId][$eq]=${userDocumentId}&filters[drug_store][documentId][$eq]=${pharmacyId}`,
+            API.staffProfiles.getByUserAndStore(userDocumentId, pharmacyId),
             { headers: { Authorization: token ? `Bearer ${token}` : '' } }
           );
 
@@ -82,7 +85,7 @@ function CustomerDetailStaff() {
 
           // โหลด notification
           const notifRes = await fetch(
-            `http://localhost:1337/api/notifications/${notificationId}?populate=*`,
+            API.notifications.getById(notificationId),
             { headers: { Authorization: token ? `Bearer ${token}` : '' } }
           );
 
@@ -129,7 +132,7 @@ function CustomerDetailStaff() {
         } else {
           // โหลด customer profile ตามปกติ
           const customerRes = await fetch(
-            `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
+            API.customerProfiles.getByIdBasic(customerDocumentId),
             {
               headers: { Authorization: token ? `Bearer ${token}` : "" }
             }
@@ -142,7 +145,7 @@ function CustomerDetailStaff() {
           
           // โหลดข้อมูล staff profile
           const staffRes = await fetch(
-            `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][documentId][$eq]=${userDocumentId}&filters[drug_store][documentId][$eq]=${pharmacyId}`,
+            API.staffProfiles.getByUserAndStore(userDocumentId, pharmacyId),
             { headers: { Authorization: token ? `Bearer ${token}` : '' } }
           );
 
@@ -153,7 +156,7 @@ function CustomerDetailStaff() {
             if (staffProfile) {
               // โหลด notification ของลูกค้าคนนี้ที่ส่งมาให้ staff คนนี้
               const notifRes = await fetch(
-                `http://localhost:1337/api/notifications?filters[staff_profile][documentId][$eq]=${staffProfile.documentId}&filters[customer_profile][documentId][$eq]=${customerDocumentId}&filters[type][$eq]=customer_assignment&populate[]=staff_profile&populate[]=pharmacy_profile&populate[]=drug_store&populate[]=customer_profile`,
+                API.notifications.getStaffAssignments(staffProfile.documentId, customerDocumentId),
                 { headers: { Authorization: token ? `Bearer ${token}` : '' } }
               );
 
@@ -174,7 +177,7 @@ function CustomerDetailStaff() {
         // Load pharmacy data if pharmacyId exists
         if (pharmacyId) {
           const pharmacyRes = await fetch(
-            `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`,
+            API.drugStores.getByDocumentId(pharmacyId),
             {
               headers: { Authorization: token ? `Bearer ${token}` : "" }
             }
@@ -188,7 +191,7 @@ function CustomerDetailStaff() {
           
           // Load drugs for this pharmacy
           const drugsRes = await fetch(
-            `http://localhost:1337/api/drugs?filters[drug_store][documentId][$eq]=${pharmacyId}&populate=*`,
+            API.drugs.listByStore(pharmacyId),
             {
               headers: { Authorization: token ? `Bearer ${token}` : "" }
             }
@@ -229,6 +232,21 @@ function CustomerDetailStaff() {
         return;
       }
 
+      // ถ้าเป็นการกด "จัดยาส่งแล้ว" ต้องเช็คว่าเลือก lot ครบทุกยาหรือไม่
+      if (type === 'prepared') {
+        const missingBatches = customer.prescribed_drugs.filter(drugItem => {
+          const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
+          const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
+          // ถ้ายามีบัช แต่ไม่เลือก → error
+          return drug && drug.drug_batches && drug.drug_batches.length > 0 && !selectedBatches[drugId];
+        });
+
+        if (missingBatches.length > 0) {
+          toast.error('กรุณาเลือก Lot สำหรับทุกรายการยา');
+          return;
+        }
+      }
+
       const updatedStatus = { ...staffStatus };
       const now = new Date().toISOString();
       
@@ -239,9 +257,47 @@ function CustomerDetailStaff() {
         updatedStatus.prepared = true;
         updatedStatus.prepared_at = now;
         updatedStatus.prepared_note = note;
+
+        // ลดสต็อก batch ที่เลือก
+        for (const drugItem of customer.prescribed_drugs) {
+          const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
+          const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
+          const selectedBatchId = selectedBatches[drugId];
+
+          if (selectedBatchId) {
+            // ลดสต็อก batch นี้
+            try {
+              const batchRes = await fetch(API.drugBatches.getById(selectedBatchId), {
+                method: 'GET',
+                headers: { Authorization: `Bearer ${token}` }
+              });
+
+              if (batchRes.ok) {
+                const batchData = await batchRes.json();
+                const batch = batchData.data;
+                const newQuantity = Math.max(0, (batch.quantity || 0) - quantity);
+
+                // Update batch quantity
+                await fetch(API.drugBatches.getById(selectedBatchId), {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    data: { quantity: newQuantity }
+                  })
+                });
+              }
+            } catch (err) {
+              console.error(`Error updating batch ${selectedBatchId}:`, err);
+            }
+          }
+        }
       }
 
-      const res = await fetch(`http://localhost:1337/api/notifications/${notification.documentId}`, {
+      const notifIdentifier = notification?.documentId;
+      const res = await fetch(API.notifications.getById(notifIdentifier), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -260,6 +316,12 @@ function CustomerDetailStaff() {
         setNotification(prev => ({ ...prev, staff_work_status: updatedStatus, is_read: true }));
         toast.success('อัปเดตสถานะสำเร็จ');
         setStatusModal({ open: false, type: '', note: '' });
+        
+        // Reset selected batches
+        setSelectedBatches({});
+        
+        // Reload customer data to reflect updated batch quantities
+        window.location.reload();
       } else {
         throw new Error('ไม่สามารถอัปเดตสถานะได้');
       }
@@ -283,7 +345,8 @@ function CustomerDetailStaff() {
         outOfStock: [...new Set([...staffStatus.outOfStock, ...drugIds])]
       };
 
-      const res = await fetch(`http://localhost:1337/api/notifications/${notification.documentId}`, {
+      const notifIdentifier = notification?.documentId;
+      const res = await fetch(API.notifications.getById(notifIdentifier), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -614,9 +677,26 @@ function CustomerDetailStaff() {
                       
                       return (
                         <div key={drugId} className="prescribed-drug-card-individual" style={{
-                          opacity: isOutOfStock ? 0.6 : 1,
-                          border: isOutOfStock ? '2px solid #ff4d4f' : undefined
+                          opacity: isOutOfStock ? 0.6 : staffStatus.prepared ? 0.85 : 1,
+                          border: isOutOfStock ? '2px solid #ff4d4f' : staffStatus.prepared ? '2px solid #0050b3' : undefined,
+                          background: staffStatus.prepared ? '#f0f5ff' : undefined,
+                          position: 'relative'
                         }}>
+                          {staffStatus.prepared && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '10px',
+                              left: '10px',
+                              background: '#0050b3',
+                              color: 'white',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: 'bold'
+                            }}>
+                              🔒 ล็อก
+                            </div>
+                          )}
                           {/* Quantity Badge */}
                           <div className="prescribed-drug-quantity-badge">
                             จำนวน {quantity}
@@ -667,19 +747,74 @@ function CustomerDetailStaff() {
                             </div>
                           )}
 
-                          {/* Additional Info */}
-                          {drug && (drug.lot_number || drug.expiry_date) && (
-                            <div className="prescribed-drug-meta">
-                              {drug.lot_number && (
-                                <span>
-                                  Lot: {drug.lot_number}
-                                </span>
+                          {/* Batch Selection - Lots for Staff */}
+                          {drug && drug.drug_batches && drug.drug_batches.length > 0 && (
+                            <div className="prescribed-drug-meta" style={{ marginTop: '12px', opacity: staffStatus.prepared ? 0.6 : 1 }}>
+                              <div style={{ marginBottom: '8px', fontSize: '12px', fontWeight: '600', color: '#0050b3' }}>
+                                🏷️ เลือก Lot ที่ใช้:
+                              </div>
+                              <select
+                                disabled={staffStatus.prepared}
+                                value={selectedBatches[drugId] || ''}
+                                onChange={(e) => {
+                                  setSelectedBatches(prev => ({
+                                    ...prev,
+                                    [drugId]: e.target.value
+                                  }));
+                                }}
+                                style={{
+                                  width: '100%',
+                                  padding: '8px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #d9d9d9',
+                                  fontSize: '12px',
+                                  cursor: staffStatus.prepared ? 'not-allowed' : 'pointer',
+                                  background: staffStatus.prepared ? '#f5f5f5' : 'white',
+                                  color: '#000'
+                                }}
+                              >
+                                <option value="">-- เลือก Lot --</option>
+                                {drug.drug_batches.map((batch, idx) => (
+                                  <option key={batch.documentId || idx} value={batch.documentId || batch.id}>
+                                    {batch.lot_number} (เหลือ {batch.quantity}) | หมดอายุ: {batch.expiry_date}
+                                  </option>
+                                ))}
+                              </select>
+                              
+                              {selectedBatches[drugId] && (
+                                <div style={{ marginTop: '8px', padding: '8px', background: '#f6ffed', borderRadius: '4px', fontSize: '12px', color: '#52c41a', border: staffStatus.prepared ? '2px solid #52c41a' : 'none', fontWeight: staffStatus.prepared ? 'bold' : 'normal' }}>
+                                  {staffStatus.prepared ? '🔒 ล็อกแล้ว - ' : '✅ '}เลือก Lot: <strong>{drug.drug_batches.find(b => b.documentId === selectedBatches[drugId] || b.id === selectedBatches[drugId])?.lot_number}</strong>
+                                </div>
                               )}
-                              {drug.expiry_date && (
-                                <span>
-                                  หมดอายุ: {drug.expiry_date}
-                                </span>
-                              )}
+                            </div>
+                          )}
+
+                          {/* Show all available batches info */}
+                          {drug && drug.drug_batches && drug.drug_batches.length > 0 && !staffStatus.prepared && (
+                            <details style={{ marginTop: '10px', fontSize: '12px' }}>
+                              <summary style={{ cursor: 'pointer', color: '#666', fontWeight: '500' }}>
+                                📋 ข้อมูล Lots ทั้งหมด ({drug.drug_batches.length})
+                              </summary>
+                              <div style={{ marginTop: '8px', paddingLeft: '12px', borderLeft: '2px solid #e8e8e8' }}>
+                                {drug.drug_batches.map((batch, idx) => (
+                                  <div key={batch.documentId || idx} style={{ marginBottom: '8px', padding: '6px', background: '#fafafa', borderRadius: '3px' }}>
+                                    <div><strong>Lot:</strong> {batch.lot_number}</div>
+                                    <div><strong>สต็อก:</strong> {batch.quantity}</div>
+                                    {batch.date_produced && <div><strong>วันผลิต:</strong> {batch.date_produced}</div>}
+                                    {batch.expiry_date && <div><strong>หมดอายุ:</strong> <span style={{ color: '#ff4d4f' }}>{batch.expiry_date}</span></div>}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+
+                          {/* Show locked info when prepared */}
+                          {drug && drug.drug_batches && drug.drug_batches.length > 0 && staffStatus.prepared && selectedBatches[drugId] && (
+                            <div style={{ marginTop: '10px', fontSize: '12px', padding: '10px', background: '#f0f5ff', borderRadius: '4px', border: '2px solid #0050b3', color: '#0050b3', fontWeight: 'bold' }}>
+                              🔒 ข้อมูลที่ส่งแล้ว:
+                              <div style={{ marginTop: '6px', fontSize: '11px', fontWeight: 'normal', color: '#000' }}>
+                                Lot: <strong>{drug.drug_batches.find(b => b.documentId === selectedBatches[drugId] || b.id === selectedBatches[drugId])?.lot_number}</strong>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -870,3 +1005,4 @@ function CustomerDetailStaff() {
 }
 
 export default CustomerDetailStaff;
+

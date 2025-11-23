@@ -1,0 +1,97 @@
+# ============================================
+# CareLink Web Client - GCP Cloud Run Dockerfile
+# ============================================
+# Multi-stage build for optimal image size and security
+# Optimized for GCP Cloud Run deployment
+# ============================================
+
+# ============================================
+# Stage 1: Dependencies
+# ============================================
+FROM node:18-alpine AS dependencies
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --only=production && \
+    npm cache clean --force && \
+    rm -rf /var/cache/apk/*
+
+# Stage 2: Builder
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci && npm cache clean --force
+COPY . .
+
+# --- แก้ไขตรงนี้ (รับค่า URL ตอน Build) ---
+ENV NODE_ENV=production
+# ลบบรรทัด ENV REACT_APP_API_URL=... ของเก่าออก
+# ใส่ 2 บรรทัดนี้แทน เพื่อรอรับค่าจากคำสั่ง gcloud
+ARG REACT_APP_API_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+
+RUN npm run build
+
+# ตรวจสอบว่ามี folder build (React ปกติจะได้ folder ชื่อ build)
+RUN test -d /app/build || (echo "Build failed: build directory not found" && exit 1)
+
+# Stage 3: Runtime
+FROM nginx:1.27-alpine
+# ... (ติดตั้ง wget เหมือนเดิม) ...
+WORKDIR /app
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# --- แก้ไขตรงนี้ (Copy จาก build) ---
+# React.js ปกติใช้ /app/build (ถูกต้องแล้วครับ)
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# ============================================
+# Stage 3: Runtime (Nginx)
+# ============================================
+FROM nginx:1.27-alpine
+
+# Install wget for health checks
+RUN apk add --no-cache wget
+
+# Set working directory
+WORKDIR /app
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Copy built application from builder
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Create non-root user for security
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser && \
+    chown -R appuser:appuser /var/cache/nginx && \
+    chown -R appuser:appuser /var/log/nginx && \
+    chown -R appuser:appuser /etc/nginx/conf.d && \
+    touch /var/run/nginx.pid && \
+    chown appuser:appuser /var/run/nginx.pid && \
+    chown -R appuser:appuser /usr/share/nginx/html
+
+# Switch to non-root user
+USER appuser
+
+# Expose port 8080 (GCP Cloud Run requirement)
+EXPOSE 8080
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:8080/health || exit 1
+
+# Start Nginx in foreground
+CMD ["nginx", "-g", "daemon off;"]
+
+# ============================================
+# Build metadata
+# ============================================
+LABEL maintainer="CareLink Team"
+LABEL description="CareLink Web Client - React Application for GCP Cloud Run"
+LABEL version="1.0.0"

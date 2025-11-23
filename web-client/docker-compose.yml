@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: react_client
+    ports:
+      - "3000:3000" # ฝั่งซ้ายคือ Port เครื่องเรา : ฝั่งขวาคือ Port ใน Container
+    volumes:
+      - .:/app # Mount code จากเครื่องเราเข้าไปใน Container (เพื่อให้แก้โค้ดได้)
+      - /app/node_modules # สำคัญ! ป้องกัน node_modules ใน container ถูกทับ
+    environment:
+      - CHOKIDAR_USEPOLLING=true # ช่วยเรื่อง Hot Reload ในบาง OS (เช่น Windows/WSL)
+    stdin_open: true # จำเป็นสำหรับ create-react-app เก่าๆ เพื่อไม่ให้ process จบการทำงาน
+    tty: true

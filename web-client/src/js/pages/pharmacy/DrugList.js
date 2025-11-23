@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
+import { API, fetchWithAuth } from '../../../utils/apiConfig';
 import '../../../css/pages/default/drugsPage.css';
 
 /* eslint-disable no-undef */
@@ -83,6 +84,16 @@ export default function DrugList() {
   const [expiryFilterMonths, setExpiryFilterMonths] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingDrug, setEditingDrug] = useState(null);
+  // Batch management
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
+  const [editingBatch, setEditingBatch] = useState(null);
+  const [batchFormData, setBatchFormData] = useState({
+    lot_number: '',
+    quantity: '',
+    date_produced: '',
+    expiry_date: ''
+  });
+  const [expandedDrugId, setExpandedDrugId] = useState(null);
   const [importFile, setImportFile] = useState(null);
   // separate CSV and XLSX states
   const [csvFile, setCsvFile] = useState(null);
@@ -93,9 +104,6 @@ export default function DrugList() {
     name_th: '',
     name_en: '',
     description: '',
-    lot_number: '',
-    date_produced: '',
-    expiry_date: '',
     price: ''
   });
 
@@ -105,7 +113,7 @@ export default function DrugList() {
     const timestamp = Date.now();
     console.log('DEBUG: Starting to fetch data for store ID:', id);
     // fetch store info for header (keep full data so we have numeric id)
-    fetch(`http://localhost:1337/api/drug-stores/${id}?populate=*&_=${timestamp}&nocache=${Math.random()}`, {
+    fetch(API.drugStores.getById(id), {
       headers: {
         ...(token && { Authorization: `Bearer ${token}` })
       }
@@ -119,7 +127,7 @@ export default function DrugList() {
       .finally(() => {});
 
     // fetch drugs list
-    fetch(`http://localhost:1337/api/drugs?populate=*&_=${timestamp}&nocache=${Math.random()}`, {
+    fetch(API.drugs.listWithBatches(), {
       headers: {
         ...(token && { Authorization: `Bearer ${token}` })
       }
@@ -171,12 +179,9 @@ export default function DrugList() {
       'name_th',
       'name_en',
       'description',
-      'lot_number',
-      'date_produced',
-      'expiry_date',
       'price'
     ];
-    const sample = ['ตัวอย่างชื่อไทย','sample name','คำอธิบายตัวอย่าง','LOT123','2025-11-01','2027-11-01','100'];
+    const sample = ['ตัวอย่างชื่อไทย','sample name','คำอธิบายตัวอย่าง','100'];
 
     if (type === 'csv') {
       const csv = [header.join(','), sample.map(s => `"${String(s).replace(/"/g,'""')}"`).join(',')].join('\n');
@@ -340,14 +345,11 @@ export default function DrugList() {
         name_th: rec.name_th || '',
         name_en: rec.name_en || '',
         description: rec.description || '',
-        lot_number: rec.lot_number || '',
-        date_produced: rec.date_produced || null,
-        expiry_date: rec.expiry_date || null,
         price: (rec.price !== undefined && rec.price !== null && String(rec.price).trim() !== '') ? String(rec.price) : null,
         drug_store: storeRelationId
       };
       try {
-        const res = await fetch('http://localhost:1337/api/drugs', {
+        const res = await fetch(API.drugs.create(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -407,10 +409,10 @@ export default function DrugList() {
       }
     }
 
-    // refetch list after import to ensure we have server's canonical state
+      // refetch list after import to ensure we have server's canonical state
     try {
       const timestamp = Date.now();
-      const listRes = await fetch(`http://localhost:1337/api/drugs?populate=*&_=${timestamp}&nocache=${Math.random()}`, {
+      const listRes = await fetch(API.drugs.listWithBatches(), {
         headers: { ...(token && { Authorization: `Bearer ${token}` }) }
       });
       const listJson = await listRes.json();
@@ -425,9 +427,7 @@ export default function DrugList() {
     } finally {
       setImporting(false);
     }
-  };
-
-  // triggers CSV import from selected csvFile
+  };  // triggers CSV import from selected csvFile
   const handleImportCSV = async () => {
     if (!csvFile) return toast.info('กรุณาเลือกไฟล์ CSV ก่อน');
     try {
@@ -476,9 +476,6 @@ export default function DrugList() {
         name_th: drug.name_th || '',
         name_en: drug.name_en || '',
         description: drug.description || '',
-        lot_number: drug.lot_number || '',
-        date_produced: drug.date_produced ? drug.date_produced.split('T')[0] : '',
-        expiry_date: drug.expiry_date ? drug.expiry_date.split('T')[0] : '',
         price: drug.price ? String(drug.price) : ''
       });
     } else {
@@ -487,9 +484,6 @@ export default function DrugList() {
         name_th: '',
         name_en: '',
         description: '',
-        lot_number: '',
-        date_produced: '',
-        expiry_date: '',
         price: ''
       });
     }
@@ -526,7 +520,7 @@ export default function DrugList() {
       if (editingDrug) {
         // Update existing drug
         const editingKey = getDrugKey(editingDrug);
-        const response = await fetch(`http://localhost:1337/api/drugs/${editingKey}`, {
+        const response = await fetch(API.drugs.update(editingKey), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -551,7 +545,7 @@ export default function DrugList() {
         }
       } else {
         // Add new drug
-        const response = await fetch('http://localhost:1337/api/drugs', {
+        const response = await fetch(API.drugs.create(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -586,7 +580,7 @@ export default function DrugList() {
     // replaced by confirm modal flow; this function now opens the modal
     openConfirm('ยืนยันการลบ', 'คุณต้องการลบรายการยานี้หรือไม่?', async () => {
       try {
-        const response = await fetch(`http://localhost:1337/api/drugs/${drugId}`, {
+        const response = await fetch(API.drugs.delete(drugId), {
           method: 'DELETE',
           headers: {
             ...(token && { Authorization: `Bearer ${token}` })
@@ -622,6 +616,92 @@ export default function DrugList() {
 
   // modal open/close animation for main add/edit modal
   const [showModalClosing, setShowModalClosing] = useState(false);
+
+  // Batch handlers
+  const handleSaveBatch = async (e) => {
+    e.preventDefault();
+    if (!editingDrug) return toast.error('ไม่พบข้อมูลยา');
+    try {
+      const batchPayload = {
+        lot_number: batchFormData.lot_number,
+        quantity: parseInt(batchFormData.quantity) || 0,
+        date_produced: batchFormData.date_produced || null,
+        expiry_date: batchFormData.expiry_date || null,
+        drug: getDrugKey(editingDrug)
+      };
+
+      let response;
+      if (editingBatch) {
+        // Update batch
+        const batchId = editingBatch.id || editingBatch.documentId;
+        response = await fetch(API.drugBatches.update(batchId), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` })
+          },
+          body: JSON.stringify({ data: batchPayload })
+        });
+      } else {
+        // Create batch
+        response = await fetch(API.drugBatches.create(), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` })
+          },
+          body: JSON.stringify({ data: batchPayload })
+        });
+      }
+
+      if (!response.ok) throw new Error('ไม่สามารถบันทึก Batch ได้');
+      
+      toast.success(editingBatch ? 'แก้ไข Lot สำเร็จ' : 'เพิ่ม Lot สำเร็จ');
+      setBatchModalOpen(false);
+      
+      // Refetch drugs to get updated batches
+      const timestamp = Date.now();
+      const listRes = await fetch(API.drugs.listWithBatches(), {
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) }
+      });
+      const listJson = await listRes.json();
+      const items = Array.isArray(listJson.data) ? listJson.data : (listJson.data ? [listJson.data] : []);
+      const normalized = items.map(i => i && i.attributes ? { id: i.id, ...i.attributes } : i);
+      const filtered = normalized.filter(d => matchesStore(d, storeDocumentId));
+      setDrugs(filtered);
+    } catch (error) {
+      console.error('Error saving batch:', error);
+      toast.error('เกิดข้อผิดพลาดในการบันทึก Lot');
+    }
+  };
+
+  const handleDeleteBatch = (batchId, drugId) => {
+    openConfirm('ยืนยันการลบ Lot', 'คุณต้องการลบ Lot นี้หรือไม่?', async () => {
+      try {
+        const response = await fetch(API.drugBatches.delete(batchId), {
+          method: 'DELETE',
+          headers: { ...(token && { Authorization: `Bearer ${token}` }) }
+        });
+        if (!response.ok) throw new Error('ไม่สามารถลบ Lot ได้');
+        
+        toast.success('ลบ Lot สำเร็จ');
+        
+        // Refetch drugs
+        const timestamp = Date.now();
+        const listRes = await fetch(API.drugs.listWithBatches(), {
+          headers: { ...(token && { Authorization: `Bearer ${token}` }) }
+        });
+        const listJson = await listRes.json();
+        const items = Array.isArray(listJson.data) ? listJson.data : (listJson.data ? [listJson.data] : []);
+        const normalized = items.map(i => i && i.attributes ? { id: i.id, ...i.attributes } : i);
+        const filtered = normalized.filter(d => matchesStore(d, storeDocumentId));
+        setDrugs(filtered);
+      } catch (error) {
+        console.error('Error deleting batch:', error);
+        toast.error('เกิดข้อผิดพลาดในการลบ Lot');
+      }
+    });
+  };
 
   return (
     <div className="app-container drugs-page">
@@ -665,30 +745,118 @@ export default function DrugList() {
                 <tr>
                   <th>ชื่อยา</th>
                   <th>ข้อบ่งใช้</th>
-                  <th>Lot ยา</th>
-                  <th>วันที่ผลิต</th>
-                  <th>วันหมดอายุ</th>
                   <th>ราคา</th>
+                  <th>Lot & สต็อก</th>
                   <th>การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody>
                         {filteredDrugs.map((drug, idx) => (
-                          <tr key={getDrugKey(drug) || idx}>
-                    <td data-label="ชื่อยา" className="drug-name">{drug.name_th || drug.name_en || '-'}</td>
-                    <td data-label="ข้อบ่งใช้" className="drug-use">{drug.description || '-'}</td>
-                    <td data-label="Lot ยา">{drug.lot_number || '-'}</td>
-                    <td data-label="วันที่ผลิต">{formatDate(drug.date_produced)}</td>
-                    <td data-label="วันหมดอายุ">{formatDate(drug.expiry_date)}</td>
-                    <td data-label="ราคา">{drug.price ? `${drug.price} ฿` : '-'}</td>
-                    <td data-label="การดำเนินการ">
-                      <div className="action-buttons">
-                        <button className="btn-action edit" onClick={() => handleOpenModal(drug)}>แก้ไข</button>
-                        <button className="btn-action delete" onClick={() => handleDelete(getDrugKey(drug))}>ลบ</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <React.Fragment key={getDrugKey(drug) || idx}>
+                            <tr>
+                              <td data-label="ชื่อยา" className="drug-name">{drug.name_th || drug.name_en || '-'}</td>
+                              <td data-label="ข้อบ่งใช้" className="drug-use">{drug.description || '-'}</td>
+                              <td data-label="ราคา">{drug.price ? `${drug.price} ฿` : '-'}</td>
+                              <td data-label="Lot & สต็อก">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span>{drug.drug_batches?.length || 0} lot</span>
+                                  <button 
+                                    onClick={() => setExpandedDrugId(expandedDrugId === getDrugKey(drug) ? null : getDrugKey(drug))}
+                                    style={{ padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}
+                                  >
+                                    {expandedDrugId === getDrugKey(drug) ? '▼' : '▶'}
+                                  </button>
+                                </div>
+                              </td>
+                              <td data-label="การดำเนินการ">
+                                <div className="action-buttons">
+                                  <button className="btn-action edit" onClick={() => handleOpenModal(drug)}>แก้ไข</button>
+                                  <button className="btn-action delete" onClick={() => handleDelete(getDrugKey(drug))}>ลบ</button>
+                                </div>
+                              </td>
+                            </tr>
+                            {expandedDrugId === getDrugKey(drug) && (
+                              <tr style={{ background: '#f9f9f9' }}>
+                                <td colSpan="5">
+                                  <div style={{ padding: '15px' }}>
+                                    <div style={{ marginBottom: '10px', fontWeight: 'bold' }}>📦 รายละเอียด Lot</div>
+                                    {drug.drug_batches && drug.drug_batches.length > 0 ? (
+                                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                        <thead>
+                                          <tr style={{ borderBottom: '1px solid #ddd' }}>
+                                            <th style={{ textAlign: 'left', padding: '8px' }}>Lot</th>
+                                            <th style={{ textAlign: 'left', padding: '8px' }}>จำนวน</th>
+                                            <th style={{ textAlign: 'left', padding: '8px' }}>ผลิต</th>
+                                            <th style={{ textAlign: 'left', padding: '8px' }}>หมดอายุ</th>
+                                            <th style={{ textAlign: 'left', padding: '8px' }}>การดำเนินการ</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {drug.drug_batches.map(batch => {
+                                            const batchData = batch.attributes ? { id: batch.id, ...batch.attributes } : batch;
+                                            return (
+                                              <tr key={batchData.id || batchData.documentId} style={{ borderBottom: '1px solid #eee' }}>
+                                                <td style={{ padding: '8px' }}>{batchData.lot_number || '-'}</td>
+                                                <td style={{ padding: '8px' }}>{batchData.quantity || 0} แผง</td>
+                                                <td style={{ padding: '8px' }}>{formatDate(batchData.date_produced)}</td>
+                                                <td style={{ padding: '8px' }}>{formatDate(batchData.expiry_date)}</td>
+                                                <td style={{ padding: '8px' }}>
+                                                  <button 
+                                                    className="btn-action edit"
+                                                    style={{ marginRight: '5px', padding: '4px 8px', fontSize: '11px' }}
+                                                    onClick={() => {
+                                                      setEditingBatch(batchData);
+                                                      setBatchFormData({
+                                                        lot_number: batchData.lot_number || '',
+                                                        quantity: String(batchData.quantity || ''),
+                                                        date_produced: batchData.date_produced ? batchData.date_produced.split('T')[0] : '',
+                                                        expiry_date: batchData.expiry_date ? batchData.expiry_date.split('T')[0] : ''
+                                                      });
+                                                      setBatchModalOpen(true);
+                                                    }}
+                                                  >
+                                                    แก้ไข
+                                                  </button>
+                                                  <button 
+                                                    className="btn-action delete"
+                                                    style={{ padding: '4px 8px', fontSize: '11px' }}
+                                                    onClick={() => handleDeleteBatch(batchData.id || batchData.documentId, getDrugKey(drug))}
+                                                  >
+                                                    ลบ
+                                                  </button>
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    ) : (
+                                      <p style={{ color: '#999' }}>ไม่มี Lot</p>
+                                    )}
+                                    <button 
+                                      className="btn small primary" 
+                                      style={{ marginTop: '10px' }}
+                                      onClick={() => {
+                                        setEditingBatch(null);
+                                        setBatchFormData({
+                                          lot_number: '',
+                                          quantity: '',
+                                          date_produced: '',
+                                          expiry_date: ''
+                                        });
+                                        // Store which drug we're adding a batch to
+                                        setEditingDrug(drug);
+                                        setBatchModalOpen(true);
+                                      }}
+                                    >
+                                      + เพิ่ม Lot ใหม่
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        ))}
               </tbody>
             </table>
           )}
@@ -731,35 +899,6 @@ export default function DrugList() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Lot ยา</label>
-                  <input
-                    type="text"
-                    name="lot_number"
-                    value={formData.lot_number}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>วันที่ผลิต</label>
-                    <input
-                      type="date"
-                      name="date_produced"
-                      value={formData.date_produced}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>วันหมดอายุ</label>
-                    <input
-                      type="date"
-                      name="expiry_date"
-                      value={formData.expiry_date}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
                   <label>ราคา (฿)</label>
                   <input
                     type="number"
@@ -800,6 +939,62 @@ export default function DrugList() {
                   ยืนยัน
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Batch Modal */}
+        {(batchModalOpen) && (
+          <div className={`modal-overlay show`} onClick={() => setBatchModalOpen(false)}>
+            <div className={`modal-content show`} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>{editingBatch ? 'แก้ไข Lot' : 'เพิ่ม Lot ใหม่'}</h3>
+                <button className="modal-close" onClick={() => setBatchModalOpen(false)}>×</button>
+              </div>
+              <form onSubmit={handleSaveBatch} className="drug-form">
+                <div className="form-group">
+                  <label>Lot Number</label>
+                  <input
+                    type="text"
+                    value={batchFormData.lot_number}
+                    onChange={(e) => setBatchFormData({ ...batchFormData, lot_number: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>จำนวน (แผง/หลอด)</label>
+                  <input
+                    type="number"
+                    value={batchFormData.quantity}
+                    onChange={(e) => setBatchFormData({ ...batchFormData, quantity: e.target.value })}
+                    min="0"
+                    required
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>วันที่ผลิต</label>
+                    <input
+                      type="date"
+                      value={batchFormData.date_produced}
+                      onChange={(e) => setBatchFormData({ ...batchFormData, date_produced: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>วันหมดอายุ</label>
+                    <input
+                      type="date"
+                      value={batchFormData.expiry_date}
+                      onChange={(e) => setBatchFormData({ ...batchFormData, expiry_date: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <button type="button" className="btn secondary" onClick={() => setBatchModalOpen(false)}>ยกเลิก</button>
+                  <button type="submit" className="btn primary">{editingBatch ? 'แก้ไข' : 'เพิ่ม'}</button>
+                </div>
+              </form>
             </div>
           </div>
         )}

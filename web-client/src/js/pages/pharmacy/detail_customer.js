@@ -7,6 +7,7 @@ import '../../../css/pages/pharmacy/detail_customer.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { Modal, DatePicker, Tabs } from 'antd';
 import dayjs from 'dayjs';
+import { API, fetchWithAuth } from '../../../utils/apiConfig';
 
 // เพิ่มฟังก์ชันแปลงวันที่เป็นภาษาไทย
 function formatThaiDate(dateStr) {
@@ -66,6 +67,8 @@ function CustomerDetail() {
     prepared_note: '',
     outOfStock: []
   });
+  // Keep latest notification (if any) so we can tell initial assign vs update
+  const [latestNotification, setLatestNotification] = useState(null);
   const userRole = localStorage.getItem('role');
   
   const [outOfStockModal, setOutOfStockModal] = useState({
@@ -84,6 +87,8 @@ function CustomerDetail() {
   });
   // IDs of drugs reported out-of-stock by staff (used to update the prescribed-drugs tab)
   const [outOfStockIds, setOutOfStockIds] = useState([]);
+  // Modal state for showing a drug's full details when user clicks 'รายละเอียด'
+  const [drugDetailModal, setDrugDetailModal] = useState({ open: false, drug: null });
   
   // Get pharmacyId from URL params
   const searchParams = new URLSearchParams(location.search);
@@ -99,7 +104,7 @@ function CustomerDetail() {
         
         // Load customer data
         const customerRes = await fetch(
-          `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores&populate[2]=assigned_by_staff.users_permissions_user`,
+          API.customerProfiles.getById(customerDocumentId),
           {
             headers: { Authorization: token ? `Bearer ${token}` : "" }
           }
@@ -111,18 +116,19 @@ function CustomerDetail() {
         console.log('Customer data loaded:', customerData);
         setCustomer(customerData.data);
         
-        // โหลด assigned_by_staff ถ้ามี
-        if (customerData.data?.assigned_by_staff) {
+        // โหลด assigned_by_staff ถ้ามีและมี documentId ให้ถือว่าเป็นข้อมูลที่สมบูรณ์
+        if (customerData.data?.assigned_by_staff && customerData.data.assigned_by_staff.documentId) {
           console.log('Customer has assigned_by_staff:', customerData.data.assigned_by_staff);
           setAssignedByStaff(customerData.data.assigned_by_staff);
         } else {
-          console.log('Customer does NOT have assigned_by_staff');
+          console.log('Customer does NOT have assigned_by_staff or it is incomplete');
+          setAssignedByStaff(null);
         }
         
         // Load pharmacy data if pharmacyId exists
         if (pharmacyId) {
           const pharmacyRes = await fetch(
-            `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`,
+            API.drugStores.getByDocumentId(pharmacyId),
             {
               headers: { Authorization: token ? `Bearer ${token}` : "" }
             }
@@ -136,22 +142,26 @@ function CustomerDetail() {
           
           // Load drugs for this pharmacy
           const drugsRes = await fetch(
-            `http://localhost:1337/api/drugs?filters[drug_store][documentId][$eq]=${pharmacyId}&populate=*`,
+            API.drugs.listByStore(pharmacyId),
             {
               headers: { Authorization: token ? `Bearer ${token}` : "" }
             }
           );
           if (drugsRes.ok) {
             const drugsData = await drugsRes.json();
-            setAddDrugModal(prev => ({ ...prev, availableDrugs: drugsData.data }));
+            const drugsNormalized = (Array.isArray(drugsData.data) ? drugsData.data : [drugsData.data || []]).map(d => 
+              d.attributes ? { id: d.id, documentId: d.documentId, ...d.attributes } : d
+            );
+            setAddDrugModal(prev => ({ ...prev, availableDrugs: drugsNormalized }));
           }
           
           // โหลด staff work status จาก latest notification
           if (customerData.data?.assigned_by_staff?.documentId) {
             console.log('Loading staff work status for assigned_by_staff:', customerData.data.assigned_by_staff.documentId);
             try {
+              // Query both customer_assignment and customer_assignment_update types using OR
               const notificationRes = await fetch(
-                `http://localhost:1337/api/notifications?filters[customer_profile][documentId][$eq]=${customerDocumentId}&filters[staff_profile][documentId][$eq]=${customerData.data.assigned_by_staff.documentId}&filters[type][$eq]=customer_assignment&sort=createdAt:desc&pagination[limit]=1`,
+                API.notifications.getCustomerNotifications(customerDocumentId),
                 {
                   headers: { Authorization: token ? `Bearer ${token}` : "" }
                 }
@@ -163,10 +173,28 @@ function CustomerDetail() {
                 console.log('Notification data:', notifData);
                 const notification = notifData.data?.[0];
                 console.log('Loaded notification:', notification);
-                if (notification?.staff_work_status) {
-                  setStaffWorkStatus(notification.staff_work_status);
-                } else if (notification) {
-                  // Initialize with default empty status if notification exists but no status yet
+                if (notification) {
+                  // Keep the latest notification object
+                  setLatestNotification(notification);
+                  if (notification.staff_work_status) {
+                    console.log('Setting staff work status from notification:', notification.staff_work_status);
+                    setStaffWorkStatus(notification.staff_work_status);
+                  } else {
+                    // Initialize with default empty status if notification exists but no status yet
+                    console.log('Notification exists but no staff_work_status, initializing defaults');
+                    setStaffWorkStatus({
+                      received: false,
+                      prepared: false,
+                      received_at: null,
+                      prepared_at: null,
+                      prepared_note: '',
+                      outOfStock: []
+                    });
+                  }
+                } else {
+                  // no notification found for this assigned staff
+                  console.log('No notification found for this staff assignment');
+                  setLatestNotification(null);
                   setStaffWorkStatus({
                     received: false,
                     prepared: false,
@@ -177,13 +205,15 @@ function CustomerDetail() {
                   });
                 }
               } else {
-                console.log('Notification API failed with status:', notificationRes.status);
+                const errorData = await notificationRes.json().catch(() => ({}));
+                console.log('Notification API failed with status:', notificationRes.status, 'Error:', errorData);
               }
             } catch (err) {
               console.error('Error loading staff work status:', err);
             }
           } else {
             console.log('No assigned_by_staff.documentId found, skipping notification load');
+            setLatestNotification(null);
           }
         }
         
@@ -231,7 +261,7 @@ function CustomerDetail() {
     }
     try {
       const token = localStorage.getItem('jwt');
-      const res = await fetch(`http://localhost:1337/api/customer-profiles/${customerDocumentId}`, {
+      const res = await fetch(API.customerProfiles.update(customerDocumentId), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -248,7 +278,7 @@ function CustomerDetail() {
       setIsAppointmentModalOpen(false);
       // refresh customer data
       const customerRes = await fetch(
-        `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
+        API.customerProfiles.getByIdBasic(customerDocumentId),
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
       );
       const customerData = await customerRes.json();
@@ -261,7 +291,7 @@ function CustomerDetail() {
   const handleDeleteAppointment = async () => {
     try {
       const token = localStorage.getItem('jwt');
-      const res = await fetch(`http://localhost:1337/api/customer-profiles/${customerDocumentId}`, {
+      const res = await fetch(API.customerProfiles.update(customerDocumentId), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -278,7 +308,7 @@ function CustomerDetail() {
       setIsAppointmentModalOpen(false);
       // refresh customer data
       const customerRes = await fetch(
-        `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
+        API.customerProfiles.getByIdBasic(customerDocumentId),
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
       );
       const customerData = await customerRes.json();
@@ -393,6 +423,15 @@ function CustomerDetail() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [addDrugModal.open, addDrugModal.selectedDrugs, activeTab, pharmacy, pharmacyId]);
 
+  // Keep assignedByStaff synced with customer data whenever customer changes
+  useEffect(() => {
+    if (customer?.assigned_by_staff && customer.assigned_by_staff.documentId) {
+      setAssignedByStaff(customer.assigned_by_staff);
+    } else {
+      setAssignedByStaff(null);
+    }
+  }, [customer]);
+
   const handleSaveAddDrug = async () => {
     try {
       const token = localStorage.getItem('jwt');
@@ -405,8 +444,7 @@ function CustomerDetail() {
         return { drugId: item.drugId, quantity: drugQuantities[item.drugId] || item.quantity || 1 };
       });
       
-      const res = await fetch(`http://localhost:1337/api/customer-profiles/${customerDocumentId}`, {
-        method: 'PUT',
+      const res = await fetch(API.customerProfiles.update(customerDocumentId), { method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -423,7 +461,7 @@ function CustomerDetail() {
       setDrugQuantities({});
       // refresh customer data
       const customerRes = await fetch(
-        `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
+        API.customerProfiles.getByIdBasic(customerDocumentId),
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
       );
       const customerData = await customerRes.json();
@@ -491,8 +529,7 @@ function CustomerDetail() {
       } else if (editMedicalModal.type === 'allergy') {
         updateData = { Allergic_drugs: editMedicalModal.value };
       }
-      const res = await fetch(`http://localhost:1337/api/customer-profiles/${customerDocumentId}`, {
-        method: 'PUT',
+      const res = await fetch(API.customerProfiles.update(customerDocumentId), { method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -504,7 +541,7 @@ function CustomerDetail() {
       setEditMedicalModal({ ...editMedicalModal, open: false });
       // refresh customer data
       const customerRes = await fetch(
-        `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
+        API.customerProfiles.getByIdBasic(customerDocumentId),
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
       );
       const customerData = await customerRes.json();
@@ -518,8 +555,7 @@ function CustomerDetail() {
   const handleSaveEditSymptom = async () => {
     try {
       const token = localStorage.getItem('jwt');
-      const res = await fetch(`http://localhost:1337/api/customer-profiles/${customerDocumentId}`, {
-        method: 'PUT',
+      const res = await fetch(API.customerProfiles.update(customerDocumentId), { method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -537,7 +573,7 @@ function CustomerDetail() {
       setEditSymptomModal({ ...editSymptomModal, open: false });
       // refresh customer data
       const customerRes = await fetch(
-        `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
+        API.customerProfiles.getByIdBasic(customerDocumentId),
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
       );
       const customerData = await customerRes.json();
@@ -551,8 +587,7 @@ function CustomerDetail() {
   const handleDeleteSymptom = async () => {
     try {
       const token = localStorage.getItem('jwt');
-      const res = await fetch(`http://localhost:1337/api/customer-profiles/${customerDocumentId}`, {
-        method: 'PUT',
+      const res = await fetch(API.customerProfiles.update(customerDocumentId), { method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -570,7 +605,7 @@ function CustomerDetail() {
       setEditSymptomModal({ ...editSymptomModal, open: false });
       // refresh customer data
       const customerRes = await fetch(
-        `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
+        API.customerProfiles.getByIdBasic(customerDocumentId),
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
       );
       const customerData = await customerRes.json();
@@ -622,8 +657,17 @@ function CustomerDetail() {
     closeConfirmModal();
   };
 
-  // ฟังก์ชันเปิด modal ส่งข้อมูลให้พนักงาน
+  // ฟังก์ชันเปิด modal ส่งข้อมูลให้พนักงาน (หรือส่งอัพเดตถ้าเคยส่งมาก่อน)
   const handleOpenStaffAssignModal = async () => {
+    // If we already have a previous notification for this customer/staff, send update directly
+    if (latestNotification && latestNotification.id) {
+      // send update directly to same staff
+      const staffDocId = assignedByStaff?.documentId || (latestNotification.staff_profile && latestNotification.staff_profile.documentId);
+      await handleAssignToStaff(staffDocId, true);
+      return;
+    }
+    
+    // ถ้ายังไม่เคยส่ง ให้เปิด modal เลือกพนักงาน
     setStaffAssignModal(prev => ({ ...prev, open: true, loading: true }));
     
     try {
@@ -631,7 +675,7 @@ function CustomerDetail() {
       
       // โหลดข้อมูลพนักงานที่ทำงานในร้านยานี้
       const staffRes = await fetch(
-        `http://localhost:1337/api/staff-profiles?filters[drug_store][documentId][$eq]=${pharmacyId}&populate=*`,
+        API.staffProfiles.listByStore(pharmacyId),
         {
           headers: { Authorization: token ? `Bearer ${token}` : '' }
         }
@@ -663,8 +707,11 @@ function CustomerDetail() {
   };
 
   // ฟังก์ชันส่งข้อมูลผู้ป่วยให้พนักงาน
-  const handleAssignToStaff = async () => {
-    if (!staffAssignModal.selectedStaffId) {
+  const handleAssignToStaff = async (staffIdOverride = null, isUpdate = false) => {
+    // ใช้ staffId ที่ส่งมาหรือจาก state
+    const targetStaffId = staffIdOverride || staffAssignModal.selectedStaffId;
+    
+    if (!targetStaffId) {
       toast.error('กรุณาเลือกพนักงานที่ต้องการส่งข้อมูล');
       return;
     }
@@ -679,7 +726,7 @@ function CustomerDetail() {
       // ถ้าเป็น pharmacy role ให้ดึง pharmacy_profile จาก localStorage หรือ API
       if (userDocumentId) {
         const pharmacyProfileRes = await fetch(
-          `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][documentId][$eq]=${userDocumentId}&populate=*`,
+          API.pharmacyProfiles.getByUserDocumentId(userDocumentId),
           {
             headers: { Authorization: token ? `Bearer ${token}` : '' }
           }
@@ -694,33 +741,43 @@ function CustomerDetail() {
       console.log('User Document ID:', userDocumentId);
       
       // เตรียมข้อมูลสำหรับ notification
-      const notificationData = {
+      const safeNotificationData = {
         data: {
           // Relations - ใช้ชื่อ field ตามใน schema.json
-          staff_profile: staffAssignModal.selectedStaffId, // staff-profile documentId
+          staff_profile: targetStaffId, // staff-profile documentId
           pharmacy_profile: pharmacyProfileId, // pharmacy-profile documentId (ถ้าไม่มีจะเป็น null)
           customer_profile: customerDocumentId, // customer-profile documentId
           drug_store: pharmacyId, // drug-store documentId
           
           // Basic fields
-          type: 'customer_assignment',
-          title: 'ได้รับมอบหมายข้อมูลผู้ป่วย',
-          message: `ได้รับมอบหมายดูแลผู้ป่วย: ${user?.full_name || 'ผู้ป่วย'}\nอาการ: ${customer.Customers_symptoms || 'ไม่ระบุ'}\n${staffAssignModal.assignNote ? `หมายเหตุ: ${staffAssignModal.assignNote}` : ''}`,
+          // Use distinct types: initial assignment vs update (backend enum now includes 'customer_assignment_update')
+          type: isUpdate ? 'customer_assignment_update' : 'customer_assignment',
+          title: isUpdate ? 'อัพเดตข้อมูลผู้ป่วย' : 'ได้รับมอบหมายข้อมูลผู้ป่วย',
+          message: `${isUpdate ? 'ได้รับอัพเดต' : 'ได้รับมอบหมายดูแล'}ผู้ป่วย: ${user?.full_name || 'ผู้ป่วย'}\nอาการ: ${customer.Customers_symptoms || 'ไม่ระบุ'}\n${staffAssignModal.assignNote ? `หมายเหตุ: ${staffAssignModal.assignNote}` : ''}`,
           
           // Additional data in JSON
           data: {
-            customer_name: user?.full_name,
-            customer_phone: user?.phone,
-            symptoms: customer.Customers_symptoms,
-            prescribed_drugs: customer.prescribed_drugs || [],
-            assigned_at: new Date().toISOString(),
+            customer_name: user?.full_name || '',
+            customer_phone: user?.phone || '',
+            symptoms: customer.Customers_symptoms || '',
+            prescribed_drugs: (customer.prescribed_drugs || []).map(drug => typeof drug === 'string' ? drug : drug.drugId || drug),
+            assigned_at: isUpdate ? new Date().toISOString() : undefined,
+            updated_at: isUpdate ? new Date().toISOString() : undefined,
             note: staffAssignModal.assignNote || '',
-            allergy: customer.Allergic_drugs,
-            disease: customer.congenital_disease
+            allergy: customer.Allergic_drugs || '',
+            disease: customer.congenital_disease || ''
           },
           
-          // Initialize empty staff_work_status
-          staff_work_status: {
+          // Initialize empty staff_work_status (keep existing status for updates)
+          // Make sure to create a plain object without any React elements
+          staff_work_status: isUpdate ? {
+            received: Boolean(staffWorkStatus?.received),
+            prepared: Boolean(staffWorkStatus?.prepared),
+            received_at: staffWorkStatus?.received_at ? String(staffWorkStatus.received_at) : null,
+            prepared_at: staffWorkStatus?.prepared_at ? String(staffWorkStatus.prepared_at) : null,
+            prepared_note: String(staffWorkStatus?.prepared_note || ''),
+            outOfStock: Array.isArray(staffWorkStatus?.outOfStock) ? [...staffWorkStatus.outOfStock] : []
+          } : {
             received: false,
             prepared: false,
             received_at: null,
@@ -735,17 +792,35 @@ function CustomerDetail() {
         }
       };
 
-      console.log('Sending notification:', notificationData);
+      console.log('Sending notification:', safeNotificationData);
 
       const notificationRes = await fetch(
-        `http://localhost:1337/api/notifications`,
+        API.notifications.create(),
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`
           },
-          body: JSON.stringify(notificationData)
+          body: (() => {
+              try {
+                return JSON.stringify(safeNotificationData);
+              } catch (e) {
+                console.error('Error serializing notification data:', e);
+                // Return a safe fallback
+                return JSON.stringify({
+                  data: {
+                    type: isUpdate ? 'customer_assignment_update' : 'customer_assignment',
+                    title: 'Notification',
+                    message: 'Error in data serialization',
+                    data: {},
+                    staff_work_status: {},
+                    is_read: false,
+                    priority: 'normal'
+                  }
+                });
+              }
+            })()
         }
       );
 
@@ -753,46 +828,87 @@ function CustomerDetail() {
         const result = await notificationRes.json();
         console.log('Notification created:', result);
         
-        // Also update customer profile with assigned_by_staff
-        try {
-          const staffRes = await fetch(
-            `http://localhost:1337/api/staff-profiles?filters[documentId][$eq]=${staffAssignModal.selectedStaffId}`,
-            { headers: { Authorization: token ? `Bearer ${token}` : '' } }
-          );
-          
-          if (staffRes.ok) {
-            const staffData = await staffRes.json();
-            const staffProfile = staffData.data?.[0];
-            
-            if (staffProfile) {
-              // Update customer profile with assigned_by_staff
-              const updateRes = await fetch(
-                `http://localhost:1337/api/customer-profiles/${customerDocumentId}`,
-                {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                  },
-                  body: JSON.stringify({
-                    data: {
-                      assigned_by_staff: staffProfile.documentId
-                    }
-                  })
+            // Also update customer profile with assigned_by_staff (only on first assign)
+        if (!isUpdate) {
+          try {
+            // Fetch the staff profile with populated user relation so we have name/avatar
+            const staffRes = await fetch(
+              API.staffProfiles.getByDocumentIdWithUser(targetStaffId),
+              { headers: { Authorization: token ? `Bearer ${token}` : '' } }
+            );
+
+            if (staffRes.ok) {
+              const staffData = await staffRes.json();
+              const staffProfile = staffData.data?.[0];
+
+              if (staffProfile) {
+                // Update customer profile using the internal numeric id for relation
+                const updateRes = await fetch(
+                  API.customerProfiles.update(customerDocumentId), { method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                      data: {
+                        // use numeric id to set relation cleanly
+                        assigned_by_staff: staffProfile.id
+                      }
+                    })
+                  }
+                );
+
+                if (updateRes.ok) {
+                  console.log('Customer profile updated with assigned_by_staff (id)', staffProfile.id);
+                  // Update local state with the populated staff profile so UI shows name/avatar
+                  setAssignedByStaff(staffProfile);
+                } else {
+                  console.error('Failed to update customer.assigned_by_staff', updateRes.status);
                 }
-              );
-              
-              if (updateRes.ok) {
-                console.log('Customer profile updated with assigned_by_staff');
               }
+            } else {
+              console.error('Failed to fetch staff profile for assignment', staffRes.status);
             }
+          } catch (err) {
+            console.error('Error updating assigned_by_staff:', err);
           }
-        } catch (err) {
-          console.error('Error updating assigned_by_staff:', err);
         }
         
-        toast.success('✅ ส่งข้อมูลให้พนักงานสำเร็จ');
-        setStaffAssignModal({
+        // update latestNotification state from created notification result (if backend returns it)
+        try {
+          const createdEntry = result.data || result;
+          console.log('Notification response data:', createdEntry);
+          setLatestNotification(createdEntry);
+          
+          // Also update staffWorkStatus from the notification's staff_work_status field
+          if (createdEntry.staff_work_status) {
+            console.log('Updating staffWorkStatus from notification:', createdEntry.staff_work_status);
+            setStaffWorkStatus(prev => ({
+              ...prev,
+              received: createdEntry.staff_work_status.received || false,
+              prepared: createdEntry.staff_work_status.prepared || false,
+              received_at: createdEntry.staff_work_status.received_at || null,
+              prepared_at: createdEntry.staff_work_status.prepared_at || null,
+              prepared_note: createdEntry.staff_work_status.prepared_note || '',
+              outOfStock: createdEntry.staff_work_status.outOfStock || []
+            }));
+          } else {
+            console.warn('NO staff_work_status in notification response - initializing defaults');
+            setStaffWorkStatus({
+              received: false,
+              prepared: false,
+              received_at: null,
+              prepared_at: null,
+              prepared_note: '',
+              outOfStock: []
+            });
+          }
+        } catch (e) {
+          console.warn('Could not set latestNotification from response', e);
+        }
+
+        toast.success(isUpdate ? '✅ ส่งข้อมูลอัพเดตให้พนักงานสำเร็จ' : '✅ ส่งข้อมูลให้พนักงานสำเร็จ');
+                setStaffAssignModal({
           open: false,
           availableStaff: [],
           selectedStaffId: null,
@@ -862,11 +978,10 @@ function CustomerDetail() {
               <span className="dot">•</span>
               <span>{customer.Follow_up_appointment_date ? formatThaiDate(customer.Follow_up_appointment_date) : 'ไม่มีวันนัด'}</span>
             </div>
-            {assignedByStaff && (
+            {assignedByStaff && assignedByStaff.documentId && (
               <div className="detail-header-assigned-staff">
-                <span className="assigned-icon">👤</span>
-                <span className="assigned-label">จัดส่งโดย:</span>
-                <span className="assigned-name">{assignedByStaff.users_permissions_user?.full_name || 'ไม่ระบุชื่อ'}</span>
+                  <span className="assigned-label">จัดส่งโดย:</span>
+                  <span className="assigned-name">{assignedByStaff.users_permissions_user?.full_name || 'ไม่ระบุชื่อ'}</span>
                 {assignedByStaff.assigned_at && (
                   <span className="assigned-date"> - {formatThaiDate(assignedByStaff.assigned_at)}</span>
                 )}
@@ -875,17 +990,17 @@ function CustomerDetail() {
           </div>
           <div className="detail-header-right">
             <div className="detail-header-badges">
-              <div className="pill-badge">💊 {customer.prescribed_drugs ? customer.prescribed_drugs.length : 0}</div>
+              <div className="pill-badge">ยา: {customer.prescribed_drugs ? customer.prescribed_drugs.length : 0} รายการ</div>
             </div>
           </div>
         </div>
 
-        {/* Staff Work Status Panel - Show if customer was sent to staff */}
-        {assignedByStaff && (
+        {/* Staff Work Status Panel - Show only if customer was sent to staff (after notification sent) */}
+        {assignedByStaff && assignedByStaff.documentId && latestNotification && latestNotification.id ? (
           <div className="staff-work-status-panel">
             <div className="status-panel-header">
               <h3>📊 สถานะการดำเนินการ</h3>
-              <span className="status-panel-subtitle">ของ {assignedByStaff.users_permissions_user?.full_name || 'พนักงาน'}</span>
+              <span className="status-panel-subtitle">ของ {assignedByStaff.users_permissions_user?.full_name || assignedByStaff.documentId || 'พนักงาน'}</span>
             </div>
             
             <div className="status-buttons-group">
@@ -945,7 +1060,7 @@ function CustomerDetail() {
               </div>
             )}
           </div>
-        )}
+        ) : null}
 
         <Tabs 
           activeKey={activeTab} 
@@ -955,7 +1070,7 @@ function CustomerDetail() {
           size="large"
           className="customer-detail-tabs responsive"
         >
-          <Tabs.TabPane tab={<span>📋 ข้อมูลพื้นฐาน</span>} key="1">
+          <Tabs.TabPane tab={<span>ข้อมูลพื้นฐาน</span>} key="1">
             <div className="customer-info-form responsive">
               {/* Essential Customer Info */}
               <div className="essential-info-grid">
@@ -1001,7 +1116,7 @@ function CustomerDetail() {
               </div>
             </div>
           </Tabs.TabPane>
-          <Tabs.TabPane tab={<span>🩺 อาการและการติดตาม <span className="tab-badge">{customer.Follow_up_appointment_date ? '📅' : '⚠️'}</span></span>} key="2">
+          <Tabs.TabPane tab={<span>อาการและการติดตาม <span className="tab-badge">{customer.Follow_up_appointment_date ? 'มีนัด' : 'ไม่มีนัด'}</span></span>} key="2">
             <div className="symptoms-followup-panel responsive">
               {/* อาการปัจจุบัน */}
               <div className="symptom-section">
@@ -1116,13 +1231,15 @@ function CustomerDetail() {
               </div>
             </div>
           </Tabs.TabPane>
-          <Tabs.TabPane tab={<span>💊 ยาและการดำเนินการ <span className="tab-badge">{customer?.prescribed_drugs?.length || 0}</span></span>} key="3">
+          <Tabs.TabPane tab={<span>ยาและการดำเนินการ <span className="tab-badge">{customer?.prescribed_drugs?.length || 0}</span></span>} key="3">
             <div className="customer-actions-panel responsive">
             <div className="actions-header responsive">
               <h2>รายการยาที่ต้องใช้</h2>
               <button 
                 className="btn-add" 
-                onClick={handleOpenAddDrugModal}
+                onClick={staffWorkStatus.prepared ? undefined : handleOpenAddDrugModal}
+                disabled={staffWorkStatus.prepared}
+                title={staffWorkStatus.prepared ? 'พนักงานจัดยาแล้ว — ไม่สามารถเพิ่มยาใหม่ได้' : 'เพิ่มยา'}
               >
                 เพิ่มยา
               </button>
@@ -1155,15 +1272,20 @@ function CustomerDetail() {
                     const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
                     const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
                     const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
-                    const isOutOfStock = outOfStockIds && outOfStockIds.includes(drugId);
+                    const isOutOfStock = (
+                      Array.isArray(outOfStockIds) && outOfStockIds.includes(drugId)
+                    ) || (
+                      Array.isArray(staffWorkStatus?.outOfStock) && staffWorkStatus.outOfStock.includes(drugId)
+                    );
                     return (
                       <div
                         key={drugId}
                         className="prescribed-drug-card-individual"
                         style={{
-                          opacity: isOutOfStock ? 0.7 : 1,
+                          opacity: isOutOfStock ? 0.85 : 1,
                           background: isOutOfStock ? '#fff7f6' : undefined,
-                          border: isOutOfStock ? '1px dashed #ff4d4f' : undefined
+                          border: isOutOfStock ? '1px dashed #ff4d4f' : undefined,
+                          borderLeft: isOutOfStock ? '4px solid #ff4d4f' : undefined
                         }}
                       >
                         {/* Quantity Badge */}
@@ -1213,19 +1335,24 @@ function CustomerDetail() {
                           </div>
                         )}
 
-                        {/* Additional Info */}
-                        {drug && (drug.lot_number || drug.expiry_date) && (
+                        {/* Additional Info - Batch Details */}
+                        {drug && drug.drug_batches && drug.drug_batches.length > 0 && (
                           <div className="prescribed-drug-meta">
-                            {drug.lot_number && (
-                              <span>
-                                Lot: {drug.lot_number}
-                              </span>
-                            )}
-                            {drug.expiry_date && (
-                              <span>
-                                หมดอายุ: {drug.expiry_date}
-                              </span>
-                            )}
+                            <details style={{ marginTop: '8px', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: '600', color: '#0050b3' }}>
+                                🏷️ Lots ({drug.drug_batches.length})
+                              </summary>
+                              <div style={{ marginTop: '8px', marginLeft: '16px' }}>
+                                {drug.drug_batches.map((batch, idx) => (
+                                  <div key={batch.documentId || idx} style={{ marginBottom: '6px', padding: '6px', background: 'white', borderRadius: '3px', fontSize: '12px' }}>
+                                    <div>Lot: <strong>{batch.lot_number}</strong></div>
+                                    <div>สต็อก: <strong>{batch.quantity}</strong></div>
+                                    {batch.date_produced && <div>วันผลิต: {batch.date_produced}</div>}
+                                    {batch.expiry_date && <div>หมดอายุ: <span style={{ color: '#ff4d4f', fontWeight: '600' }}>{batch.expiry_date}</span></div>}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
                           </div>
                         )}
 
@@ -1242,8 +1369,7 @@ function CustomerDetail() {
                               // อัปเดตข้อมูลในเซิร์ฟเวอร์
                               try {
                                 const token = localStorage.getItem('jwt');
-                                const res = await fetch(`http://localhost:1337/api/customer-profiles/${customerDocumentId}`, {
-                                  method: 'PUT',
+                                const res = await fetch(API.customerProfiles.update(customerDocumentId), { method: 'PUT',
                                   headers: {
                                     'Content-Type': 'application/json',
                                     Authorization: `Bearer ${token}`
@@ -1259,7 +1385,7 @@ function CustomerDetail() {
                                 
                                 // refresh customer data
                                 const customerRes = await fetch(
-                                  `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
+                                  API.customerProfiles.getByIdBasic(customerDocumentId),
                                   { headers: { Authorization: token ? `Bearer ${token}` : '' } }
                                 );
                                 const customerData = await customerRes.json();
@@ -1288,27 +1414,59 @@ function CustomerDetail() {
                           >
                             🗑️ ลบ
                           </button>
-                          <button
-                            style={{
-                              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                              color: 'white',
-                              border: 'none',
-                              padding: '8px 12px',
-                              borderRadius: '6px',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              fontWeight: 'bold',
-                              transition: 'all 0.3s ease'
-                            }}
-                            onMouseEnter={e => {
-                              e.target.style.transform = 'scale(1.05)';
-                            }}
-                            onMouseLeave={e => {
-                              e.target.style.transform = 'scale(1)';
-                            }}
-                          >
-                            📄 รายละเอียด
-                          </button>
+                            {isOutOfStock ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Open add-drug modal and pre-select this drug so pharmacist can change it
+                                  setAddDrugModal(prev => ({
+                                    ...prev,
+                                    open: true,
+                                    selectedDrugs: [{ drugId: drugId, quantity }],
+                                    filterBy: 'selected'
+                                  }));
+                                  setDrugQuantities(prev => ({ ...prev, [drugId]: quantity }));
+                                  setActiveTab('2');
+                                }}
+                                style={{
+                                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                  color: 'white',
+                                  border: 'none',
+                                  padding: '8px 12px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  cursor: 'pointer',
+                                  fontWeight: 'bold',
+                                  transition: 'all 0.3s ease'
+                                }}
+                                onMouseEnter={e => { e.target.style.transform = 'scale(1.05)'; }}
+                                onMouseLeave={e => { e.target.style.transform = 'scale(1)'; }}
+                              >
+                                เปลี่ยนยา
+                              </button>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDrugDetailModal({ open: true, drug });
+                                }}
+                                style={{
+                                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                  color: 'white',
+                                  border: 'none',
+                                  padding: '8px 12px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  cursor: 'pointer',
+                                  fontWeight: 'bold',
+                                  transition: 'all 0.3s ease'
+                                }}
+                                onMouseEnter={e => { e.target.style.transform = 'scale(1.05)'; }}
+                                onMouseLeave={e => { e.target.style.transform = 'scale(1)'; }}
+                              >
+                                📄 รายละเอียด
+                              </button>
+                            )}
                         </div>
                       </div>
                     );
@@ -1328,7 +1486,7 @@ function CustomerDetail() {
             )}
           </div>
           </Tabs.TabPane>
-          <Tabs.TabPane tab={<span>📋 ดำเนินการ</span>} key="4">
+          <Tabs.TabPane tab={<span>ดำเนินการ</span>} key="4">
             <div className="customer-actions-panel responsive">
               <div className="actions-grid responsive">
                 <button className="action-btn green responsive">
@@ -1340,7 +1498,7 @@ function CustomerDetail() {
                 </button>
 
                 <button className="action-btn green responsive" onClick={handleOpenStaffAssignModal}>
-                  <span>ส่งข้อมูลให้พนักงาน</span>
+                  <span>{latestNotification && latestNotification.id ? 'ส่งข้อมูลอัพเดต' : 'ส่งข้อมูลให้พนักงาน'}</span>
                 </button>
 
                 <button className="action-btn green responsive">
@@ -2097,7 +2255,7 @@ function CustomerDetail() {
         }
         open={staffAssignModal.open}
         onCancel={() => setStaffAssignModal({ ...staffAssignModal, open: false, selectedStaffId: null, assignNote: '' })}
-        onOk={handleAssignToStaff}
+        onOk={() => handleAssignToStaff(null, false)}
         okText="ส่งข้อมูล"
         cancelText="ยกเลิก"
         centered
@@ -2315,6 +2473,44 @@ function CustomerDetail() {
         </div>
       </Modal>
 
+      {/* Drug Detail Modal - opens when clicking 'รายละเอียด' on a prescribed drug */}
+      <Modal
+        title={drugDetailModal.drug ? drugDetailModal.drug.name_th : 'รายละเอียดยา'}
+        open={drugDetailModal.open}
+        onCancel={() => setDrugDetailModal({ open: false, drug: null })}
+        footer={null}
+        centered
+        className="drug-detail-modal"
+      >
+        {drugDetailModal.drug ? (
+          <div style={{ padding: '8px 0' }}>
+            <h4 style={{ marginBottom: '6px' }}>{drugDetailModal.drug.name_en || '-'}</h4>
+            {drugDetailModal.drug.description && (
+              <p style={{ color: '#444', marginBottom: '8px' }}>{drugDetailModal.drug.description}</p>
+            )}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
+              {drugDetailModal.drug.price && <div>ราคา: {drugDetailModal.drug.price} บาท</div>}
+              {drugDetailModal.drug.lot_number && <div>Lot: {drugDetailModal.drug.lot_number}</div>}
+              {drugDetailModal.drug.expiry_date && <div>หมดอายุ: {drugDetailModal.drug.expiry_date}</div>}
+            </div>
+            <div style={{ marginTop: '8px', textAlign: 'right' }}>
+              <button
+                onClick={() => setDrugDetailModal({ open: false, drug: null })}
+                style={{
+                  background: '#f5f5f5',
+                  border: '1px solid #d9d9d9',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >ปิด</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>ไม่พบข้อมูลยา</div>
+        )}
+      </Modal>
+
       {/* Staff Work Status Update Modal - REMOVED: Pharmacy should not update staff status, only view it */}
       {/* Modal removed because pharmacy view should only display status, not update it */}
     </div>
@@ -2322,3 +2518,5 @@ function CustomerDetail() {
 }
 
 export default CustomerDetail;
+
+

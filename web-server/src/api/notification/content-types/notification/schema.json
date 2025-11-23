@@ -39,6 +39,7 @@
       "type": "enumeration",
       "enum": [
         "customer_assignment",
+        "customer_assignment_update",
         "appointment_reminder",
         "drug_stock_low",
         "system_alert",

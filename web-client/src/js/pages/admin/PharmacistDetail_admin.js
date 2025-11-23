@@ -5,6 +5,7 @@ import HomeHeader from "../../components/HomeHeader";
 import Footer from "../../components/footer";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { API } from "../../../utils/apiConfig";
 
 // 🟢 helper function ดึง URL รูปภาพ
 function getImageUrl(photoAttr) {
@@ -37,7 +38,7 @@ function PharmacistDetail_admin() {
 
         // ✅ โหลดข้อมูลร้าน
         const storeRes = await fetch(
-          `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${storeId}&populate=*`,
+          API.drugStores.getByDocumentId(storeId),
           { headers: { Authorization: `Bearer ${jwt}` } }
         );
         const storeData = await storeRes.json();
@@ -53,12 +54,12 @@ function PharmacistDetail_admin() {
         let pharmacistRes;
         if (pharmacistId) {
           pharmacistRes = await fetch(
-            `http://localhost:1337/api/pharmacy-profiles?filters[documentId][$eq]=${pharmacistId}&populate=*`,
+            API.pharmacyProfiles.list(`filters[documentId][$eq]=${pharmacistId}&populate=*`),
             { headers: { Authorization: `Bearer ${jwt}` } }
           );
         } else {
           pharmacistRes = await fetch(
-            `http://localhost:1337/api/pharmacy-profiles?filters[drug_stores][documentId][$eq]=${storeId}&populate=*`,
+            API.pharmacyProfiles.list(`filters[drug_stores][documentId][$eq]=${storeId}&populate=*`),
             { headers: { Authorization: `Bearer ${jwt}` } }
           );
         }
@@ -81,7 +82,7 @@ function PharmacistDetail_admin() {
     try {
       // 1. ดึง pharmacy-profile ที่จะแก้ไข
       const profileRes = await fetch(
-        `http://localhost:1337/api/pharmacy-profiles?filters[documentId][$eq]=${documentId}&populate=*`,
+        API.pharmacyProfiles.list(`filters[documentId][$eq]=${documentId}&populate=*`),
         { headers: { Authorization: `Bearer ${jwt}` } }
       );
       const profileData = await profileRes.json();
@@ -155,7 +156,7 @@ function PharmacistDetail_admin() {
       console.log("Store IDs ที่จะเหลือ:", storeIds);
       
       const updateRes = await fetch(
-        `http://localhost:1337/api/pharmacy-profiles/${pharmacyProfileDocId}`,
+        API.pharmacyProfiles.update(pharmacyProfileDocId),
         {
           method: "PUT",
           headers: {
@@ -263,7 +264,7 @@ function PharmacistDetail_admin() {
                     {imgUrl && (
                       <div className="flex justify-center mb-4">
                         <img
-                          src={imgUrl.startsWith("/") ? `http://localhost:1337${imgUrl}` : imgUrl}
+                          src={imgUrl.startsWith("/") ? API.getImageUrl(imgUrl) : imgUrl}
                           alt="pharmacist"
                           className="w-24 h-24 object-cover rounded-full border"
                         />

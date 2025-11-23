@@ -1,0 +1,46 @@
+{
+  "kind": "collectionType",
+  "collectionName": "drug_batches",
+  "info": {
+    "singularName": "drug-batch",
+    "pluralName": "drug-batches",
+    "displayName": "Drug Batch",
+    "description": "Inventory batches for drugs (lot number, quantity, expiry date)"
+  },
+  "options": {
+    "increments": true,
+    "timestamps": true,
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "i18n": {
+      "localized": false
+    }
+  },
+  "attributes": {
+    "lot_number": {
+      "type": "string",
+      "required": true,
+      "minLength": 1
+    },
+    "quantity": {
+      "type": "integer",
+      "required": true,
+      "default": 0,
+      "min": 0
+    },
+    "date_produced": {
+      "type": "date"
+    },
+    "expiry_date": {
+      "type": "date",
+      "required": true
+    },
+    "drug": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::drug.drug",
+      "inversedBy": "drug_batches"
+    }
+  }
+}

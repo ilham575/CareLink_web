@@ -3,13 +3,14 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { API } from "../../../utils/apiConfig";
 
 // 🟢 helper function ดึง URL รูปภาพจาก Strapi
 function getImageUrl(photo) {
   if (!photo) return null;
   if (typeof photo === "string") return photo;
   if (photo.url) {
-    return `${process.env.REACT_APP_API_URL || "http://localhost:1337"}${photo.url}`;
+    return API.getImageUrl(photo.url);
   }
   return null;
 }
@@ -59,17 +60,17 @@ function EditPharmacist_admin() {
         // เช็คว่าเป็นการแก้ไขโดยตัวเองหรือไม่ (เภสัชกรเข้าผ่าน ProfileAvatar)
         if (userRole === 'pharmacy' && location.state?.isSelfEdit) {
           // ดึงข้อมูลผู้ใช้ปัจจุบัน
-          const userRes = await fetch('http://localhost:1337/api/users/me', {
+          const userRes = await fetch(API.users.list(), {
             headers: { Authorization: `Bearer ${jwt}` }
           });
           if (!userRes.ok) throw new Error("ไม่สามารถโหลดข้อมูลผู้ใช้ได้");
           const userData = await userRes.json();
           // ดึง profile ของเภสัชกรนี้ "ทุกโปรไฟล์" (ทุก documentId)
-          apiUrl = `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userData.id}&populate=*`;
+          apiUrl = API.pharmacyProfiles.list(`filters[users_permissions_user][id][$eq]=${userData.id}&populate=*`);
           isOwner = true;
         } else {
           // แก้ไขโดย admin หรือกรณีปกติ - ดึง profile เดียวก่อน
-          apiUrl = `http://localhost:1337/api/pharmacy-profiles?filters[documentId][$eq]=${id}&populate=*`;
+          apiUrl = API.pharmacyProfiles.list(`filters[documentId][$eq]=${id}&populate=*`);
         }
 
         const res = await fetch(apiUrl, {
@@ -106,7 +107,7 @@ function EditPharmacist_admin() {
           if (userId) {
             // ดึง profile ทั้งหมดของ user นี้
             const allProfilesRes = await fetch(
-              `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=*`,
+              API.pharmacyProfiles.list(`filters[users_permissions_user][id][$eq]=${userId}&populate=*`),
               { headers: { Authorization: `Bearer ${jwt}` } }
             );
             if (allProfilesRes.ok) {
@@ -193,19 +194,19 @@ function EditPharmacist_admin() {
             if (Array.isArray(firstProfile.profileimage)) {
               if (firstProfile.profileimage.length > 0) {
                 const img = firstProfile.profileimage[0];
-                previewUrl = `http://localhost:1337${img.url}`;
+                previewUrl = API.getImageUrl(img.url);
                 profileImgId = img.id;
               }
             } else if (firstProfile.profileimage.url) {
-              previewUrl = `http://localhost:1337${firstProfile.profileimage.url}`;
+              previewUrl = API.getImageUrl(firstProfile.profileimage.url);
               profileImgId = firstProfile.profileimage.id;
             } else if (firstProfile.profileimage.data) {
               if (Array.isArray(firstProfile.profileimage.data) && firstProfile.profileimage.data.length > 0) {
                 const img = firstProfile.profileimage.data[0];
-                previewUrl = `http://localhost:1337${img.attributes.url}`;
+                previewUrl = API.getImageUrl(img.attributes.url);
                 profileImgId = img.id;
               } else if (firstProfile.profileimage.data.attributes) {
-                previewUrl = `http://localhost:1337${firstProfile.profileimage.data.attributes.url}`;
+                previewUrl = API.getImageUrl(firstProfile.profileimage.data.attributes.url);
                 profileImgId = firstProfile.profileimage.data.id;
               }
             }
@@ -256,23 +257,23 @@ function EditPharmacist_admin() {
             if (Array.isArray(p.profileimage)) {
               if (p.profileimage.length > 0) {
                 const img = p.profileimage[0];
-                previewUrl = `http://localhost:1337${img.url}`;
+                previewUrl = API.getImageUrl(img.url);
                 profileImgId = img.id;
               }
             }
             // กรณี profileimage เป็น object เดี่ยว
             else if (p.profileimage.url) {
-              previewUrl = `http://localhost:1337${p.profileimage.url}`;
+              previewUrl = API.getImageUrl(p.profileimage.url);
               profileImgId = p.profileimage.id;
             }
             // กรณี profileimage มี data wrapper
             else if (p.profileimage.data) {
               if (Array.isArray(p.profileimage.data) && p.profileimage.data.length > 0) {
                 const img = p.profileimage.data[0];
-                previewUrl = `http://localhost:1337${img.attributes.url}`;
+                previewUrl = API.getImageUrl(img.attributes.url);
                 profileImgId = img.id;
               } else if (p.profileimage.data.attributes) {
-                previewUrl = `http://localhost:1337${p.profileimage.data.attributes.url}`;
+                previewUrl = API.getImageUrl(p.profileimage.data.attributes.url);
                 profileImgId = p.profileimage.data.id;
               }
             }
@@ -410,19 +411,19 @@ function EditPharmacist_admin() {
           if (Array.isArray(profile.profileimage)) {
             if (profile.profileimage.length > 0) {
               const img = profile.profileimage[0];
-              previewUrl = `http://localhost:1337${img.url}`;
+              previewUrl = API.getImageUrl(img.url);
               profileImgId = img.id;
             }
           } else if (profile.profileimage.url) {
-            previewUrl = `http://localhost:1337${profile.profileimage.url}`;
+            previewUrl = API.getImageUrl(profile.profileimage.url);
             profileImgId = profile.profileimage.id;
           } else if (profile.profileimage.data) {
             if (Array.isArray(profile.profileimage.data) && profile.profileimage.data.length > 0) {
               const img = profile.profileimage.data[0];
-              previewUrl = `http://localhost:1337${img.attributes.url}`;
+              previewUrl = API.getImageUrl(img.attributes.url);
               profileImgId = img.id;
             } else if (profile.profileimage.data.attributes) {
-              previewUrl = `http://localhost:1337${profile.profileimage.data.attributes.url}`;
+              previewUrl = API.getImageUrl(profile.profileimage.data.attributes.url);
               profileImgId = profile.profileimage.data.id;
             }
           }
@@ -485,7 +486,7 @@ function EditPharmacist_admin() {
     }
     if (storeId && jwt) {
       fetch(
-        `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${storeId}&populate=*`,
+        API.drugStores.getByDocumentId(storeId),
         { headers: { Authorization: `Bearer ${jwt}` } }
       )
         .then((res) => res.json())
@@ -553,7 +554,7 @@ function EditPharmacist_admin() {
       if (storeId && jwt) {
         try {
           const response = await fetch(
-            `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${storeId}`,
+            API.drugStores.getByDocumentId(storeId),
             { headers: { Authorization: `Bearer ${jwt}` } }
           );
           
@@ -614,7 +615,7 @@ function EditPharmacist_admin() {
     formDataUpload.append("files", imageFile);
 
     try {
-      const res = await fetch("http://localhost:1337/api/upload", {
+      const res = await fetch(API.upload(), {
         method: "POST",
         headers: { Authorization: `Bearer ${jwt}` },
         body: formDataUpload,
@@ -837,7 +838,7 @@ function EditPharmacist_admin() {
         userPayload.password = formData.password;
       }
 
-      await fetch(`http://localhost:1337/api/users/${formData.user}`, {
+      await fetch(API.users.update(formData.user), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -888,7 +889,7 @@ function EditPharmacist_admin() {
       };
 
       const res = await fetch(
-        `http://localhost:1337/api/pharmacy-profiles/${actualDocumentId}`,
+        API.pharmacyProfiles.update(actualDocumentId),
         {
           method: "PUT",
           headers: {
@@ -1215,3 +1216,5 @@ function EditPharmacist_admin() {
 }
 
 export default EditPharmacist_admin;
+
+

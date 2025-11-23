@@ -16,18 +16,15 @@ import DrugList from './js/pages/pharmacy/DrugList';
 import DrugStoresDetailAdmin from './js/pages/admin/DrugStoresDetail_admin';
 import StaffPage from './js/components/middle_page/staffPage';
 import FormStaffPage from './js/components/middle_page/formStaffPage';
-
 import PharmacistDetailAdmin from './js/pages/admin/PharmacistDetail_admin';
 import EditPharmacistAdmin from "./js/pages/admin/EditPharmacist_admin";
 import EditStoreAdmin from "./js/pages/admin/EditStore_admin"
 import Footer from './js/components/footer';
-
 import AddStoreAdmin from './js/pages/admin/AddStore_admin';
 import AddPharmacyAdmin from './js/pages/admin/AddPharmacy_admin';
 import AddStaffAdmin from './js/pages/admin/AddStaff_admin';
 import EditStaffAdmin from './js/pages/admin/EditStaff_admin';
 import StaffDetailAdmin from './js/pages/admin/StaffDetail_admin';
-
 import CustomerPage from './js/components/middle_page/customerPage';
 import CustomerPageStaff from './js/pages/staff/CustomerPage_staff';
 import CustomerDetailStaff from './js/pages/staff/CustomerDetail_staff';
@@ -35,16 +32,11 @@ import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
 import EditStaffProfile from './js/pages/staff/editStaffProfile';
 import FormCustomerPage from './js/components/middle_page/formcustomerPage';
 import CustomerDetail from './js/pages/pharmacy/detail_customer';
+import RoleBasedRedirect from './js/utils/rolebasedredirect';
 import 'antd/dist/reset.css';
 
-
-
 // Override console.log to disable all console.log calls
-console.log = () => {};
-
-
-// Component สำหรับ redirect ตาม role
-import RoleBasedRedirect from './js/utils/rolebasedredirect';
+// console.log = () => {};
 
 function App() {
   return (

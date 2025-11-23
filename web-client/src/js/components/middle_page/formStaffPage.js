@@ -6,6 +6,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import "../../../css/theme.css";
 import "../../../css/pages/default/middle_page/formStaffPage.css";
+import { API, fetchWithAuth } from "../../../utils/apiConfig";
 
 function FormStaffPage() {
   const { documentId: paramId, id, pharmacyId: paramPharmacyId } = useParams();
@@ -56,7 +57,7 @@ function FormStaffPage() {
         
         // หา internal ID ของร้าน
         const drugStoreRes = await fetch(
-          `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`,
+          API.drugStores.getByDocumentId(pharmacyId),
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const drugStoreJson = await drugStoreRes.json();
@@ -75,7 +76,7 @@ function FormStaffPage() {
         }
 
         const usersRes = await fetch(
-          'http://localhost:1337/api/users?filters[role][name][$eq]=staff',
+          API.users.list(`filters[role][name][$eq]=staff`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
         let users = await usersRes.json();
@@ -83,7 +84,7 @@ function FormStaffPage() {
         
         // ใช้ internal ID ในการ filter
         const staffRes = await fetch(
-          `http://localhost:1337/api/staff-profiles?filters[drug_store]=${drugStoreInternalId}&populate=users_permissions_user`,
+          API.staffProfiles.list(`filters[drug_store]=\${drugStoreInternalId}&populate=users_permissions_user`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const staffProfiles = await staffRes.json();
@@ -112,7 +113,7 @@ function FormStaffPage() {
     
     const token = localStorage.getItem('jwt');
     fetch(
-      `http://localhost:1337/api/staff-profiles?filters[documentId][$eq]=${documentId}&populate=*`,
+      API.staffProfiles.list(`filters[documentId][\$eq]=\${documentId}&populate=*`),
       { headers: { Authorization: token ? `Bearer ${token}` : "" } }
     )
       .then(res => res.json())
@@ -195,8 +196,7 @@ function FormStaffPage() {
           imageUrl = staffRaw.profileimage;
         }
         if (imageUrl) {
-          const base = process.env.REACT_APP_API_URL || "http://localhost:1337";
-          setUploadedImageUrl(imageUrl.startsWith("/") ? `${base}${imageUrl}` : imageUrl);
+          setUploadedImageUrl(imageUrl.startsWith("/") ? API.getImageUrl(imageUrl) : imageUrl);
         } else {
           setUploadedImageUrl(null);
         }
@@ -220,7 +220,7 @@ function FormStaffPage() {
 
   // ===== 4. Unlink รูปเก่า (ถ้ามี) ก่อน upload ใหม่ =====
   const unlinkOldProfileImage = async (staffId, token) => {
-    await fetch(`http://localhost:1337/api/staff-profiles/${staffId}`, {
+    await fetch(API.staffProfiles.update(staffId), {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ data: { profileimage: null } }),
@@ -233,7 +233,7 @@ function FormStaffPage() {
     
     try {
       const response = await fetch(
-        `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=drug_store`,
+        API.staffProfiles.list(`filters[users_permissions_user][id][\$eq]=\${userId}&populate=drug_store`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -304,7 +304,7 @@ function FormStaffPage() {
       let userId = form.userId;
 
       if (isNewUser) {
-        const roleRes = await fetch('http://localhost:1337/api/users-permissions/roles', {
+        const roleRes = await fetch(API.roles.list(), {
           headers: { Authorization: `Bearer ${token}` },
         });
         const roleData = await roleRes.json();
@@ -318,7 +318,7 @@ function FormStaffPage() {
           email: `${form.username}@example.com`,
         };
 
-        const userRes = await fetch(`http://localhost:1337/api/auth/local/register`, {
+        const userRes = await fetch(API.auth.register, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(userData),
@@ -329,7 +329,7 @@ function FormStaffPage() {
 
         userId = user?.user?.id;
 
-        await fetch(`http://localhost:1337/api/users/${userId}`, {
+        await fetch(API.users.getById(userId), {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -359,7 +359,7 @@ function FormStaffPage() {
       }
 
       // *** ลอง URL หลายแบบ ***
-      const url3 = `http://localhost:1337/api/drug-stores`;
+      const url3 = API.drugStores.create();
       
       const drugStoreRes3 = await fetch(url3, {
         headers: { Authorization: `Bearer ${token}` }
@@ -378,7 +378,7 @@ function FormStaffPage() {
       const drugStoreInternalId = targetStore.id;
       
       // ตรวจสอบ duplicate อีกรอบ
-      const checkUrl = `http://localhost:1337/api/staff-profiles?filters[users_permissions_user]=${userId}&filters[drug_store]=${drugStoreInternalId}`;
+      const checkUrl = API.staffProfiles.list(`filters[users_permissions_user]=${userId}&filters[drug_store]=${drugStoreInternalId}`);
       
       const checkRes = await fetch(checkUrl, {
         headers: { Authorization: `Bearer ${token}` }
@@ -408,7 +408,7 @@ function FormStaffPage() {
         },
       };
 
-      const staffRes = await fetch(`http://localhost:1337/api/staff-profiles`, {
+      const staffRes = await fetch(API.staffProfiles.create(), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(staffData),
@@ -426,7 +426,7 @@ function FormStaffPage() {
       }
 
       // ดึงข้อมูล staff พร้อม populate
-      const verifyUrl = `http://localhost:1337/api/staff-profiles/${newDocumentId}?populate[0]=drug_store&populate[1]=users_permissions_user`;
+      const verifyUrl = API.staffProfiles.list(`filters[documentId][$eq]=${newDocumentId}&populate[0]=drug_store&populate[1]=users_permissions_user`);
       
       const verifyRes = await fetch(verifyUrl, {
         headers: { Authorization: `Bearer ${token}` }
@@ -439,7 +439,7 @@ function FormStaffPage() {
         if (linkedDrugStore) {
           if (linkedDrugStore.documentId !== pharmacyId) {
             // ลบ staff profile ที่สร้างผิด
-            await fetch(`http://localhost:1337/api/staff-profiles/${newDocumentId}`, {
+            await fetch(API.staffProfiles.delete(newDocumentId), {
               method: 'DELETE',
               headers: { Authorization: `Bearer ${token}` }
             });
@@ -504,7 +504,7 @@ function FormStaffPage() {
         },
       };
 
-      const staffUpdateRes = await fetch(`http://localhost:1337/api/staff-profiles/${staffDocumentId}`, {
+      const staffUpdateRes = await fetch(API.staffProfiles.update(staffDocumentId), {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(staffData),
@@ -519,7 +519,7 @@ function FormStaffPage() {
         phone: form.phone,
       };
 
-      const userUpdateRes = await fetch(`http://localhost:1337/api/users/${userId}`, {
+      const userUpdateRes = await fetch(API.users.getById(userId), {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(userData),
@@ -565,7 +565,7 @@ function FormStaffPage() {
         const formData = new FormData();
         formData.append("files", form.profileImage);
 
-        const uploadRes = await fetch("http://localhost:1337/api/upload", {
+        const uploadRes = await fetch(API.upload(), {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
@@ -599,7 +599,7 @@ function FormStaffPage() {
       // 4. ถ้ามีรูปที่อัปโหลด → PATCH ด้วย docId (ค้น internal id)
       if (uploadedImageId && docId) {
         const staffRes = await fetch(
-          `http://localhost:1337/api/staff-profiles?filters[documentId][$eq]=${docId}`,
+          API.staffProfiles.list(`filters[documentId][$eq]=${docId}`),
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -614,7 +614,7 @@ function FormStaffPage() {
         }
 
         const patchRes = await fetch(
-          `http://localhost:1337/api/staff-profiles/${docId}`,
+          API.staffProfiles.update(docId),
           {
             method: "PUT",
             headers: {
@@ -715,7 +715,7 @@ function FormStaffPage() {
       
       // *** แก้ไข: แยกการ populate ออกจากกัน ***
       const response = await fetch(
-        `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate[0]=drug_store&populate[1]=users_permissions_user`,
+        API.staffProfiles.list(`filters[users_permissions_user][id][$eq]=${userId}&populate[0]=drug_store&populate[1]=users_permissions_user`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
       

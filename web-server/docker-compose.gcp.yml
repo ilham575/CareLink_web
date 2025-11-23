@@ -1,0 +1,84 @@
+# Docker Compose สำหรับ GCP deployment
+# ใช้สำหรับ local testing ก่อน deploy ขึ้น GCP
+
+version: '3.8'
+
+services:
+  strapi:
+    build:
+      context: .
+      dockerfile: Dockerfile.gcp
+    container_name: carelink-strapi
+    restart: always
+    ports:
+      - "1337:1337"
+    environment:
+      NODE_ENV: production
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-carelink}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-changeme}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      DATABASE_LOGGING: ${DATABASE_LOGGING:-false}
+      # Strapi specific
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-your-secret-key-change-this}
+      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-change-this}
+      API_TOKEN_SALT: ${API_TOKEN_SALT:-your-api-token-salt-change-this}
+      TRANSFER_TOKEN_SALT: ${TRANSFER_TOKEN_SALT:-your-transfer-token-salt}
+      # Optional: For CDN/Upload
+      # AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      # AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      # AWS_REGION: ${AWS_REGION}
+      # AWS_BUCKET: ${AWS_BUCKET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - strapi-uploads:/app/public/uploads
+      - strapi-cache:/app/.cache
+      - strapi-build:/app/build
+    networks:
+      - carelink-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:1337/admin"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: carelink-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-changeme}
+      POSTGRES_DB: ${DATABASE_NAME:-carelink}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - carelink-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME:-postgres} -d ${DATABASE_NAME:-carelink}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+    driver: local
+  strapi-uploads:
+    driver: local
+  strapi-cache:
+    driver: local
+  strapi-build:
+    driver: local
+
+networks:
+  carelink-network:
+    driver: bridge

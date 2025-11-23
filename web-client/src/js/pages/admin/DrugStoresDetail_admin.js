@@ -5,6 +5,7 @@ import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/pharmacyDetail.css';
 import Footer from '../../components/footer';
+import { API } from '../../../utils/apiConfig';
 
 function getImageUrl(photo) {
   if (!photo) return null;
@@ -43,7 +44,7 @@ function DrugStoresDetail_admin() {
 
       try {
         // 1. ดึงข้อมูล user
-        const userRes = await fetch('http://localhost:1337/api/users/me', {
+        const userRes = await fetch(API.users.list(), {
           headers: { Authorization: `Bearer ${jwt}` }
         });
 
@@ -62,8 +63,7 @@ function DrugStoresDetail_admin() {
 
         // 2. ดึง admin_profile + drug_stores
         const res = await fetch(
-          `http://localhost:1337/api/admin-profiles?populate[drug_stores][populate]=*` +
-          `&filters[users_permissions_user][documentId][$eq]=${userDocumentId}`,
+          API.adminProfiles.list(),
           {
             headers: { Authorization: `Bearer ${jwt}` }
           }
@@ -90,7 +90,7 @@ function DrugStoresDetail_admin() {
 
         // 4. ดึงเภสัชกรทั้งหมดในร้าน
         const pharmacistRes = await fetch(
-          `http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user&filters[drug_stores][documentId][$eq]=${id}`,
+          API.pharmacyProfiles.list(`populate=users_permissions_user&filters[drug_stores][documentId][$eq]=${id}`),
           {
             headers: { Authorization: `Bearer ${jwt}` }
           }
@@ -189,7 +189,7 @@ function DrugStoresDetail_admin() {
         {["photo_front", "photo_in", "photo_staff"].map((key, idx) => {
           const imageUrl = getImageUrl(pharmacy[key]);
           const fullImageUrl = imageUrl && imageUrl.startsWith('/')
-            ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}`
+            ? API.getImageUrl(imageUrl)
             : imageUrl;
 
           return (

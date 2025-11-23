@@ -9,6 +9,7 @@ import { Modal } from "antd";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import dayjs from "dayjs"; // เพิ่มบรรทัดนี้
+import { API, fetchWithAuth } from "../../../utils/apiConfig";
 
 // เพิ่มฟังก์ชันแปลงวันที่เป็นภาษาไทย
 function formatThaiDate(dateStr) {
@@ -39,7 +40,7 @@ function CustomerPage({ id }) {
     if (documentId) {
       // แก้ไขการดึงข้อมูลร้านยา - ใช้ token และเพิ่ม error handling
       const token = localStorage.getItem('jwt');
-      fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`, {
+      fetch(API.drugStores.getByDocumentId(documentId), {
         headers: {
           Authorization: token ? `Bearer ${token}` : "",
         },
@@ -67,7 +68,7 @@ function CustomerPage({ id }) {
         try {
           // หา internal ID ของร้าน
           const drugStoreRes = await fetch(
-            `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`,
+            API.drugStores.getByDocumentId(documentId),
             { headers: { Authorization: `Bearer ${token}` } }
           );
           const drugStoreJson = await drugStoreRes.json();
@@ -83,7 +84,7 @@ function CustomerPage({ id }) {
           // ใช้ field name ที่ถูกต้องจาก schema: drug_stores (many-to-many)
           try {
             const customerRes = await fetch(
-              `http://localhost:1337/api/customer-profiles?filters[drug_stores][id][$eq]=${drugStoreInternalId}&populate[0]=users_permissions_user&populate[1]=drug_stores`,
+              API.customerProfiles.list(`filters[drug_stores][id][$eq]=${drugStoreInternalId}&populate[0]=users_permissions_user&populate[1]=drug_stores`),
               {
                 headers: {
                   Authorization: token ? `Bearer ${token}` : "",
@@ -104,7 +105,7 @@ function CustomerPage({ id }) {
             try {
               console.log('Fallback: fetching all customers and filtering manually');
               const customerRes = await fetch(
-                `http://localhost:1337/api/customer-profiles?populate[0]=users_permissions_user&populate[1]=drug_stores`,
+                API.customerProfiles.list(`populate[0]=users_permissions_user&populate[1]=drug_stores`),
                 {
                   headers: {
                     Authorization: token ? `Bearer ${token}` : "",
@@ -161,7 +162,7 @@ function CustomerPage({ id }) {
           const removeRelation = async () => {
             if (!customerId) return;
             const res = await fetch(
-              `http://localhost:1337/api/customer-profiles/${customerDocumentId}`,
+              API.customerProfiles.update(customerDocumentId),
               {
                 method: "PUT",
                 headers: {
@@ -183,7 +184,7 @@ function CustomerPage({ id }) {
           const deleteCustomerProfile = async () => {
             if (!customerId) return;
             const res = await fetch(
-              `http://localhost:1337/api/customer-profiles/${customerDocumentId}`,
+              API.customerProfiles.update(customerDocumentId),
               { method: "DELETE", headers: authHeaders }
             );
             if (!res.ok && res.status !== 404) {
@@ -194,7 +195,7 @@ function CustomerPage({ id }) {
           const deleteUser = async () => {
             if (!userId) return;
             const checkRes = await fetch(
-              `http://localhost:1337/api/customer-profiles?filters[users_permissions_user][id][$eq]=${userId}`,
+              API.customerProfiles.list(`filters[users_permissions_user][id][$eq]=${userId}`),
               { headers: authHeaders }
             );
             const checkJson = await checkRes.json().catch(() => ({}));
@@ -207,7 +208,7 @@ function CustomerPage({ id }) {
 
             try {
               const res = await fetch(
-                `http://localhost:1337/api/users/${userId}`,
+                API.users.getById(userId),
                 { method: "DELETE", headers: authHeaders }
               );
               await res.text().catch(() => "");
@@ -219,7 +220,7 @@ function CustomerPage({ id }) {
             try {
               // หา internal ID ของร้าน
               const drugStoreRes = await fetch(
-                `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}`,
+                API.drugStores.getByDocumentId(documentId),
                 { headers: authHeaders }
               );
               const drugStoreJson = await drugStoreRes.json();
@@ -235,7 +236,7 @@ function CustomerPage({ id }) {
               // ใช้ field name ที่ถูกต้องจาก schema: drug_stores
               try {
                 const res = await fetch(
-                  `http://localhost:1337/api/customer-profiles?filters[drug_stores][id][$eq]=${drugStoreInternalId}&populate[0]=users_permissions_user&populate[1]=drug_stores&_=${Date.now()}`,
+                  API.customerProfiles.list(`filters[drug_stores][id][$eq]=${drugStoreInternalId}&populate[0]=users_permissions_user&populate[1]=drug_stores&_=${Date.now()}`),
                   { headers: authHeaders }
                 );
                 const js = await res.json();
@@ -250,7 +251,7 @@ function CustomerPage({ id }) {
                 
                 // Fallback: ดึงข้อมูลทั้งหมดแล้วกรองฝั่ง client
                 const res = await fetch(
-                  `http://localhost:1337/api/customer-profiles?populate[0]=users_permissions_user&populate[1]=drug_stores&_=${Date.now()}`,
+                  API.customerProfiles.list(`populate[0]=users_permissions_user&populate[1]=drug_stores&_=\${Date.now()}`),
                   { headers: authHeaders }
                 );
                 const js = await res.json();
@@ -451,3 +452,4 @@ function CustomerPage({ id }) {
 }
 
 export default CustomerPage;
+

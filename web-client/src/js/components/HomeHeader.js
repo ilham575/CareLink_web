@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../images/image 3.png';
 import '../../css/component/HomeHeader.css'; // เพิ่มบรรทัดนี้
 import ProfileAvatar from "./ProfileAvatar";
+import { API } from '../../utils/apiConfig';
 
 function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
   const navigate = useNavigate();
@@ -25,7 +26,8 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
     const jwt = localStorage.getItem('jwt');
     if (!jwt) return;
 
-    fetch('http://localhost:1337/api/users/me', {
+    const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
+    fetch(`${BASE_URL}/api/users/me?populate=role`, {
       headers: { Authorization: `Bearer ${jwt}` }
     })
       .then(res => res.json())
@@ -42,13 +44,13 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
         let profileApi = '';
         let imagePath = '';
         if (role === 'admin') {
-          profileApi = `http://localhost:1337/api/admin-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
+          profileApi = API.adminProfiles.list('filters[users_permissions_user][id][$eq]=' + userIdFromApi + '&populate=profileimage');
           imagePath = 'profileimage';
         } else if (role === 'pharmacy') {
-          profileApi = `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
+          profileApi = API.pharmacyProfiles.list('filters[users_permissions_user][id][$eq]=' + userIdFromApi + '&populate=profileimage');
           imagePath = 'profileimage';
         } else if (role === 'staff') {
-          profileApi = `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
+          profileApi = API.staffProfiles.list('filters[users_permissions_user][id][$eq]=' + userIdFromApi + '&populate=profileimage');
           imagePath = 'profileimage';
         } else {
           setProfileUrl(null);
@@ -72,7 +74,7 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
             if (img) {
               setProfileUrl(
                 img.startsWith('/')
-                  ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${img}`
+                  ? API.getImageUrl(img)
                   : img
               );
             } else {
@@ -100,7 +102,7 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
     // ฟังก์ชันช่วยดึงชื่อร้านจาก pharmacyId
     const fetchStoreName = (pharmacyId, forStaff) => {
       if (!pharmacyId) return;
-      fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`)
+      fetch(API.drugStores.getByDocumentId(pharmacyId))
         .then(res => res.json())
         .then(json => {
           const store = json.data?.[0];

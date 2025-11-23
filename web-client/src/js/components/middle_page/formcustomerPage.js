@@ -5,6 +5,7 @@ import HomeHeader from "../HomeHeader";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "../../../css/pages/formcustomerPage.css";
+import { API, fetchWithAuth } from "../../../utils/apiConfig";
 
 function FormCustomerPage() {
   const navigate = useNavigate();
@@ -47,7 +48,7 @@ function FormCustomerPage() {
     try {
       const token = localStorage.getItem('jwt');
       const response = await fetch(
-        `http://localhost:1337/api/customer-profiles?filters[documentId][$eq]=${customerDocumentId}&populate[0]=users_permissions_user`,
+        API.customerProfiles.list(`filters[documentId][\$eq]=\${customerDocumentId}&populate[0]=users_permissions_user`),
         {
           headers: {
             Authorization: token ? `Bearer ${token}` : "",
@@ -159,7 +160,7 @@ function FormCustomerPage() {
   const createCustomer = async (token) => {
     // First, get the drug store internal ID
     const drugStoreRes = await fetch(
-      `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`,
+      API.drugStores.getByDocumentId(pharmacyId),
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const drugStoreJson = await drugStoreRes.json();
@@ -170,7 +171,7 @@ function FormCustomerPage() {
     }
 
     // *** เพิ่ม: ค้นหา customer role ID แทนการใช้ hardcode ***
-    const roleRes = await fetch('http://localhost:1337/api/users-permissions/roles', {
+    const roleRes = await fetch(API.roles.list(), {
       headers: { Authorization: `Bearer ${token}` },
     });
     const roleData = await roleRes.json();
@@ -189,7 +190,7 @@ function FormCustomerPage() {
     const passwordToUse = formData.password?.trim() || formData.phone;
 
     // Create user with basic fields only
-    const userResponse = await fetch('http://localhost:1337/api/auth/local/register', {
+    const userResponse = await fetch(API.auth.register(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -210,7 +211,7 @@ function FormCustomerPage() {
 
     try {
       // Update user with additional fields
-      const updateUserResponse = await fetch(`http://localhost:1337/api/users/${userData.user.id}`, {
+      const updateUserResponse = await fetch(API.users.getById(userData.user.id), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -226,7 +227,7 @@ function FormCustomerPage() {
       if (!updateUserResponse.ok) {
         // If user update fails, try to clean up the created user
         try {
-          await fetch(`http://localhost:1337/api/users/${userData.user.id}`, {
+          await fetch(API.users.getById(userData.user.id), {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -239,7 +240,7 @@ function FormCustomerPage() {
       }
 
       // Create customer profile
-      const profileResponse = await fetch('http://localhost:1337/api/customer-profiles', {
+      const profileResponse = await fetch(API.customerProfiles.create(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -260,7 +261,7 @@ function FormCustomerPage() {
       if (!profileResponse.ok) {
         // If profile creation fails, try to clean up the user
         try {
-          await fetch(`http://localhost:1337/api/users/${userData.user.id}`, {
+          await fetch(API.users.getById(userData.user.id), {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -279,7 +280,7 @@ function FormCustomerPage() {
     } catch (error) {
       // If anything fails after user creation, try to clean up the user
       try {
-        await fetch(`http://localhost:1337/api/users/${userData.user.id}`, {
+        await fetch(API.users.getById(userData.user.id), {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -297,7 +298,7 @@ function FormCustomerPage() {
     // ดึงข้อมูล customer profile ใหม่เพื่อให้แน่ใจว่าได้ userId ที่ถูกต้อง
     try {
       const customerRes = await fetch(
-        `http://localhost:1337/api/customer-profiles/${customerDocumentId}?populate=users_permissions_user`,
+        API.customerProfiles.list(`populate=users_permissions_user&filters[documentId][\$eq]=\${customerDocumentId}`),
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -318,7 +319,7 @@ function FormCustomerPage() {
     
     if (userId && formData.password) {
       // Update user data including password
-      const userResponse = await fetch(`http://localhost:1337/api/users/${userId}`, {
+      const userResponse = await fetch(API.users.getById(userId), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -339,7 +340,7 @@ function FormCustomerPage() {
       }
     } else if (userId) {
       // Update user data without password change
-      const userResponse = await fetch(`http://localhost:1337/api/users/${userId}`, {
+      const userResponse = await fetch(API.users.getById(userId), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -360,7 +361,7 @@ function FormCustomerPage() {
     }
 
     // Update customer profile
-    const profileResponse = await fetch(`http://localhost:1337/api/customer-profiles/${customerDocumentId}`, {
+    const profileResponse = await fetch(API.customerProfiles.update(customerDocumentId), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -383,7 +384,7 @@ function FormCustomerPage() {
 
     // Get pharmacy documentId for redirect
     const drugStoreRes = await fetch(
-      `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`,
+      API.drugStores.getByDocumentId(pharmacyId),
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const drugStoreJson = await drugStoreRes.json();
@@ -595,3 +596,4 @@ function FormCustomerPage() {
 }
 
 export default FormCustomerPage;
+

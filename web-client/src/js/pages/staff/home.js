@@ -6,6 +6,7 @@ import Footer from '../../components/footer';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/home.css';
 import '../../../css/pages/staff/home.css';
+import { API } from '../../../utils/apiConfig';
 
 function StaffHome() {
   const location = useLocation();
@@ -28,7 +29,7 @@ function StaffHome() {
 
         // ดึงข้อมูล staff-profiles พร้อมข้อมูลร้านยาและรูปภาพ
         const response = await fetch(
-          `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][documentId][$eq]=${userDocumentId}&populate[drug_store][populate]=photo_front`,
+          API.staffProfiles.list(`filters[users_permissions_user][documentId][$eq]=${userDocumentId}&populate[drug_store][populate]=photo_front`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -91,7 +92,7 @@ function StaffHome() {
                       <div className="pharmacy-image-placeholder staff-pharmacy-image">
                         {imageUrl ? (
                           <img
-                            src={imageUrl.startsWith('/') ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}` : imageUrl}
+                            src={imageUrl.startsWith('/') ? API.getImageUrl(imageUrl) : imageUrl}
                             alt="รูปภาพร้านยา"
                           />
                         ) : (

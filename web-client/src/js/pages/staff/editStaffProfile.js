@@ -5,6 +5,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 import '../../../css/pages/staff/editStaffProfile.css';
+import { API } from '../../../utils/apiConfig';
 
 function EditStaffProfile() {
   const [form, setForm] = useState({
@@ -41,7 +42,7 @@ function EditStaffProfile() {
         }
 
         // โหลดข้อมูล user
-        const userRes = await fetch(`http://localhost:1337/api/users/me`, {
+        const userRes = await fetch(API.users.list(), {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -66,7 +67,7 @@ function EditStaffProfile() {
 
         // โหลดข้อมูล staff profiles ของร้านทั้งหมดที่ทำงานอยู่
         const staffRes = await fetch(
-          `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][documentId][$eq]=${userDocumentId}&populate[0]=drug_store&populate[1]=users_permissions_user&populate[2]=profileimage`,
+          API.staffProfiles.list(`filters[users_permissions_user][documentId][$eq]=${userDocumentId}&populate[0]=drug_store&populate[1]=users_permissions_user&populate[2]=profileimage`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -159,7 +160,7 @@ function EditStaffProfile() {
         userData.password = form.password;
       }
 
-      const userUpdateRes = await fetch(`http://localhost:1337/api/users/${userDocumentId}`, {
+      const userUpdateRes = await fetch(API.users.update(userDocumentId), {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(userData),
@@ -174,7 +175,7 @@ function EditStaffProfile() {
         const formData = new FormData();
         formData.append("files", form.profileImage);
 
-        const uploadRes = await fetch("http://localhost:1337/api/upload", {
+        const uploadRes = await fetch(API.upload(), {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
@@ -186,7 +187,7 @@ function EditStaffProfile() {
         if (uploadedImageId) {
           // อัปเดต profileimage ในทุก staff profile
           for (const profile of staffProfiles) {
-            await fetch(`http://localhost:1337/api/staff-profiles/${profile.documentId}`, {
+            await fetch(API.staffProfiles.update(profile.documentId), {
               method: "PUT",
               headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -248,7 +249,7 @@ function EditStaffProfile() {
         }
       };
 
-      const updateRes = await fetch(`http://localhost:1337/api/staff-profiles/${staffDocumentId}`, {
+      const updateRes = await fetch(API.staffProfiles.update(staffDocumentId), {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(staffData),
@@ -262,7 +263,7 @@ function EditStaffProfile() {
       
       // รีเฟรชข้อมูล
       const staffRes = await fetch(
-        `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][documentId][$eq]=${localStorage.getItem('user_documentId')}&populate[0]=drug_store&populate[1]=users_permissions_user&populate[2]=profileimage`,
+        API.staffProfiles.list(`filters[users_permissions_user][documentId][$eq]=${localStorage.getItem('user_documentId')}&populate[0]=drug_store&populate[1]=users_permissions_user&populate[2]=profileimage`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

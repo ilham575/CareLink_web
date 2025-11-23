@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/pharmacyDetail.css';
+import { API } from '../../../utils/apiConfig';
 
 function getImageUrl(photo) {
   if (!photo) return null;
@@ -27,8 +28,8 @@ function DrugStoreDetail() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`http://localhost:1337/api/drug-stores/${id}?populate=pharmacy_profiles,photo_front,photo_in,photo_staff`).then(res => res.json()),
-      fetch('http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user').then(res => res.json())
+      fetch(API.drugStores.getById(id)).then(res => res.json()),
+      fetch(API.pharmacyProfiles.list('populate=users_permissions_user')).then(res => res.json())
     ]).then(([storeRes, profileRes]) => {
       const store = storeRes.data;
       setPharmacy(store ? (store.attributes || store) : null);
@@ -63,7 +64,7 @@ function DrugStoreDetail() {
             {getImageUrl(pharmacy.photo_front) ? (
               <img
                 src={getImageUrl(pharmacy.photo_front).startsWith('/')
-                  ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_front)}`
+                  ? API.getImageUrl(getImageUrl(pharmacy.photo_front))
                   : getImageUrl(pharmacy.photo_front)
                 }
                 alt="รูปด้านนอกร้านยา"
@@ -77,7 +78,7 @@ function DrugStoreDetail() {
             {getImageUrl(pharmacy.photo_in) ? (
               <img
                 src={getImageUrl(pharmacy.photo_in).startsWith('/')
-                  ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_in)}`
+                  ? API.getImageUrl(getImageUrl(pharmacy.photo_in))
                   : getImageUrl(pharmacy.photo_in)
                 }
                 alt="รูปด้านในร้านยา"
@@ -91,7 +92,7 @@ function DrugStoreDetail() {
             {getImageUrl(pharmacy.photo_staff) ? (
               <img
                 src={getImageUrl(pharmacy.photo_staff).startsWith('/')
-                  ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_staff)}`
+                  ? API.getImageUrl(getImageUrl(pharmacy.photo_staff))
                   : getImageUrl(pharmacy.photo_staff)
                 }
                 alt="รูปเภสัชกรและพนักงาน"

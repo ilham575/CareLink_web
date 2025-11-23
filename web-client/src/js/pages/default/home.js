@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
+import { API } from '../../../utils/apiConfig';
 import '../../../css/pages/default/home.css';
 
 function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front, pharmacists }) {
@@ -25,7 +26,7 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
       <div className="pharmacy-image-placeholder" style={{ padding: 0, background: 'none' }}>
         {imageUrl ? (
           <img
-            src={imageUrl.startsWith('/') ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}` : imageUrl}
+            src={imageUrl.startsWith('/') ? API.getImageUrl(imageUrl) : imageUrl}
             alt="รูปภาพร้านยา"
             style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: 5, display: 'block' }}
           />
@@ -50,14 +51,8 @@ function Home() {
 
   useEffect(() => {
     Promise.all([
-      fetch(
-        'http://localhost:1337/api/drug-stores?' +
-        'populate[photo_front]=true&' +      // ✅ ใช้ true หรือ *
-        'populate[pharmacy_profiles]=true'   // ✅ แยกเป็น key
-      ).then(res => res.json()),
-      fetch(
-        'http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user'
-      ).then(res => res.json())
+      fetch(API.drugStores.list()).then(res => res.json()),
+      fetch(API.pharmacyProfiles.list()).then(res => res.json())
     ])
       .then(([drugStoresRes, pharmacyProfilesRes]) => {
         const drugStores = drugStoresRes.data || [];

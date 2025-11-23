@@ -5,6 +5,9 @@ import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/home.css';
 import Footer from '../../components/footer';
+import { API } from '../../../utils/apiConfig';
+
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
 
 function PharmacyItem({ documentId, name_th, address, time_open, time_close, phone_store, photo_front, onDelete }) {
   const navigate = useNavigate();
@@ -27,7 +30,7 @@ function PharmacyItem({ documentId, name_th, address, time_open, time_close, pho
         {imageUrl ? (
           <img
             src={imageUrl.startsWith('/')
-              ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}`
+              ? API.getImageUrl(imageUrl)
               : imageUrl}
             alt="รูปภาพร้านยา"
             style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: 5, display: 'block' }}
@@ -152,7 +155,7 @@ function AdminHome() {
       try {
         // 1. ดึงข้อมูล user ปัจจุบัน
         const timestamp = Date.now();
-        const userRes = await fetch(`http://localhost:1337/api/users/me?_=${timestamp}&nocache=${Math.random()}`, {
+        const userRes = await fetch(API.users.list(), {
           headers: { 
             Authorization: `Bearer ${jwt}`,
             'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -169,7 +172,7 @@ function AdminHome() {
           'filters[users_permissions_user][documentId][$eq]': userDocumentId
         });
         const adminProfileRes = await fetch(
-          `http://localhost:1337/api/admin-profiles?${adminProfileQuery.toString()}`,
+          API.adminProfiles.list(),
           {
             headers: { 
               Authorization: `Bearer ${jwt}`,
@@ -190,16 +193,9 @@ function AdminHome() {
         console.log("DEBUG: adminProfileDocumentId", adminProfileDocumentId);
         console.log("DEBUG: adminProfile", adminProfile);
 
-        // 3. ดึง drug-stores ทั้งหมด (แก้ไข populate query)
-        const drugStoreQuery = new URLSearchParams({
-          'populate': '*', // ใช้ populate=* เพื่อดึงข้อมูลทั้งหมด
-          '_': timestamp,
-          'nocache': Math.random(),
-          'publicationState': 'preview'
-        });
-
+        // 3. ดึง drug-stores ทั้งหมด พร้อม populate ข้อมูลรูปภาพและ admin_profile (Strapi v5)
         const drugStoreRes = await fetch(
-          `http://localhost:1337/api/drug-stores?${drugStoreQuery.toString()}`,
+          `${BASE_URL}/api/drug-stores?populate[0]=photo_front&populate[1]=photo_in&populate[2]=photo_staff&populate[3]=admin_profile&publicationState=preview&_=${timestamp}`,
           {
             headers: { 
               Authorization: `Bearer ${jwt}`,
@@ -218,14 +214,15 @@ function AdminHome() {
         // DEBUG: log ข้อมูล drug_store ที่ได้จาก API
         console.log("DEBUG: allDrugStores", allDrugStores);
 
-        // filter ใน frontend ด้วย admin_profile.id ทั้งใน attributes และ root
+        // filter ใน frontend ด้วย admin_profile - ใช้ documentId เป็น priority หลัก
         const myDrugStores = allDrugStores.filter(store => {
           const adminProfileField = store.attributes?.admin_profile || store.admin_profile;
           if (!adminProfileField) {
             console.warn(`⚠️ ไม่มี admin_profile ใน store: ${store.id} (${store.name_th || store.name_en || 'ไม่ทราบชื่อ'})`);
             return false;
           }
-          return adminProfileField.id === adminProfileId || adminProfileField.documentId === adminProfileDocumentId;
+          // ลอง documentId ก่อน แล้วค่อย id
+          return adminProfileField.documentId === adminProfileDocumentId || adminProfileField.id === adminProfileId;
         });
 
         // DEBUG: log ร้านยาที่ filter ได้
@@ -280,7 +277,7 @@ function AdminHome() {
     try {
       console.log('🗑️ กำลังลบร้านยา DocumentID:', documentId);
 
-      const deleteRes = await fetch(`http://localhost:1337/api/drug-stores/${documentId}`, {
+      const deleteRes = await fetch(API.drugStores.delete(documentId), {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${jwt}`,

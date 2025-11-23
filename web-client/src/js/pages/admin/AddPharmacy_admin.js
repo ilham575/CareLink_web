@@ -4,6 +4,7 @@ import Header from "../../components/HomeHeader";
 import Footer from "../../components/footer";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { API } from "../../../utils/apiConfig";
 
 // 🟢 mapping วัน ไทย -> ไทย (เก็บเป็นวันไทยใน DB)
 const dayMapReverse = {
@@ -67,7 +68,7 @@ function AddPharmacist_admin() {
       try {
         setLoading(true);
         const response = await fetch(
-          "http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user&populate=drug_stores",
+          API.pharmacyProfiles.list(),
           {
             headers: { Authorization: `Bearer ${jwt}` },
           }
@@ -93,7 +94,7 @@ function AddPharmacist_admin() {
   useEffect(() => {
     if (!storeId || !jwt) return;
     fetch(
-      `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${storeId}&populate=*`,
+      API.drugStores.getByDocumentId(storeId),
       {
         headers: { Authorization: `Bearer ${jwt}` },
       }
@@ -148,7 +149,7 @@ function AddPharmacist_admin() {
 
       try {
         const response = await fetch(
-          `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${storeId}`,
+          API.drugStores.getByDocumentId(storeId),
           {
             headers: { Authorization: `Bearer ${jwt}` },
           }
@@ -423,7 +424,7 @@ function AddPharmacist_admin() {
           selectedPharmacist.users_permissions_user?.id ||
           selectedPharmacist.users_permissions_user?.data?.id;
         const checkRes = await fetch(
-          `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}&filters[drug_stores][documentId][$eq]=${storeId}`,
+          API.pharmacyProfiles.list(`filters[users_permissions_user][id][\$eq]=\${userId}&filters[drug_stores][documentId][\$eq]=\${storeId}`),
           { headers: { Authorization: `Bearer ${jwt}` } }
         );
         const checkData = await checkRes.json();
@@ -434,7 +435,7 @@ function AddPharmacist_admin() {
 
         // ดึงข้อมูล pharmacy profile ที่มีอยู่ของ user นี้
         const existingProfileRes = await fetch(
-          `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=drug_stores`,
+          API.pharmacyProfiles.list(`filters[users_permissions_user][id][\$eq]=\${userId}&populate=drug_stores`),
           { headers: { Authorization: `Bearer ${jwt}` } }
         );
         const existingProfileData = await existingProfileRes.json();
@@ -469,7 +470,7 @@ function AddPharmacist_admin() {
             };
 
             const updateRes = await fetch(
-              `http://localhost:1337/api/pharmacy-profiles/${existingProfile.documentId}`,
+              API.pharmacyProfiles.update(existingProfile.documentId),
               {
                 method: "PUT",
                 headers: {
@@ -511,7 +512,7 @@ function AddPharmacist_admin() {
             },
           };
 
-          const res = await fetch("http://localhost:1337/api/pharmacy-profiles", {
+          const res = await fetch(API.pharmacyProfiles.create(), {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -545,7 +546,7 @@ function AddPharmacist_admin() {
 
         // 1. สมัคร User
         const userRes = await fetch(
-          "http://localhost:1337/api/auth/local/register",
+          API.auth.register(),
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -566,7 +567,7 @@ function AddPharmacist_admin() {
 
         // 2. หา role pharmacist
         const roleRes = await fetch(
-          "http://localhost:1337/api/users-permissions/roles",
+          API.roles.list(),
           {
             headers: { Authorization: `Bearer ${jwt}` },
           }
@@ -576,7 +577,7 @@ function AddPharmacist_admin() {
         if (!pharmacistRole) throw new Error("ไม่พบ role pharmacist");
 
         // 3. อัปเดต User
-        await fetch(`http://localhost:1337/api/users/${userData.user.id}`, {
+        await fetch(API.users.update(userData.user.id), {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -595,7 +596,7 @@ function AddPharmacist_admin() {
           const imageForm = new FormData();
           imageForm.append("files", formData.profileImage);
 
-          const uploadRes = await fetch("http://localhost:1337/api/upload", {
+          const uploadRes = await fetch(API.upload(), {
             method: "POST",
             headers: { Authorization: `Bearer ${jwt}` },
             body: imageForm,
@@ -625,7 +626,7 @@ function AddPharmacist_admin() {
           },
         };
 
-        const res = await fetch("http://localhost:1337/api/pharmacy-profiles", {
+        const res = await fetch(API.pharmacyProfiles.create(), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

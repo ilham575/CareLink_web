@@ -6,6 +6,7 @@ import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import Footer from '../../components/footer';
 import AnimationWrapper from '../../components/AnimationWrapper'; // เพิ่มบรรทัดนี้
+import { API } from '../../../utils/apiConfig';
 
 function PharmacyItem({ id, documentId, name_th, address, time_open, time_close, phone_store, photo_front, pharmacy_profiles }) {
 	const navigate = useNavigate();
@@ -20,7 +21,7 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
 
 	const handleClick = () => {
 		// use documentId as primary identifier for routes (fallback to id)
-		navigate(`/drug_store_pharmacy/${id}`);
+		navigate(`/drug_store_pharmacy/${documentId || id}`);
 	};
 	const handleDrugList = () => {
 		navigate(`/drug_store_pharmacy/${documentId || id}/drugs`);
@@ -31,17 +32,17 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
 
 	return (
 		<div className="pharmacy-item">
-			<div className="pharmacy-image-placeholder" style={{ padding: 0, background: 'none' }}>
-				{imageUrl ? (
-					<img
-						src={imageUrl.startsWith('/') ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}` : imageUrl}
-						alt="รูปภาพร้านยา"
-						style={{
-							width: '100%',
-							height: '100px',
-							objectFit: 'cover',
-							borderRadius: 5,
-							display: 'block'
+		<div className="pharmacy-image-placeholder" style={{ padding: 0, background: 'none' }}>
+			{imageUrl ? (
+				<img
+					src={imageUrl.startsWith('/') ? API.getImageUrl(imageUrl) : imageUrl}
+					alt="รูปภาพร้านยา"
+					style={{
+						width: '100%',
+						height: '100px',
+						objectFit: 'cover',
+						borderRadius: 5,
+						display: 'block'
 						}}
 					/>
 				) : (
@@ -156,8 +157,8 @@ function PharmacyHome() {
 			return;
 		}
 
-		const timestamp = Date.now();
-		fetch(`http://localhost:1337/api/users/me?_=${timestamp}&nocache=${Math.random()}`, {
+		const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
+		fetch(`${BASE_URL}/api/users/me?populate=role`, {
 			method: 'GET',
 			headers: {
 				'Authorization': `Bearer ${token}`,
@@ -184,7 +185,7 @@ function PharmacyHome() {
 
 		const timestamp = Date.now();
 		// include publicationState=preview when token exists so admin "Modified" records are returned
-		const profilesUrl = `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage&_=${timestamp}&nocache=${Math.random()}${token ? '&publicationState=preview' : ''}`;
+		const profilesUrl = API.pharmacyProfiles.list(`filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage&_=${timestamp}&nocache=${Math.random()}${token ? '&publicationState=preview' : ''}`);
 
 		fetch(profilesUrl, {
 			method: 'GET',
@@ -214,7 +215,8 @@ function PharmacyHome() {
 		}
 
 		const timestamp = Date.now();
-		const storesUrl = `http://localhost:1337/api/drug-stores?populate=*&_=${timestamp}&nocache=${Math.random()}${token ? '&publicationState=preview' : ''}`;
+		const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
+		const storesUrl = `${BASE_URL}/api/drug-stores?populate[0]=photo_front&populate[1]=pharmacy_profiles&_=${timestamp}&nocache=${Math.random()}`;
 
 		fetch(storesUrl, {
 			method: 'GET',

@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { API } from '../../utils/apiConfig';
 
 function ProfileAvatar({ profileUrl, profileFullName, userData }) {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ function ProfileAvatar({ profileUrl, profileFullName, userData }) {
         try {
           const jwt = localStorage.getItem('jwt');
           const res = await fetch(
-            `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}`,
+            API.pharmacyProfiles.listFiltered({ users_permissions_user: { id: { $eq: userId } } }),
             { headers: { Authorization: `Bearer ${jwt}` } }
           );
           const data = await res.json();

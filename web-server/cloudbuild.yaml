@@ -1,0 +1,82 @@
+# Cloud Build Configuration สำหรับ GCP
+# ใช้คำสั่ง: gcloud builds submit --config=cloudbuild.yaml
+
+steps:
+  # Step 1: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/carelink-strapi:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/carelink-strapi:latest'
+      - '-f'
+      - 'Dockerfile.gcp'
+      - '.'
+
+  # Step 2: Push image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-image'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/carelink-strapi:$SHORT_SHA'
+    waitFor: ['build-image']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-latest'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/carelink-strapi:latest'
+    waitFor: ['build-image']
+
+  # Step 3: Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/run'
+    id: 'deploy-cloud-run'
+    args:
+      - 'deploy'
+      - 'carelink-strapi'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/carelink-strapi:$SHORT_SHA'
+      - '--platform'
+      - 'managed'
+      - '--region'
+      - '${_CLOUD_RUN_REGION}'
+      - '--port'
+      - '1337'
+      - '--cpu'
+      - '2'
+      - '--memory'
+      - '2Gi'
+      - '--timeout'
+      - '3600'
+      - '--set-env-vars'
+      - 'NODE_ENV=production,DATABASE_CLIENT=${_DATABASE_CLIENT},DATABASE_HOST=${_DATABASE_HOST},DATABASE_PORT=${_DATABASE_PORT},DATABASE_NAME=${_DATABASE_NAME},ADMIN_JWT_SECRET=${_ADMIN_JWT_SECRET},JWT_SECRET=${_JWT_SECRET},API_TOKEN_SALT=${_API_TOKEN_SALT},TRANSFER_TOKEN_SALT=${_TRANSFER_TOKEN_SALT},STRAPI_URL=${_STRAPI_URL}'
+      - '--allow-unauthenticated'
+    waitFor: ['push-latest']
+
+# Images to push
+images:
+  - 'gcr.io/$PROJECT_ID/carelink-strapi:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/carelink-strapi:latest'
+
+# Substitutions สำหรับตัวแปร (แก้ไขตามของคุณ)
+substitutions:
+  _CLOUD_RUN_REGION: 'asia-southeast1'  # ลงทะเบียนเหมาะสมสำหรับ Thailand
+  _DATABASE_CLIENT: 'postgres'
+  _DATABASE_HOST: '35.247.XXX.XXX'  # Cloud SQL Proxy IP
+  _DATABASE_PORT: '5432'
+  _DATABASE_NAME: 'carelink_db'
+  _ADMIN_JWT_SECRET: 'your-admin-jwt-secret'
+  _JWT_SECRET: 'your-jwt-secret'
+  _API_TOKEN_SALT: 'your-api-token-salt'
+  _TRANSFER_TOKEN_SALT: 'your-transfer-token-salt'
+  _STRAPI_URL: 'https://carelink-strapi-xxxxx.run.app'
+
+# Build timeout
+timeout: '3600s'
+
+# Build options
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'N1_HIGHCPU_8'

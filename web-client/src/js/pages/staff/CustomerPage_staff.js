@@ -7,6 +7,7 @@ import '../../../css/component/CustomerCard.css';
 import '../../../css/component/ModernCustomerCard.css';
 import '../../../css/pages/staff/staffCustomerPage.css';
 import dayjs from 'dayjs';
+import { API } from '../../../utils/apiConfig';
 
 function CustomerPageStaff() {
   const { id: pharmacyId } = useParams();
@@ -30,7 +31,7 @@ function CustomerPageStaff() {
 
         // โหลดข้อมูล staff profile เพื่อเอา documentId
         const staffRes = await fetch(
-          `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][documentId][$eq]=${userDocumentId}&filters[drug_store][documentId][$eq]=${pharmacyId}`,
+          API.staffProfiles.list(`filters[users_permissions_user][documentId][$eq]=${userDocumentId}&filters[drug_store][documentId][$eq]=${pharmacyId}`),
           { headers: { Authorization: token ? `Bearer ${token}` : '' } }
         );
 
@@ -47,7 +48,7 @@ function CustomerPageStaff() {
         // โหลด notifications ที่ส่งมาให้พนักงานคนนี้
         // ใช้ populate=* ชั่วคราวเพื่อหลีกเลี่ยงปัญหา ValidationError ของคีย์
         const notifRes = await fetch(
-          `http://localhost:1337/api/notifications?filters[staff_profile][documentId][$eq]=${staffProfile.documentId}&filters[type][$eq]=customer_assignment&populate=*`,
+          API.notifications.list(`filters[staff_profile][documentId][$eq]=${staffProfile.documentId}&filters[type][$eq]=customer_assignment&populate=*`),
           { headers: { Authorization: token ? `Bearer ${token}` : '' } }
         );
 
@@ -104,7 +105,7 @@ function CustomerPageStaff() {
 
         // โหลดข้อมูลร้านยา
         const pharmacyRes = await fetch(
-          `http://localhost:1337/api/drug-stores/${pharmacyId}`,
+          `${API.drugStores.delete(pharmacyId)}`,
           { headers: { Authorization: token ? `Bearer ${token}` : '' } }
         );
 

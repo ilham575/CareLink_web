@@ -6,6 +6,7 @@ import '../../../css/pages/default/pharmacyDetail.css';
 import Footer from '../../components/footer';
 import { toast } from 'react-toastify';
 import AnimationWrapper from '../../components/AnimationWrapper';
+import { API } from '../../../utils/apiConfig';
 
 function getImageUrl(photo) {
   if (!photo) return null;
@@ -32,8 +33,9 @@ function DrugStoresDetail_pharmacist() {
         }
 
         // Try documentId filter first
+        const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
         try {
-          storeRes = await fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${id}&populate=*`);
+          storeRes = await fetch(`${BASE_URL}/api/drug-stores?filters[documentId][$eq]=${id}&populate[0]=photo_front&populate[1]=photo_in&populate[2]=photo_staff`);
           storeJson = await storeRes.json();
           store = storeJson.data?.[0];
         } catch (err) {
@@ -42,7 +44,7 @@ function DrugStoresDetail_pharmacist() {
 
         // If not found by documentId and id is a valid integer, try regular id
         if (!store && !isNaN(parseInt(id))) {
-          storeRes = await fetch(`http://localhost:1337/api/drug-stores/${id}?populate=*`);
+          storeRes = await fetch(`${BASE_URL}/api/drug-stores/${id}?populate[0]=photo_front&populate[1]=photo_in&populate[2]=photo_staff`);
           storeJson = await storeRes.json();
           store = storeJson.data;
         }
@@ -68,7 +70,7 @@ function DrugStoresDetail_pharmacist() {
         }
 
         if (pharmacistDocumentId) {
-          const profileRes = await fetch('http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user');
+          const profileRes = await fetch(API.pharmacyProfiles.list('populate=users_permissions_user'));
           const profileJson = await profileRes.json();
           const allProfiles = profileJson.data || [];
           const matchedProfile = allProfiles.find(
@@ -114,7 +116,7 @@ function DrugStoresDetail_pharmacist() {
                 {getImageUrl(pharmacy.photo_front) ? (
                   <img
                     src={getImageUrl(pharmacy.photo_front).startsWith('/')
-                      ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_front)}`
+                      ? API.getImageUrl(getImageUrl(pharmacy.photo_front))
                       : getImageUrl(pharmacy.photo_front)
                     }
                     alt="รูปด้านนอกร้านยา"
@@ -128,7 +130,7 @@ function DrugStoresDetail_pharmacist() {
                 {getImageUrl(pharmacy.photo_in) ? (
                   <img
                     src={getImageUrl(pharmacy.photo_in).startsWith('/')
-                      ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_in)}`
+                      ? API.getImageUrl(getImageUrl(pharmacy.photo_in))
                       : getImageUrl(pharmacy.photo_in)
                     }
                     alt="รูปด้านในร้านยา"
@@ -142,10 +144,10 @@ function DrugStoresDetail_pharmacist() {
                 {getImageUrl(pharmacy.photo_staff) ? (
                   <img
                     src={getImageUrl(pharmacy.photo_staff).startsWith('/')
-                      ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${getImageUrl(pharmacy.photo_staff)}`
+                      ? API.getImageUrl(getImageUrl(pharmacy.photo_staff))
                       : getImageUrl(pharmacy.photo_staff)
                     }
-                    alt="รูปเภสัชกรและพนักงาน"
+                    alt="รูปพนักงาน"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
                   />
                 ) : (

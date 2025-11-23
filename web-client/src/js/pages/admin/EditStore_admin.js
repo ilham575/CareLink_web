@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
 import Footer from "../../components/footer";
+import { API } from "../../../utils/apiConfig";
 
 // ✅ default service keys
 const defaultServices = {
@@ -22,7 +23,7 @@ const getImageUrl = (photo) => {
   if (!photo) return null;
   if (typeof photo === "string") return photo;
   if (photo.url) {
-    return `${process.env.REACT_APP_API_URL || "http://localhost:1337"}${photo.url}`;
+    return API.getImageUrl(photo.url);
   }
   return null;
 };
@@ -67,7 +68,7 @@ function EditStore_admin() {
 
         // Try to fetch by documentId first
         let res = await fetch(
-          `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}&populate=*`,
+          API.drugStores.getByDocumentId(documentId),
           {
             headers: { Authorization: `Bearer ${jwt}` },
           }
@@ -79,7 +80,7 @@ function EditStore_admin() {
         // If not found by documentId and documentId is a valid integer, try by regular id
         if (!store && !isNaN(parseInt(documentId)) && parseInt(documentId) > 0) {
           res = await fetch(
-            `http://localhost:1337/api/drug-stores/${documentId}?populate=*`,
+            API.drugStores.getById(documentId),
             {
               headers: { Authorization: `Bearer ${jwt}` },
             }
@@ -165,7 +166,7 @@ function EditStore_admin() {
     const uploadData = new FormData();
     uploadData.append("files", file);
 
-    const res = await fetch("http://localhost:1337/api/upload", {
+    const res = await fetch(API.upload(), {
       method: "POST",
       headers: { Authorization: `Bearer ${jwt}` },
       body: uploadData,
@@ -225,7 +226,7 @@ function EditStore_admin() {
       // Prefer numeric storeId for the update endpoint
       const targetId = storeId || documentId;
       const res = await fetch(
-        `http://localhost:1337/api/drug-stores/${targetId}`,
+        API.drugStores.update(targetId),
         {
           method: "PUT",
           headers: {

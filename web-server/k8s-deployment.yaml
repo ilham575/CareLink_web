@@ -1,0 +1,166 @@
+# Kubernetes Deployment Configuration สำหรับ GCP GKE (ถ้าต้องการ)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: carelink-strapi
+  labels:
+    app: carelink-strapi
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: carelink-strapi
+  template:
+    metadata:
+      labels:
+        app: carelink-strapi
+    spec:
+      serviceAccountName: carelink-strapi
+      containers:
+      - name: strapi
+        image: gcr.io/PROJECT_ID/carelink-strapi:latest
+        ports:
+        - containerPort: 1337
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: DATABASE_CLIENT
+          value: "postgres"
+        - name: DATABASE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: host
+        - name: DATABASE_PORT
+          value: "5432"
+        - name: DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: database
+        - name: DATABASE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: username
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: password
+        - name: ADMIN_JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: strapi-secrets
+              key: admin-jwt-secret
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: strapi-secrets
+              key: jwt-secret
+        - name: API_TOKEN_SALT
+          valueFrom:
+            secretKeyRef:
+              name: strapi-secrets
+              key: api-token-salt
+        - name: TRANSFER_TOKEN_SALT
+          valueFrom:
+            secretKeyRef:
+              name: strapi-secrets
+              key: transfer-token-salt
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /admin
+            port: 1337
+          initialDelaySeconds: 40
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /admin
+            port: 1337
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: uploads
+          mountPath: /app/public/uploads
+        - name: cache
+          mountPath: /app/.cache
+      volumes:
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: strapi-uploads-pvc
+      - name: cache
+        emptyDir: {}
+      imagePullPolicy: Always
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: carelink-strapi
+  labels:
+    app: carelink-strapi
+spec:
+  selector:
+    app: carelink-strapi
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 1337
+  type: LoadBalancer
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: strapi-uploads-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard-rwo
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: carelink-strapi-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: carelink-strapi
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: carelink-strapi
