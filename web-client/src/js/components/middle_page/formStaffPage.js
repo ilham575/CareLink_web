@@ -75,14 +75,24 @@ function FormStaffPage() {
           return;
         }
 
-        const usersRes = await fetch(
-          API.users.list(`filters[role][name][$eq]=staff`),
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        let users = await usersRes.json();
-        if (!Array.isArray(users)) users = [];
+      const usersRes = await fetch(
+        API.users.list(),
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      let users = await usersRes.json();
+      if (!Array.isArray(users)) users = [];
+      
+      // Filter users ที่มี role เป็น staff ใน frontend
+      const staffUsers = users.filter(u => {
+        const role = u.role;
+        if (!role) return false;
         
-        // ใช้ internal ID ในการ filter
+        // เช็ค role name หรือ type
+        if (typeof role === 'object') {
+          return role.name === 'staff' || role.type === 'staff';
+        }
+        return role === 'staff';
+      });        // ใช้ internal ID ในการ filter
         const staffRes = await fetch(
           API.staffProfiles.list(`filters[drug_store]=\${drugStoreInternalId}&populate=users_permissions_user`),
           { headers: { Authorization: `Bearer ${token}` } }
@@ -97,7 +107,7 @@ function FormStaffPage() {
             ).filter(Boolean)
           : [];
           
-        const selectableUsers = users.filter(u => !staffUserIds.includes(u.id));
+        const selectableUsers = staffUsers.filter(u => !staffUserIds.includes(u.id));
         
         setExistingUsers(selectableUsers);
       })();
@@ -183,20 +193,14 @@ function FormStaffPage() {
           workSchedule: workSchedule
         });
 
-        // รูปจริงจาก Strapi
+        // รูปจริงจาก Strapi - ใช้ documentId endpoint
         let imageUrl = null;
-        if (staffRaw.profileimage?.data) {
-          const imgAttr = staffRaw.profileimage.data.attributes;
-          imageUrl = imgAttr?.formats?.thumbnail?.url || imgAttr?.url || null;
-        }
-        if (!imageUrl && staffRaw.profileimage?.formats) {
-          imageUrl = staffRaw.profileimage.formats.thumbnail?.url || staffRaw.profileimage.url || null;
-        }
-        if (!imageUrl && typeof staffRaw.profileimage === "string") {
-          imageUrl = staffRaw.profileimage;
+        const profileImageObj = staffRaw.profileimage?.data?.attributes || staffRaw.profileimage || null;
+        if (profileImageObj?.documentId) {
+          imageUrl = `${API.BASE_URL}/api/upload/files/${profileImageObj.documentId}/serve`;
         }
         if (imageUrl) {
-          setUploadedImageUrl(imageUrl.startsWith("/") ? API.getImageUrl(imageUrl) : imageUrl);
+          setUploadedImageUrl(imageUrl);
         } else {
           setUploadedImageUrl(null);
         }

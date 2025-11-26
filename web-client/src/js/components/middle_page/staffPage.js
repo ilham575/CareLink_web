@@ -191,12 +191,10 @@ function StaffPage({ id }) {
           ) : (
             staffList.map(staff => {
               const user = staff.users_permissions_user?.data?.attributes || staff.users_permissions_user || staff.attributes?.users_permissions_user;
-              const profileImg =
-                staff.profileimage?.data?.attributes?.formats?.thumbnail?.url ||
-                staff.profileimage?.data?.attributes?.url ||
-                staff.profileimage?.formats?.thumbnail?.url ||
-                staff.profileimage?.url ||
-                null;
+              const profileImageObj = staff.profileimage?.data?.attributes || staff.profileimage || null;
+              const profileImg = profileImageObj?.documentId 
+                ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}/api/upload/files/${profileImageObj.documentId}/serve`
+                : null;
               const staffDocumentId = staff.documentId || staff.attributes?.documentId;
               const userId = 
                 staff.users_permissions_user?.data?.id ||
@@ -211,11 +209,7 @@ function StaffPage({ id }) {
                   <div className="staff-card-image staff-card-image-box">
                     {profileImg ? (
                       <img
-                        src={
-                          profileImg.startsWith('/')
-                            ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${profileImg}`
-                            : profileImg
-                        }
+                        src={profileImg}
                         alt="รูปภาพพนักงาน"
                         className="staff-card-image-img"
                       />

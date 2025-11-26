@@ -78,17 +78,13 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
             if (profile?.[imagePath]) {
               // ถ้าเป็น array ให้ใช้ index 0
               const imageObj = Array.isArray(profile[imagePath]) ? profile[imagePath][0] : profile[imagePath];
-              img =
-                imageObj?.formats?.thumbnail?.url ||
-                imageObj?.url ||
-                null;
+              // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
+              if (imageObj?.documentId) {
+                img = `${API.BASE_URL}/api/upload/files/${imageObj.documentId}/serve`;
+              }
             }
             if (img) {
-              setProfileUrl(
-                img.startsWith('/')
-                  ? API.getImageUrl(img)
-                  : img
-              );
+              setProfileUrl(img);
             } else {
               setProfileUrl(null);
             }

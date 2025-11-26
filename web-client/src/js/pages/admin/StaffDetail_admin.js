@@ -10,6 +10,11 @@ import { API } from '../../../utils/apiConfig';
 function StaffCard({ staff, onEdit, onDelete, onDetail }) {
   const getImageUrl = (photo) => {
     if (!photo) return null;
+    // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
+    if (photo.documentId) {
+      return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+    }
+    // Fallback สำหรับข้อมูลเก่า
     if (typeof photo === "string") return photo;
     if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
     if (photo.formats?.medium?.url) return photo.formats.medium.url;
@@ -38,9 +43,7 @@ function StaffCard({ staff, onEdit, onDelete, onDetail }) {
         <div className="staff-detail-avatar-section">
           {imageUrl ? (
             <img
-              src={imageUrl.startsWith('/')
-                ? API.getImageUrl(imageUrl)
-                : imageUrl}
+              src={imageUrl}
               alt="รูปโปรไฟล์"
               className="staff-detail-avatar"
             />

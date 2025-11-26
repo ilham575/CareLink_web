@@ -10,6 +10,9 @@ import { API } from '../../../utils/apiConfig';
 
 function getImageUrl(photo) {
   if (!photo) return null;
+  if (photo.documentId) {
+    return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+  }
   if (photo.formats?.medium?.url) return photo.formats.medium.url;
   if (photo.url) return photo.url;
   return null;
@@ -124,10 +127,7 @@ function DrugStoresDetail_staff() {
               <div className="dsstaff-image-box" style={{ padding: 0, background: 'none' }}>
                 {getImageUrl(pharmacy.photo_front) ? (
                   <img
-                    src={getImageUrl(pharmacy.photo_front).startsWith('/')
-                      ? API.getImageUrl(getImageUrl(pharmacy.photo_front))
-                      : getImageUrl(pharmacy.photo_front)
-                    }
+                    src={getImageUrl(pharmacy.photo_front)}
                     alt="รูปด้านนอกร้านยา"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
                   />
@@ -138,10 +138,7 @@ function DrugStoresDetail_staff() {
               <div className="dsstaff-image-box" style={{ padding: 0, background: 'none' }}>
                 {getImageUrl(pharmacy.photo_in) ? (
                   <img
-                    src={getImageUrl(pharmacy.photo_in).startsWith('/')
-                      ? API.getImageUrl(getImageUrl(pharmacy.photo_in))
-                      : getImageUrl(pharmacy.photo_in)
-                    }
+                    src={getImageUrl(pharmacy.photo_in)}
                     alt="รูปด้านในร้านยา"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
                   />
@@ -152,10 +149,7 @@ function DrugStoresDetail_staff() {
               <div className="dsstaff-image-box" style={{ padding: 0, background: 'none' }}>
                 {getImageUrl(pharmacy.photo_staff) ? (
                   <img
-                    src={getImageUrl(pharmacy.photo_staff).startsWith('/')
-                      ? API.getImageUrl(getImageUrl(pharmacy.photo_staff))
-                      : getImageUrl(pharmacy.photo_staff)
-                    }
+                    src={getImageUrl(pharmacy.photo_staff)}
                     alt="รูปพนักงาน"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
                   />

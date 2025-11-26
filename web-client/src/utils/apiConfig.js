@@ -53,8 +53,8 @@ export const API = {
   // ==================
   drugStores: {
     list: (filters = '') => `${BASE_URL}/api/drug-stores?${filters}`,
-    listWithPhotos: () => `${BASE_URL}/api/drug-stores?populate=pharmacy_profiles,photo_front,photo_in,photo_staff`,
-    getById: (id) => `${BASE_URL}/api/drug-stores/${id}?populate=pharmacy_profiles,photo_front,photo_in,photo_staff`,
+    listWithPhotos: () => `${BASE_URL}/api/drug-stores?populate[0]=pharmacy_profiles&populate[1]=photo_front&populate[2]=photo_in&populate[3]=photo_staff`,
+    getById: (id) => `${BASE_URL}/api/drug-stores/${id}?populate[0]=pharmacy_profiles&populate[1]=photo_front&populate[2]=photo_in&populate[3]=photo_staff`,
     getByIdFull: (id) => `${BASE_URL}/api/drug-stores/${id}?populate=*`,
     getByDocumentId: (documentId) => `${BASE_URL}/api/drug-stores?filters[documentId][$eq]=${documentId}`,
     listFiltered: (filterObj = {}) => {
@@ -225,12 +225,52 @@ export const API = {
     list: () => `${BASE_URL}/api/users-permissions/roles`,
   },
 
-  getImageUrl: (imagePath) => {
-    if (!imagePath) return '';
-    if (imagePath.startsWith('/')) {
+  getImageUrl: (imagePath, imageId) => {
+    if (!imagePath && !imageId) return '';
+    
+    // Strapi v5: ใช้ file ID เพื่อดึง blob และ convert เป็น data URL
+    if (imageId) {
+      return `${BASE_URL}/api/upload/files/${imageId}/download`;
+    }
+    
+    // Fallback สำหรับ path แบบเดิม
+    if (imagePath && imagePath.startsWith('/')) {
       return `${BASE_URL}${imagePath}`;
     }
-    return imagePath;
+    
+    return imagePath || '';
+  },
+
+  // สร้าง data URL จาก file ID
+  fetchImageAsDataUrl: async (fileId) => {
+    if (!fileId) return null;
+    try {
+      const response = await fetch(`${BASE_URL}/api/upload/files/${fileId}`);
+      if (!response.ok) return null;
+      const data = await response.json();
+      
+      // ดึง URL จาก formats หรือ url field
+      let imageUrl = null;
+      if (data.formats?.md?.url) imageUrl = data.formats.md.url;
+      else if (data.formats?.lg?.url) imageUrl = data.formats.lg.url;
+      else if (data.formats?.thumbnail?.url) imageUrl = data.formats.thumbnail.url;
+      else if (data.url) imageUrl = data.url;
+      
+      if (!imageUrl) return null;
+      
+      // ลองดึง blob จาก URL
+      const imageResponse = await fetch(imageUrl.startsWith('/') ? `${BASE_URL}${imageUrl}` : imageUrl);
+      if (!imageResponse.ok) {
+        console.warn(`Failed to fetch image from ${imageUrl}, status: ${imageResponse.status}`);
+        return null;
+      }
+      
+      const blob = await imageResponse.blob();
+      return URL.createObjectURL(blob);
+    } catch (error) {
+      console.error('Error fetching image as data URL:', error);
+      return null;
+    }
   },
 };
 

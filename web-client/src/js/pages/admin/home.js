@@ -14,6 +14,11 @@ function PharmacyItem({ documentId, name_th, address, time_open, time_close, pho
 
   const getImageUrl = (photo) => {
     if (!photo) return null;
+    // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
+    if (photo.documentId) {
+      return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+    }
+    // Fallback สำหรับข้อมูลเก่า
     if (typeof photo === "string") return photo;
     if (photo.formats?.large?.url) return photo.formats.large.url;
     if (photo.formats?.medium?.url) return photo.formats.medium.url;
@@ -29,9 +34,7 @@ function PharmacyItem({ documentId, name_th, address, time_open, time_close, pho
       <div className="pharmacy-image-placeholder" style={{ padding: 0, background: 'none' }}>
         {imageUrl ? (
           <img
-            src={imageUrl.startsWith('/')
-              ? API.getImageUrl(imageUrl)
-              : imageUrl}
+            src={imageUrl}
             alt="รูปภาพร้านยา"
             style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: 5, display: 'block' }}
           />
@@ -277,7 +280,7 @@ function AdminHome() {
         });
 
         setPharmacies(pharmaciesFromAPI);
-        toast.success(`โหลดข้อมูลร้านยาของคุณสำเร็จ ${pharmaciesFromAPI.length} ร้าน`);
+        // toast.success(`โหลดข้อมูลร้านยาของคุณสำเร็จ ${pharmaciesFromAPI.length} ร้าน`);
       } catch (err) {
         console.error("API error:", err);
         toast.error("ไม่สามารถโหลดข้อมูลร้านยาได้");

@@ -5,13 +5,6 @@ import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/pharmacyDetail.css';
 import { API } from '../../../utils/apiConfig';
 
-function getImageUrl(photo) {
-  if (!photo) return null;
-  if (photo.formats?.medium?.url) return photo.formats.medium.url;
-  if (photo.url) return photo.url;
-  return null;
-}
-
 const SERVICE_LABELS = {
   sell_products: "จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ",
   consulting: "ให้คำปรึกษาทางเภสัชกรรม",
@@ -25,6 +18,58 @@ function DrugStoreDetail() {
   const [pharmacy, setPharmacy] = useState(null);
   const [pharmacists, setPharmacists] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [imageErrors, setImageErrors] = useState({
+    photo_front: false,
+    photo_in: false,
+    photo_staff: false
+  });
+  const [imageUrls, setImageUrls] = useState({
+    photo_front: null,
+    photo_in: null,
+    photo_staff: null
+  });
+
+  // ดึง image URLs จาก file metadata
+  useEffect(() => {
+    const fetchImageUrls = async () => {
+      if (!pharmacy) return;
+      
+      const urls = {};
+      const photos = {
+        photo_front: pharmacy.photo_front,
+        photo_in: pharmacy.photo_in,
+        photo_staff: pharmacy.photo_staff
+      };
+
+      for (const [key, photo] of Object.entries(photos)) {
+        if (!photo) continue;
+        
+        if (photo.documentId) {
+          // ใช้ custom serve endpoint ที่หาไฟล์ที่มีอยู่จริง
+          urls[key] = `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+        } else {
+          // Fallback สำหรับข้อมูลเก่า
+          let imgUrl = null;
+          if (photo.formats?.md?.url) {
+            imgUrl = photo.formats.md.url;
+          } else if (photo.formats?.lg?.url) {
+            imgUrl = photo.formats.lg.url;
+          } else if (photo.url) {
+            imgUrl = photo.url;
+          }
+          
+          if (imgUrl) {
+            const fullUrl = imgUrl.startsWith('/') ? `${API.BASE_URL}${imgUrl}` : imgUrl;
+            urls[key] = fullUrl;
+          }
+        }
+      }
+      
+      setImageUrls(urls);
+    };
+    
+    fetchImageUrls();
+  }, [pharmacy]);
 
   useEffect(() => {
     Promise.all([
@@ -32,12 +77,10 @@ function DrugStoreDetail() {
       fetch(API.pharmacyProfiles.list('populate=users_permissions_user')).then(res => res.json())
     ]).then(([storeRes, profileRes]) => {
       const store = storeRes.data;
-      setPharmacy(store ? (store.attributes || store) : null);
+      // Strapi v5: ไม่มี attributes wrapper
+      setPharmacy(store || null);
 
-      const profilesFromStore = Array.isArray(store.pharmacy_profiles)
-        ? store.pharmacy_profiles
-        : (store.pharmacy_profiles?.data || []);
-
+      const profilesFromStore = store?.pharmacy_profiles || [];
       const allProfiles = profileRes.data || [];
 
       const pharmacistsArr = profilesFromStore
@@ -61,46 +104,85 @@ function DrugStoreDetail() {
       <>
         <div className="image-row">
           <div className="image-box" style={{ padding: 0, background: 'none' }}>
-            {getImageUrl(pharmacy.photo_front) ? (
+            {imageUrls.photo_front && !imageErrors.photo_front ? (
               <img
-                src={getImageUrl(pharmacy.photo_front).startsWith('/')
-                  ? API.getImageUrl(getImageUrl(pharmacy.photo_front))
-                  : getImageUrl(pharmacy.photo_front)
-                }
+                src={imageUrls.photo_front}
                 alt="รูปด้านนอกร้านยา"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
+                onError={() => {
+                  console.warn('Image load failed for photo_front:', imageUrls.photo_front);
+                  setImageErrors(prev => ({ ...prev, photo_front: true }));
+                }}
               />
             ) : (
-              'รูปด้านนอกร้านยา'
-            )}
+              <div style={{ 
+                width: '100%', 
+                height: '100%', 
+                backgroundColor: '#f0f0f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 8,
+                color: '#666',
+                fontSize: '14px'
+              }}>
+                {imageErrors.photo_front ? 'โหลดรูปไม่ได้' : 'รูปด้านนอกร้านยา'}
+              </div>
+            )} 
           </div>
           <div className="image-box" style={{ padding: 0, background: 'none' }}>
-            {getImageUrl(pharmacy.photo_in) ? (
+            {imageUrls.photo_in && !imageErrors.photo_in ? (
               <img
-                src={getImageUrl(pharmacy.photo_in).startsWith('/')
-                  ? API.getImageUrl(getImageUrl(pharmacy.photo_in))
-                  : getImageUrl(pharmacy.photo_in)
-                }
+                src={imageUrls.photo_in}
                 alt="รูปด้านในร้านยา"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
+                onError={() => {
+                  console.warn('Image load failed for photo_in:', imageUrls.photo_in);
+                  setImageErrors(prev => ({ ...prev, photo_in: true }));
+                }}
               />
             ) : (
-              'รูปด้านในร้านยา'
-            )}
+              <div style={{ 
+                width: '100%', 
+                height: '100%', 
+                backgroundColor: '#f0f0f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 8,
+                color: '#666',
+                fontSize: '14px'
+              }}>
+                {imageErrors.photo_in ? 'โหลดรูปไม่ได้' : 'รูปด้านในร้านยา'}
+              </div>
+            )} 
           </div>
           <div className="image-box" style={{ padding: 0, background: 'none' }}>
-            {getImageUrl(pharmacy.photo_staff) ? (
+            {imageUrls.photo_staff && !imageErrors.photo_staff ? (
               <img
-                src={getImageUrl(pharmacy.photo_staff).startsWith('/')
-                  ? API.getImageUrl(getImageUrl(pharmacy.photo_staff))
-                  : getImageUrl(pharmacy.photo_staff)
-                }
+                src={imageUrls.photo_staff}
                 alt="รูปเภสัชกรและพนักงาน"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
+                onError={() => {
+                  console.warn('Image load failed for photo_staff:', imageUrls.photo_staff);
+                  setImageErrors(prev => ({ ...prev, photo_staff: true }));
+                }}
               />
             ) : (
-              'รูปเภสัชกรและพนักงาน'
-            )}
+              <div style={{ 
+                width: '100%', 
+                height: '100%', 
+                backgroundColor: '#f0f0f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 8,
+                color: '#666',
+                fontSize: '14px'
+              }}>
+                {imageErrors.photo_staff ? 'โหลดรูปไม่ได้' : 'รูปเภสัชกรและพนักงาน'}
+              </div>
+            )} 
           </div>
         </div>
 

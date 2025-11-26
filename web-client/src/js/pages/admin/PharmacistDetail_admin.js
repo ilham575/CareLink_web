@@ -10,6 +10,11 @@ import { API } from "../../../utils/apiConfig";
 // 🟢 helper function ดึง URL รูปภาพ
 function getImageUrl(photoAttr) {
   if (!photoAttr) return null;
+  // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
+  if (photoAttr.documentId) {
+    return `${API.BASE_URL}/api/upload/files/${photoAttr.documentId}/serve`;
+  }
+  // Fallback สำหรับข้อมูลเก่า
   if (photoAttr.formats?.medium?.url) return photoAttr.formats.medium.url;
   if (photoAttr.url) return photoAttr.url;
   if (photoAttr.formats?.thumbnail?.url) return photoAttr.formats.thumbnail.url;
@@ -266,7 +271,7 @@ function PharmacistDetail_admin() {
                     {imgUrl && (
                       <div className="flex justify-center mb-4">
                         <img
-                          src={imgUrl.startsWith("/") ? API.getImageUrl(imgUrl) : imgUrl}
+                          src={imgUrl}
                           alt="pharmacist"
                           className="w-24 h-24 object-cover rounded-full border"
                         />

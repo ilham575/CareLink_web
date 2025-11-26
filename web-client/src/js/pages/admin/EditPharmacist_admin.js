@@ -8,11 +8,16 @@ import { API } from "../../../utils/apiConfig";
 // 🟢 helper function ดึง URL รูปภาพจาก Strapi
 function getImageUrl(photo) {
   if (!photo) return null;
-  if (typeof photo === "string") return photo;
-  if (photo.url) {
-    return API.getImageUrl(photo.url);
+  // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
+  if (photo.documentId) {
+    return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
   }
-  return null;
+  // Fallback สำหรับข้อมูลเก่า
+  if (typeof photo === "string") return photo;
+  if (photo.url && !photo.url.startsWith("http")) {
+    return `${API.BASE_URL}${photo.url}`;
+  }
+  return photo.url || null;
 }
 
 // 🟢 mapping วัน อังกฤษ -> ไทย
@@ -196,19 +201,19 @@ function EditPharmacist_admin() {
             if (Array.isArray(firstProfile.profileimage)) {
               if (firstProfile.profileimage.length > 0) {
                 const img = firstProfile.profileimage[0];
-                previewUrl = API.getImageUrl(img.url);
+                previewUrl = getImageUrl(img);
                 profileImgId = img.id;
               }
             } else if (firstProfile.profileimage.url) {
-              previewUrl = API.getImageUrl(firstProfile.profileimage.url);
+              previewUrl = getImageUrl(firstProfile.profileimage);
               profileImgId = firstProfile.profileimage.id;
             } else if (firstProfile.profileimage.data) {
               if (Array.isArray(firstProfile.profileimage.data) && firstProfile.profileimage.data.length > 0) {
                 const img = firstProfile.profileimage.data[0];
-                previewUrl = API.getImageUrl(img.attributes.url);
+                previewUrl = getImageUrl(img.attributes);
                 profileImgId = img.id;
               } else if (firstProfile.profileimage.data.attributes) {
-                previewUrl = API.getImageUrl(firstProfile.profileimage.data.attributes.url);
+                previewUrl = getImageUrl(firstProfile.profileimage.data.attributes);
                 profileImgId = firstProfile.profileimage.data.id;
               }
             }
@@ -259,23 +264,23 @@ function EditPharmacist_admin() {
             if (Array.isArray(p.profileimage)) {
               if (p.profileimage.length > 0) {
                 const img = p.profileimage[0];
-                previewUrl = API.getImageUrl(img.url);
+                previewUrl = getImageUrl(img);
                 profileImgId = img.id;
               }
             }
             // กรณี profileimage เป็น object เดี่ยว
             else if (p.profileimage.url) {
-              previewUrl = API.getImageUrl(p.profileimage.url);
+              previewUrl = getImageUrl(p.profileimage);
               profileImgId = p.profileimage.id;
             }
             // กรณี profileimage มี data wrapper
             else if (p.profileimage.data) {
               if (Array.isArray(p.profileimage.data) && p.profileimage.data.length > 0) {
                 const img = p.profileimage.data[0];
-                previewUrl = API.getImageUrl(img.attributes.url);
+                previewUrl = getImageUrl(img.attributes);
                 profileImgId = img.id;
               } else if (p.profileimage.data.attributes) {
-                previewUrl = API.getImageUrl(p.profileimage.data.attributes.url);
+                previewUrl = getImageUrl(p.profileimage.data.attributes);
                 profileImgId = p.profileimage.data.id;
               }
             }
@@ -413,19 +418,19 @@ function EditPharmacist_admin() {
           if (Array.isArray(profile.profileimage)) {
             if (profile.profileimage.length > 0) {
               const img = profile.profileimage[0];
-              previewUrl = API.getImageUrl(img.url);
+              previewUrl = getImageUrl(img);
               profileImgId = img.id;
             }
           } else if (profile.profileimage.url) {
-            previewUrl = API.getImageUrl(profile.profileimage.url);
+            previewUrl = getImageUrl(profile.profileimage);
             profileImgId = profile.profileimage.id;
           } else if (profile.profileimage.data) {
             if (Array.isArray(profile.profileimage.data) && profile.profileimage.data.length > 0) {
               const img = profile.profileimage.data[0];
-              previewUrl = API.getImageUrl(img.attributes.url);
+              previewUrl = getImageUrl(img.attributes);
               profileImgId = img.id;
             } else if (profile.profileimage.data.attributes) {
-              previewUrl = API.getImageUrl(profile.profileimage.data.attributes.url);
+              previewUrl = getImageUrl(profile.profileimage.data.attributes);
               profileImgId = profile.profileimage.data.id;
             }
           }

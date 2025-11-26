@@ -73,6 +73,9 @@ function StaffHome() {
                     // ใช้ logic เดียวกับ pharmacy home
                     const getImageUrl = (photo) => {
                       if (!photo) return null;
+                      if (photo.documentId) {
+                        return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+                      }
                       if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
                       if (photo.url) return photo.url;
                       return null;
@@ -92,7 +95,7 @@ function StaffHome() {
                       <div className="pharmacy-image-placeholder staff-pharmacy-image">
                         {imageUrl ? (
                           <img
-                            src={imageUrl.startsWith('/') ? API.getImageUrl(imageUrl) : imageUrl}
+                            src={imageUrl}
                             alt="รูปภาพร้านยา"
                           />
                         ) : (

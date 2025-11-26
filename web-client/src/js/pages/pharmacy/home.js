@@ -13,6 +13,9 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
 
 	const getImageUrl = (photo) => {
 		if (!photo) return null;
+		if (photo.documentId) {
+			return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+		}
 		if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
 		if (photo.url) return photo.url;
 		return null;
@@ -35,7 +38,7 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
 		<div className="pharmacy-image-placeholder" style={{ padding: 0, background: 'none' }}>
 			{imageUrl ? (
 				<img
-					src={imageUrl.startsWith('/') ? API.getImageUrl(imageUrl) : imageUrl}
+					src={imageUrl}
 					alt="รูปภาพร้านยา"
 					style={{
 						width: '100%',

@@ -7,15 +7,36 @@ import '../../../css/pages/default/home.css';
 
 function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store, photo_front, pharmacists }) {
   const navigate = useNavigate();
+  const [imageError, setImageError] = useState(false);
+  const [imageUrl, setImageUrl] = useState(null);
 
-  const getImageUrl = (photo) => {
-    if (!photo) return null;
-    if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
-    if (photo.url) return photo.url;
-    return null;
-  };
-
-  const imageUrl = getImageUrl(photo_front);
+  // ดึง image URL จาก file ID
+  useEffect(() => {
+    const fetchImageUrl = async () => {
+      if (!photo_front) return;
+      
+      if (photo_front.documentId) {
+        // ใช้ custom serve endpoint ที่หาไฟล์ที่มีอยู่จริง
+        const serveUrl = `${API.BASE_URL}/api/upload/files/${photo_front.documentId}/serve`;
+        setImageUrl(serveUrl);
+      } else {
+        // Fallback สำหรับข้อมูลเก่า
+        let imgUrl = null;
+        if (photo_front.formats?.thumbnail?.url) {
+          imgUrl = photo_front.formats.thumbnail.url;
+        } else if (photo_front.url) {
+          imgUrl = photo_front.url;
+        }
+        
+        if (imgUrl) {
+          const fullUrl = imgUrl.startsWith('/') ? `${API.BASE_URL}${imgUrl}` : imgUrl;
+          setImageUrl(fullUrl);
+        }
+      }
+    };
+    
+    fetchImageUrl();
+  }, [photo_front, name_th]);
 
   const handleClick = () => {
     navigate(`/drug_store/${id}`);
@@ -24,14 +45,31 @@ function PharmacyItem({ id, name_th, address, time_open, time_close, phone_store
   return (
     <div className="pharmacy-item">
       <div className="pharmacy-image-placeholder" style={{ padding: 0, background: 'none' }}>
-        {imageUrl ? (
+        {imageUrl && !imageError ? (
           <img
-            src={imageUrl.startsWith('/') ? API.getImageUrl(imageUrl) : imageUrl}
+            src={imageUrl}
             alt="รูปภาพร้านยา"
             style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: 5, display: 'block' }}
+            onError={() => {
+              console.warn(`Image load failed for pharmacy ${name_th}:`, imageUrl);
+              setImageError(true);
+            }}
+            onLoad={() => console.log(`Image loaded successfully: ${imageUrl}`)}
           />
         ) : (
-          'รูปภาพร้านยา'
+          <div style={{ 
+            width: '100%', 
+            height: '100px', 
+            backgroundColor: '#f0f0f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 5,
+            color: '#666',
+            fontSize: '14px'
+          }}>
+            {imageError ? 'โหลดรูปไม่ได้' : 'ไม่มีรูปภาพ'}
+          </div>
         )}
       </div>
       <div className="pharmacy-details">
@@ -51,7 +89,7 @@ function Home() {
 
   useEffect(() => {
     Promise.all([
-      fetch(API.drugStores.list()).then(res => res.json()),
+      fetch(API.drugStores.listWithPhotos()).then(res => res.json()),
       fetch(API.pharmacyProfiles.list()).then(res => res.json())
     ])
       .then(([drugStoresRes, pharmacyProfilesRes]) => {
@@ -65,19 +103,19 @@ function Home() {
         });
 
         const pharmaciesWithPharmacists = drugStores.map(store => {
-          const attrs = store.attributes || {};
-          const pharmacists = (attrs.pharmacy_profiles?.data || [])
+          // Strapi v5: ไม่มี attributes nested structure
+          const pharmacists = (store.pharmacy_profiles || [])
             .map(profile => profileIdToUser[profile.id])
             .filter(u => !!u);
 
           return {
             id: store.id,
-            name_th: attrs.name_th || store.name_th,
-            address: attrs.address || store.address,
-            time_open: attrs.time_open || store.time_open,
-            time_close: attrs.time_close || store.time_close,
-            phone_store: attrs.phone_store || store.phone_store,
-            photo_front: store.photo_front || attrs.photo_front || null, // ✅ fix ตรงนี้
+            name_th: store.name_th,
+            address: store.address,
+            time_open: store.time_open,
+            time_close: store.time_close,
+            phone_store: store.phone_store,
+            photo_front: store.photo_front || null, // Strapi v5: รูปภาพอยู่ที่ระดับเดียวกับข้อมูลอื่น
             pharmacists,
           };
         });

@@ -55,7 +55,11 @@ function Signup() {
                 if (profile?.profileimage) {
                   let imgUrl = null;
                   const img = Array.isArray(profile.profileimage) ? profile.profileimage[0] : profile.profileimage;
-                  if (img?.url) {
+                  
+                  // เช็ค documentId ก่อน
+                  if (img?.documentId) {
+                    imgUrl = `${API.BASE_URL}/api/upload/files/${img.documentId}/serve`;
+                  } else if (img?.url) {
                     imgUrl = API.getImageUrl(img.url);
                   }
                   if (imgUrl) setProfileImage(imgUrl);

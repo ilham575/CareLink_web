@@ -11,6 +11,11 @@ const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
 
 function getImageUrl(photo) {
   if (!photo) return null;
+  // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
+  if (photo.documentId) {
+    return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+  }
+  // Fallback สำหรับข้อมูลเก่า
   if (typeof photo === "string") return photo;
   if (photo.formats?.large?.url) return photo.formats.large.url;
   if (photo.formats?.medium?.url) return photo.formats.medium.url;
@@ -210,9 +215,6 @@ function DrugStoresDetail_admin() {
       >
         {["photo_front", "photo_in", "photo_staff"].map((key, idx) => {
           const imageUrl = getImageUrl(pharmacy[key]);
-          const fullImageUrl = imageUrl && imageUrl.startsWith('/')
-            ? API.getImageUrl(imageUrl)
-            : imageUrl;
 
           return (
             <div
@@ -229,9 +231,9 @@ function DrugStoresDetail_admin() {
                 overflow: "hidden",
               }}
             >
-              {fullImageUrl ? (
+              {imageUrl ? (
                 <img
-                  src={fullImageUrl}
+                  src={imageUrl}
                   alt={key}
                   style={{
                     width: "100%",

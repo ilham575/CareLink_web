@@ -81,18 +81,32 @@ function EditStaffProfile() {
             let imageUrl = null;
             const profileImg = profiles[0].profileimage;
 
-            if (profileImg?.data?.attributes) {
+            // เช็ค documentId ก่อน
+            if (profileImg?.documentId) {
+              const base = process.env.REACT_APP_API_URL || "http://localhost:1337";
+              imageUrl = `${base}/api/upload/files/${profileImg.documentId}/serve`;
+            } else if (profileImg?.data?.documentId) {
+              const base = process.env.REACT_APP_API_URL || "http://localhost:1337";
+              imageUrl = `${base}/api/upload/files/${profileImg.data.documentId}/serve`;
+            } else if (profileImg?.data?.attributes) {
               const imgAttr = profileImg.data.attributes;
               imageUrl = imgAttr?.formats?.thumbnail?.url || imgAttr?.url || null;
+              if (imageUrl) {
+                const base = process.env.REACT_APP_API_URL || "http://localhost:1337";
+                imageUrl = imageUrl.startsWith("/") ? `${base}${imageUrl}` : imageUrl;
+              }
             } else if (profileImg?.formats) {
               imageUrl = profileImg.formats.thumbnail?.url || profileImg.url || null;
+              if (imageUrl) {
+                const base = process.env.REACT_APP_API_URL || "http://localhost:1337";
+                imageUrl = imageUrl.startsWith("/") ? `${base}${imageUrl}` : imageUrl;
+              }
             } else if (typeof profileImg === "string") {
               imageUrl = profileImg;
             }
 
             if (imageUrl) {
-              const base = process.env.REACT_APP_API_URL || "http://localhost:1337";
-              setUploadedImageUrl(imageUrl.startsWith("/") ? `${base}${imageUrl}` : imageUrl);
+              setUploadedImageUrl(imageUrl);
             }
           }
         }

@@ -7,4 +7,15 @@ module.exports = ({ env }) => ({
   webhooks: {
     populateRelations: env.bool('WEBHOOKS_POPULATE_RELATIONS', false),
   },
+  // เพิ่ม middleware สำหรับ serve uploads
+  middleware: {
+    settings: {
+      public: {
+        enabled: true,
+        path: './public',
+        index: true,
+        maxAge: 60000,
+      },
+    },
+  },
 });
