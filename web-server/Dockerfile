@@ -1,20 +1,36 @@
-# ใช้ Node.js base image
-FROM node:20
+# ใช้ Node 18 Alpine (รุ่นนี้ปัญหาน้อยสุดกับ Strapi)
+FROM node:18-alpine
 
-# ตั้ง working directory
-WORKDIR /app
+# 1. ติดตั้งเครื่องมือระบบ (สำคัญมาก! ต้องมี vips-dev และ git)
+RUN apk update && apk add --no-cache \
+    build-base gcc autoconf automake \
+    zlib-dev libpng-dev nasm bash \
+    vips-dev git
 
-# คัดลอกไฟล์ package.json และ package-lock.json
-COPY package.json package-lock.json ./
+# 2. ตั้งค่า Environment
+ENV NODE_ENV=production
+WORKDIR /opt/app
 
-# ติดตั้ง dependencies
-RUN npm install
+# 3. ติดตั้ง Dependencies (ใช้วิธี install ธรรมดาเพื่อความชัวร์)
+COPY package*.json ./
+RUN npm config set fetch-retry-maxtimeout 600000 -g && npm install
 
-# คัดลอก source code ที่เหลือ (หลังจาก install dependenciesเพื่อใช้ cache)
+# 4. ย้ายโค้ดเข้า Container
 COPY . .
 
-# เปิดพอร์ตที่ Strapi ใช้
+# 5. สร้าง uploads directory
+RUN mkdir -p public/uploads && \
+    chmod -R 777 public/uploads
+
+# 6. Build หน้า Admin Panel
+RUN npm run build
+
+# 7. เปิด Port
 EXPOSE 1337
 
-# คำสั่งเริ่มต้น
-CMD ["npm", "run", "develop"]
+# 8. Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:1337/admin || exit 1
+
+# 9. สั่งรัน
+CMD ["npm", "run", "start"]

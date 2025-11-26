@@ -4,6 +4,7 @@ import '../../../css/pages/default/signin.css';
 import logo from '../../../images/image 3.png';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { API } from '../../../utils/apiConfig';
 
 function LoginPage() {
   const [username, setUsername] = useState('');
@@ -26,7 +27,7 @@ function LoginPage() {
     e.preventDefault();
 
     try {
-      const response = await fetch('http://localhost:1337/api/auth/local', {
+      const response = await fetch(API.auth.login, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -51,7 +52,7 @@ function LoginPage() {
         localStorage.setItem('user_documentId', userDocumentId);
         
         // ดึง user พร้อม role
-        const userRes = await fetch(`http://localhost:1337/api/users/${userId}?populate=role`, {
+        const userRes = await fetch(API.users.getById(userId), {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         const userData = await userRes.json();

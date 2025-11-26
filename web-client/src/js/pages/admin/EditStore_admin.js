@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
 import Footer from "../../components/footer";
+import { API } from "../../../utils/apiConfig";
 
 // ✅ default service keys
 const defaultServices = {
@@ -20,10 +21,35 @@ const formatTime = (time) => {
 // ✅ helper ดึง url รูป
 const getImageUrl = (photo) => {
   if (!photo) return null;
+
+  // ถ้าเป็น string โดยตรง (URL)
   if (typeof photo === "string") return photo;
-  if (photo.url) {
-    return `${process.env.REACT_APP_API_URL || "http://localhost:1337"}${photo.url}`;
+
+  // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
+  if (photo.documentId) {
+    return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
   }
+
+  // สำหรับกรณีที่มี attributes (Strapi v4 style)
+  if (photo.attributes) {
+    if (photo.attributes.documentId) {
+      return `${API.BASE_URL}/api/upload/files/${photo.attributes.documentId}/serve`;
+    }
+    if (photo.attributes.url) {
+      return photo.attributes.url.startsWith('http') ? photo.attributes.url : `${API.BASE_URL}${photo.attributes.url}`;
+    }
+  }
+
+  // สำหรับกรณีที่มี url โดยตรง
+  if (photo.url) {
+    return photo.url.startsWith('http') ? photo.url : `${API.BASE_URL}${photo.url}`;
+  }
+
+  // Fallback สำหรับข้อมูลเก่า
+  if (photo.formats?.large?.url) return photo.formats.large.url;
+  if (photo.formats?.medium?.url) return photo.formats.medium.url;
+  if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
+
   return null;
 };
 
@@ -67,7 +93,7 @@ function EditStore_admin() {
 
         // Try to fetch by documentId first
         let res = await fetch(
-          `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${documentId}&populate=*`,
+          `${API.BASE_URL}/api/drug-stores?filters[documentId][$eq]=${documentId}&populate[0]=photo_front&populate[1]=photo_in&populate[2]=photo_staff`,
           {
             headers: { Authorization: `Bearer ${jwt}` },
           }
@@ -79,7 +105,7 @@ function EditStore_admin() {
         // If not found by documentId and documentId is a valid integer, try by regular id
         if (!store && !isNaN(parseInt(documentId)) && parseInt(documentId) > 0) {
           res = await fetch(
-            `http://localhost:1337/api/drug-stores/${documentId}?populate=*`,
+            `${API.BASE_URL}/api/drug-stores/${documentId}?populate[0]=photo_front&populate[1]=photo_in&populate[2]=photo_staff`,
             {
               headers: { Authorization: `Bearer ${jwt}` },
             }
@@ -114,11 +140,11 @@ function EditStore_admin() {
           link_gps: storeData.link_gps || "",
           type: storeData.type || "",
           photo_front: storeData.photo_front?.data?.id || storeData.photo_front?.id || null,
-          photo_front_preview: getImageUrl(storeData.photo_front?.data?.attributes || storeData.photo_front),
+          photo_front_preview: getImageUrl(storeData.photo_front?.data || storeData.photo_front),
           photo_in: storeData.photo_in?.data?.id || storeData.photo_in?.id || null,
-          photo_in_preview: getImageUrl(storeData.photo_in?.data?.attributes || storeData.photo_in),
+          photo_in_preview: getImageUrl(storeData.photo_in?.data || storeData.photo_in),
           photo_staff: storeData.photo_staff?.data?.id || storeData.photo_staff?.id || null,
-          photo_staff_preview: getImageUrl(storeData.photo_staff?.data?.attributes || storeData.photo_staff),
+          photo_staff_preview: getImageUrl(storeData.photo_staff?.data || storeData.photo_staff),
           services: { ...defaultServices, ...(storeData.services || {}) },
           confirm: false,
         });
@@ -165,7 +191,7 @@ function EditStore_admin() {
     const uploadData = new FormData();
     uploadData.append("files", file);
 
-    const res = await fetch("http://localhost:1337/api/upload", {
+    const res = await fetch(API.upload(), {
       method: "POST",
       headers: { Authorization: `Bearer ${jwt}` },
       body: uploadData,
@@ -225,7 +251,7 @@ function EditStore_admin() {
       // Prefer numeric storeId for the update endpoint
       const targetId = storeId || documentId;
       const res = await fetch(
-        `http://localhost:1337/api/drug-stores/${targetId}`,
+        API.drugStores.update(targetId),
         {
           method: "PUT",
           headers: {

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
+import { API } from "../../../utils/apiConfig";
 
 function AddStore_admin() {
   const navigate = useNavigate();
@@ -40,7 +41,7 @@ function AddStore_admin() {
       if (!jwt) return;
       try {
         // ดึง user
-        const userRes = await fetch('http://localhost:1337/api/users/me', {
+        const userRes = await fetch(API.users.list(), {
           headers: { Authorization: `Bearer ${jwt}` }
         });
         const userData = await userRes.json();
@@ -49,7 +50,7 @@ function AddStore_admin() {
         const query = new URLSearchParams({
           'filters[users_permissions_user][documentId][$eq]': userDocumentId
         });
-        const adminRes = await fetch(`http://localhost:1337/api/admin-profiles?${query.toString()}`, {
+        const adminRes = await fetch(API.adminProfiles.list(), {
           headers: { Authorization: `Bearer ${jwt}` }
         });
         const adminData = await adminRes.json();
@@ -102,7 +103,7 @@ function AddStore_admin() {
       formData.append('files', file);
 
       const token = localStorage.getItem('jwt');
-      const response = await fetch('http://localhost:1337/api/upload', {
+      const response = await fetch(API.upload(), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -157,29 +158,61 @@ function AddStore_admin() {
       // ดึง token จาก localStorage
       const token = localStorage.getItem('jwt');
 
-      // สร้างข้อมูลร้านยา
-      const response = await fetch('http://localhost:1337/api/drug-stores', {
+      // ดึง admin profile ID ของ user ที่ login
+      const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
+      const userRes = await fetch(`${BASE_URL}/api/users/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const userData = await userRes.json();
+      const currentUserId = userData.id;
+
+      // ดึง admin profile ของ user ปัจจุบัน
+      const adminProfileRes = await fetch(
+        API.adminProfiles.list(`filters[users_permissions_user][id][$eq]=${currentUserId}`),
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const adminProfileData = await adminProfileRes.json();
+      const currentAdminProfile = adminProfileData.data?.[0];
+      const currentAdminProfileId = currentAdminProfile?.id;
+      const currentAdminProfileDocumentId = currentAdminProfile?.documentId;
+
+      console.log('Current Admin Profile ID:', currentAdminProfileId);
+      console.log('Current Admin Profile DocumentId:', currentAdminProfileDocumentId);
+      console.log('Admin Profile Data:', adminProfileData);
+
+      if (!currentAdminProfileId) {
+        throw new Error('ไม่พบข้อมูล admin profile ของผู้ใช้ ไม่สามารถสร้างร้านยาได้');
+      }
+
+      // สร้างข้อมูลร้านยา (ไม่มี admin_profile ตอนนี้)
+      const payload = {
+        data: {
+          name_th: formData.name_th,
+          name_en: formData.name_en,
+          license_number: formData.license_number,
+          license_doc: formData.license_doc,
+          address: formData.address,
+          phone_store: formData.phone_store,
+          time_open: formatTime(formData.time_open),
+          time_close: formatTime(formData.time_close),
+          link_gps: formData.link_gps,
+          type: formData.type,
+          services: formData.services,
+          // เชื่อมโยงรูปภาพ
+          photo_front: photoFrontId,
+          photo_in: photoInId,
+          photo_staff: photoStaffId,
+          // ไม่เชื่อมโยง admin_profile ตอนสร้าง
+        }
+      };
+
+      console.log('📤 Step 1: Creating drug store...');
+      console.log('📤 POST payload:', JSON.stringify(payload, null, 2));
+
+      const response = await fetch(API.drugStores.create(), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: {
-            name_th: formData.name_th,
-            name_en: formData.name_en,
-            license_number: formData.license_number,
-            license_doc: formData.license_doc,
-            address: formData.address,
-            phone_store: formData.phone_store,
-            time_open: formatTime(formData.time_open),
-            time_close: formatTime(formData.time_close),
-            link_gps: formData.link_gps,
-            type: formData.type,
-            services: formData.services,
-            // เชื่อมโยงรูปภาพ
-            photo_front: photoFrontId,
-            photo_in: photoInId,
-            photo_staff: photoStaffId,
-          }
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -187,29 +220,40 @@ function AddStore_admin() {
       }
 
       const result = await response.json();
-      console.log('Pharmacy created:', result);
+      const createdStoreDocumentId = result.data?.documentId;
+      console.log('✅ Step 1 Complete - Store created:', createdStoreDocumentId);
+      console.log('📥 POST Response:', JSON.stringify(result, null, 2));
 
-      // เชื่อม admin_profile กับร้านที่สร้าง
-      if (adminProfileId) {
-        const storeId = result.data.id;
-        const updateRes = await fetch(`http://localhost:1337/api/drug-stores/${storeId}`, {
-          method: 'PUT', // หรือใช้ PATCH ก็ได้
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            data: {
-              admin_profile: adminProfileId,
-            },
-          }),
-        });
-
-        if (!updateRes.ok) {
-          throw new Error(`Failed to link admin_profile: ${updateRes.statusText}`);
+      // Step 2: Link admin_profile ด้วย documentId
+      if (createdStoreDocumentId && currentAdminProfileDocumentId) {
+        console.log('📤 Step 2: Linking admin_profile with documentId...');
+        
+        const updatePayload = {
+          data: {
+            admin_profile: currentAdminProfileDocumentId,
+          }
+        };
+        
+        console.log('📤 PUT payload:', JSON.stringify(updatePayload, null, 2));
+        
+        const updateRes = await fetch(
+          `${API.drugStores.update(createdStoreDocumentId)}`,
+          {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatePayload),
+          }
+        );
+        
+        if (updateRes.ok) {
+          const updateResult = await updateRes.json();
+          console.log('✅ Step 2 Complete - Admin profile linked:', updateResult.data?.admin_profile);
+          console.log('📥 PUT Response:', JSON.stringify(updateResult, null, 2));
+        } else {
+          const errorText = await updateRes.text();
+          console.warn('⚠️ Step 2 Failed - UPDATE error:', errorText);
+          throw new Error(`Failed to link admin_profile: ${errorText}`);
         }
-
-        console.log('Admin profile linked to store:', await updateRes.json());
       }
 
       alert("บันทึกร้านขายยาเรียบร้อย!");

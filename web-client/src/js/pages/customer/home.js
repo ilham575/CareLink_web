@@ -5,6 +5,7 @@ import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/home.css';
 import Footer from '../../components/footer';
+import { API } from '../../../utils/apiConfig';
 
 function PharmacyItem({ id, documentId, name_th, address, time_open, time_close, phone_store, photo_front }) {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
         {imageUrl ? (
           <img
             src={imageUrl.startsWith('/')
-              ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}`
+              ? API.getImageUrl(imageUrl)
               : imageUrl}
             alt="รูปภาพร้านยา"
             style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: 5, display: 'block' }}
@@ -87,7 +88,7 @@ function CustomerHome() {
       return;
     }
 
-    fetch(`http://localhost:1337/api/users/me`, {
+    fetch(API.users.list(), {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -106,7 +107,7 @@ function CustomerHome() {
       return;
     }
 
-    const profilesUrl = `http://localhost:1337/api/customer-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=drug_stores`;
+    const profilesUrl = API.customerProfiles.list(`filters[users_permissions_user][id][$eq]=${userId}&populate=drug_stores`);
 
     fetch(profilesUrl, {
       headers: { Authorization: `Bearer ${token}` }
@@ -141,7 +142,7 @@ function CustomerHome() {
         }
 
         // ดึงข้อมูลร้านยาเฉพาะที่ติดตาม
-        const res = await fetch(`http://localhost:1337/api/drug-stores?populate=*&filters[id][$in]=${followedStoreIds.join(',')}`, {
+        const res = await fetch(API.drugStores.list(), {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
 

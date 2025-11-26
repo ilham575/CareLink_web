@@ -5,9 +5,17 @@ import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/pharmacyDetail.css';
 import Footer from '../../components/footer';
+import { API } from '../../../utils/apiConfig';
+
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
 
 function getImageUrl(photo) {
   if (!photo) return null;
+  // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
+  if (photo.documentId) {
+    return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+  }
+  // Fallback สำหรับข้อมูลเก่า
   if (typeof photo === "string") return photo;
   if (photo.formats?.large?.url) return photo.formats.large.url;
   if (photo.formats?.medium?.url) return photo.formats.medium.url;
@@ -42,66 +50,85 @@ function DrugStoresDetail_admin() {
       }
 
       try {
-        // 1. ดึงข้อมูล user
-        const userRes = await fetch('http://localhost:1337/api/users/me', {
-          headers: { Authorization: `Bearer ${jwt}` }
-        });
-
-        if (!userRes.ok) {
-          if (userRes.status === 401) {
-            toast.error('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
-            localStorage.removeItem('jwt');
-            navigate('/login');
-            return;
-          }
-          throw new Error("ไม่สามารถดึงข้อมูล user ได้");
+        // 1. ได้ userDocumentId จาก localStorage (ที่บันทึกไว้ตอน login)
+        const userDocumentId = localStorage.getItem('user_documentId');
+        if (!userDocumentId) {
+          toast.error('ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่');
+          navigate('/login');
+          return;
         }
 
-        const userData = await userRes.json();
-        const userDocumentId = userData.documentId;
-
-        // 2. ดึง admin_profile + drug_stores
+        // 2. ดึง admin_profile + drug_stores (ต้อง populate รูปภาพด้วย)
         const res = await fetch(
-          `http://localhost:1337/api/admin-profiles?populate[drug_stores][populate]=*` +
-          `&filters[users_permissions_user][documentId][$eq]=${userDocumentId}`,
+          `${BASE_URL}/api/admin-profiles?populate[0]=drug_stores&populate[1]=drug_stores.photo_front&populate[2]=drug_stores.photo_in&populate[3]=drug_stores.photo_staff&filters[users_permissions_user][documentId][$eq]=${userDocumentId}`,
           {
             headers: { Authorization: `Bearer ${jwt}` }
           }
         );
 
+        if (res.status === 401) {
+          console.error('🔐 Token invalid - clearing localStorage');
+          localStorage.removeItem('jwt');
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('role');
+          toast.error('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
+          navigate('/login');
+          return;
+        }
+
         if (!res.ok) {
+          const errorText = await res.text();
+          console.error('Admin profile fetch error:', res.status, errorText);
           toast.error("ไม่สามารถโหลดข้อมูลร้านยาได้");
+          navigate(-1);
           return;
         }
 
         const data = await res.json();
-        const myDrugStores = data.data[0]?.drug_stores || [];
+        console.log('✅ Admin profiles fetched:', data);
+        
+        const myDrugStores = data.data[0]?.attributes?.drug_stores?.data || data.data[0]?.drug_stores || [];
+        console.log('✅ Drug stores found:', myDrugStores.length);
 
         // 3. หาร้านยาที่ตรงกับ documentId
-        const store = myDrugStores.find(s => s.documentId === id);
+        const store = myDrugStores.find(s => s.documentId === id || s.attributes?.documentId === id);
 
         if (!store) {
+          console.error('Store not found. Looking for id:', id);
+          console.error('Available stores:', myDrugStores.map(s => s.documentId || s.attributes?.documentId));
           toast.error('ไม่พบร้านยาที่ต้องการ หรือคุณไม่มีสิทธิ์เข้าถึง');
           navigate(-1);
           return;
         }
 
-        setPharmacy(store);
+        console.log('✅ Store found:', store);
+        setPharmacy(store.attributes || store);
 
         // 4. ดึงเภสัชกรทั้งหมดในร้าน
         const pharmacistRes = await fetch(
-          `http://localhost:1337/api/pharmacy-profiles?populate=users_permissions_user&filters[drug_stores][documentId][$eq]=${id}`,
+          `${BASE_URL}/api/pharmacy-profiles?populate[0]=users_permissions_user&populate[1]=drug_stores&filters[drug_stores][documentId][$eq]=${id}`,
           {
             headers: { Authorization: `Bearer ${jwt}` }
           }
         );
 
+        if (pharmacistRes.status === 401) {
+          console.error('🔐 Token invalid on pharmacist fetch');
+          localStorage.removeItem('jwt');
+          navigate('/login');
+          return;
+        }
+
         if (pharmacistRes.ok) {
           const pharmacistData = await pharmacistRes.json();
+          console.log('✅ Pharmacists fetched:', pharmacistData.data?.length);
           setPharmacists(pharmacistData.data || []);
+        } else {
+          console.warn('⚠️ Pharmacist fetch failed:', pharmacistRes.status);
         }
 
       } catch (err) {
+        console.error('❌ Error loading detail:', err);
         toast.error(`ไม่สามารถโหลดข้อมูลได้: ${err.message}`);
         navigate(-1);
       } finally {
@@ -188,9 +215,6 @@ function DrugStoresDetail_admin() {
       >
         {["photo_front", "photo_in", "photo_staff"].map((key, idx) => {
           const imageUrl = getImageUrl(pharmacy[key]);
-          const fullImageUrl = imageUrl && imageUrl.startsWith('/')
-            ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}`
-            : imageUrl;
 
           return (
             <div
@@ -207,9 +231,9 @@ function DrugStoresDetail_admin() {
                 overflow: "hidden",
               }}
             >
-              {fullImageUrl ? (
+              {imageUrl ? (
                 <img
-                  src={fullImageUrl}
+                  src={imageUrl}
                   alt={key}
                   style={{
                     width: "100%",

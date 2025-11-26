@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../images/image 3.png';
 import '../../css/component/HomeHeader.css'; // เพิ่มบรรทัดนี้
 import ProfileAvatar from "./ProfileAvatar";
+import { API } from '../../utils/apiConfig';
 
 function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
   const navigate = useNavigate();
@@ -25,11 +26,24 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
     const jwt = localStorage.getItem('jwt');
     if (!jwt) return;
 
-    fetch('http://localhost:1337/api/users/me', {
+    const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
+    fetch(`${BASE_URL}/api/users/me?populate=role`, {
       headers: { Authorization: `Bearer ${jwt}` }
     })
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 401) {
+          console.warn('⚠️ Token expired/invalid - redirecting to login');
+          localStorage.removeItem('jwt');
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('role');
+          navigate('/login');
+          return null;
+        }
+        if (!res.ok) throw new Error('Failed to fetch user');
+        return res.json();
+      })
       .then(user => {
+        if (!user) return;
         const userIdFromApi = user.id;
         setUserId(userIdFromApi); // เก็บ userId ใน state
         const role = user.role?.name || localStorage.getItem('role');
@@ -42,13 +56,13 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
         let profileApi = '';
         let imagePath = '';
         if (role === 'admin') {
-          profileApi = `http://localhost:1337/api/admin-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
+          profileApi = API.adminProfiles.list('filters[users_permissions_user][id][$eq]=' + userIdFromApi + '&populate=profileimage');
           imagePath = 'profileimage';
         } else if (role === 'pharmacy') {
-          profileApi = `http://localhost:1337/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
+          profileApi = API.pharmacyProfiles.list('filters[users_permissions_user][id][$eq]=' + userIdFromApi + '&populate=profileimage');
           imagePath = 'profileimage';
         } else if (role === 'staff') {
-          profileApi = `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userIdFromApi}&populate=profileimage`;
+          profileApi = API.staffProfiles.list('filters[users_permissions_user][id][$eq]=' + userIdFromApi + '&populate=profileimage');
           imagePath = 'profileimage';
         } else {
           setProfileUrl(null);
@@ -64,17 +78,13 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
             if (profile?.[imagePath]) {
               // ถ้าเป็น array ให้ใช้ index 0
               const imageObj = Array.isArray(profile[imagePath]) ? profile[imagePath][0] : profile[imagePath];
-              img =
-                imageObj?.formats?.thumbnail?.url ||
-                imageObj?.url ||
-                null;
+              // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
+              if (imageObj?.documentId) {
+                img = `${API.BASE_URL}/api/upload/files/${imageObj.documentId}/serve`;
+              }
             }
             if (img) {
-              setProfileUrl(
-                img.startsWith('/')
-                  ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${img}`
-                  : img
-              );
+              setProfileUrl(img);
             } else {
               setProfileUrl(null);
             }
@@ -100,7 +110,7 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
     // ฟังก์ชันช่วยดึงชื่อร้านจาก pharmacyId
     const fetchStoreName = (pharmacyId, forStaff) => {
       if (!pharmacyId) return;
-      fetch(`http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}`)
+      fetch(API.drugStores.getByDocumentId(pharmacyId))
         .then(res => res.json())
         .then(json => {
           const store = json.data?.[0];
@@ -286,12 +296,12 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
           })()}
         </div>
       ) : (
-        <div className="search-bar-container">
+        <div className="home-search-bar-container">
           <span className="search-icon">🔍</span>
           <input
             type="text"
             placeholder="ค้นหา"
-            className="search-input"
+            className="home-search-input"
             value={searchText}
             onChange={e => {
               setSearchText(e.target.value);

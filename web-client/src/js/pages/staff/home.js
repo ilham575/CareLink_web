@@ -6,6 +6,7 @@ import Footer from '../../components/footer';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/home.css';
 import '../../../css/pages/staff/home.css';
+import { API } from '../../../utils/apiConfig';
 
 function StaffHome() {
   const location = useLocation();
@@ -28,7 +29,7 @@ function StaffHome() {
 
         // ดึงข้อมูล staff-profiles พร้อมข้อมูลร้านยาและรูปภาพ
         const response = await fetch(
-          `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][documentId][$eq]=${userDocumentId}&populate[drug_store][populate]=photo_front`,
+          API.staffProfiles.list(`filters[users_permissions_user][documentId][$eq]=${userDocumentId}&populate[drug_store][populate]=photo_front`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -72,6 +73,9 @@ function StaffHome() {
                     // ใช้ logic เดียวกับ pharmacy home
                     const getImageUrl = (photo) => {
                       if (!photo) return null;
+                      if (photo.documentId) {
+                        return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+                      }
                       if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
                       if (photo.url) return photo.url;
                       return null;
@@ -91,7 +95,7 @@ function StaffHome() {
                       <div className="pharmacy-image-placeholder staff-pharmacy-image">
                         {imageUrl ? (
                           <img
-                            src={imageUrl.startsWith('/') ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}` : imageUrl}
+                            src={imageUrl}
                             alt="รูปภาพร้านยา"
                           />
                         ) : (
@@ -133,12 +137,34 @@ function StaffHome() {
                       </div>
                     )}
                   </div>
-                  <button
-                    className="view-detail-button"
-                    onClick={() => navigate(`/drug_store_staff_detail/${ph.documentId}`, { state: { pharmacy: ph, staffProfile } })}
-                  >
-                    กดเพื่อดูรายละเอียด
-                  </button>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                    <button
+                      className="view-detail-button"
+                      onClick={() => navigate(`/drug_store_staff_detail/${ph.documentId}`, { state: { pharmacy: ph, staffProfile } })}
+                    >
+                      กดเพื่อดูรายละเอียด
+                    </button>
+                    <button
+                      className="view-detail-button"
+                      onClick={() => navigate(`/drug_store_staff/${ph.documentId}/customers`)}
+                      style={{ 
+                        background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
+                        border: 'none'
+                      }}
+                    >
+                      ข้อมูลลูกค้า
+                    </button>
+                    <button
+                      className="view-detail-button"
+                      onClick={() => navigate(`/drugs/${ph.documentId}`)}
+                      style={{ 
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        border: 'none'
+                      }}
+                    >
+                      รายการยา
+                    </button>
+                  </div>
                 </div>
               );
             })

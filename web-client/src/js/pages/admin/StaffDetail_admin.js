@@ -5,10 +5,16 @@ import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
 import '../../../css/pages/default/home.css';
 import '../../../css/component/StaffCard.css';
+import { API } from '../../../utils/apiConfig';
 
 function StaffCard({ staff, onEdit, onDelete, onDetail }) {
   const getImageUrl = (photo) => {
     if (!photo) return null;
+    // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
+    if (photo.documentId) {
+      return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+    }
+    // Fallback สำหรับข้อมูลเก่า
     if (typeof photo === "string") return photo;
     if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
     if (photo.formats?.medium?.url) return photo.formats.medium.url;
@@ -37,9 +43,7 @@ function StaffCard({ staff, onEdit, onDelete, onDetail }) {
         <div className="staff-detail-avatar-section">
           {imageUrl ? (
             <img
-              src={imageUrl.startsWith('/')
-                ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${imageUrl}`
-                : imageUrl}
+              src={imageUrl}
               alt="รูปโปรไฟล์"
               className="staff-detail-avatar"
             />
@@ -135,7 +139,7 @@ function StaffDetailAdmin() {
 
       // 1. ดึงข้อมูลร้านยา
       const pharmacyRes = await fetch(
-        `http://localhost:1337/api/drug-stores?filters[documentId][$eq]=${pharmacyId}&populate=*`,
+        API.drugStores.getByDocumentId(pharmacyId),
         {
           headers: { 
             Authorization: `Bearer ${jwt}`,
@@ -165,7 +169,7 @@ function StaffDetailAdmin() {
 
       // 2. ดึงข้อมูลพนักงานของร้านยานี้
       const staffRes = await fetch(
-        `http://localhost:1337/api/staff-profiles?filters[drug_store][id][$eq]=${pharmacy.id}&populate[0]=users_permissions_user&populate[1]=profileimage&populate[2]=drug_store`,
+        API.staffProfiles.list(`filters[drug_store][id][$eq]=${pharmacy.id}&populate[0]=users_permissions_user&populate[1]=profileimage&populate[2]=drug_store`),
         {
           headers: { 
             Authorization: `Bearer ${jwt}`,
@@ -240,7 +244,7 @@ function StaffDetailAdmin() {
 
     try {
       const deleteRes = await fetch(
-        `http://localhost:1337/api/staff-profiles/${staff.documentId}`,
+        API.staffProfiles.delete(staff.documentId),
         {
           method: 'DELETE',
           headers: {

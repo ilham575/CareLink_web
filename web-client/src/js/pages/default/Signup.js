@@ -4,6 +4,7 @@ import HomeHeader from '../../components/HomeHeader';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { API, fetchWithAuth } from '../../../utils/apiConfig';
 
 function Signup() {
   const location = useLocation();
@@ -25,7 +26,7 @@ function Signup() {
     const userId = location.state?.userId;
     const jwt = localStorage.getItem('jwt');
     if (userId && jwt) {
-      fetch(`http://localhost:1337/api/users/${userId}`, {
+      fetch(API.users.getById(userId), {
         headers: { Authorization: `Bearer ${jwt}` }
       })
         .then(res => res.json())
@@ -44,7 +45,7 @@ function Signup() {
           // ✅ ดึงรูปโปรไฟล์จาก admin profile หรือ user profile
           if (userId) {
             // ดึงจาก admin-profiles แทน
-            fetch(`http://localhost:1337/api/admin-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage`, {
+            fetch(API.adminProfiles.list(`filters[users_permissions_user][id][$eq]=${userId}&populate=profileimage`), {
               headers: { Authorization: `Bearer ${jwt}` }
             })
               .then(res => res.json())
@@ -54,8 +55,12 @@ function Signup() {
                 if (profile?.profileimage) {
                   let imgUrl = null;
                   const img = Array.isArray(profile.profileimage) ? profile.profileimage[0] : profile.profileimage;
-                  if (img?.url) {
-                    imgUrl = `${process.env.REACT_APP_API_URL || "http://localhost:1337"}${img.url}`;
+                  
+                  // เช็ค documentId ก่อน
+                  if (img?.documentId) {
+                    imgUrl = `${API.BASE_URL}/api/upload/files/${img.documentId}/serve`;
+                  } else if (img?.url) {
+                    imgUrl = API.getImageUrl(img.url);
                   }
                   if (imgUrl) setProfileImage(imgUrl);
                 }
@@ -98,7 +103,7 @@ function Signup() {
         if (form.profileImage) {
           const imageData = new FormData();
           imageData.append('files', form.profileImage);
-          const uploadRes = await fetch('http://localhost:1337/api/upload', {
+          const uploadRes = await fetch(API.upload(), {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${jwt}` },
             body: imageData,
@@ -122,7 +127,7 @@ function Signup() {
           updateData.password = form.password;
         }
 
-        const userRes = await fetch(`http://localhost:1337/api/users/${currentUserId}`, {
+        const userRes = await fetch(API.users.update(currentUserId), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -139,13 +144,13 @@ function Signup() {
 
         // 3. Update admin profile image ถ้ามี
         if (profileImageId) {
-          const adminProfileRes = await fetch(`http://localhost:1337/api/admin-profiles?filters[users_permissions_user][id][$eq]=${currentUserId}`, {
+          const adminProfileRes = await fetch(API.adminProfiles.list(`filters[users_permissions_user][id][$eq]=${currentUserId}`), {
             headers: { Authorization: `Bearer ${jwt}` }
           });
           const adminProfileData = await adminProfileRes.json();
           
           if (adminProfileData.data?.[0]?.id) {
-            await fetch(`http://localhost:1337/api/admin-profiles/${adminProfileData.data[0].id}`, {
+            await fetch(API.adminProfiles.update(adminProfileData.data[0].id), {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -164,7 +169,7 @@ function Signup() {
       }
 
       // โหมดสมัครใหม่ (existing code)
-      const registerRes = await fetch('http://localhost:1337/api/auth/local/register', {
+      const registerRes = await fetch(API.auth.register, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -188,7 +193,7 @@ function Signup() {
       if (form.profileImage) {
         const imageData = new FormData();
         imageData.append('files', form.profileImage);
-        const uploadRes = await fetch('http://localhost:1337/api/upload', {
+        const uploadRes = await fetch(API.upload(), {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${jwt}` },
           body: imageData,
@@ -200,7 +205,7 @@ function Signup() {
       }
 
       // 3. Get role ID for 'Admin'
-      const roleRes = await fetch('http://localhost:1337/api/users-permissions/roles', {
+      const roleRes = await fetch(API.roles.list(), {
         headers: { Authorization: `Bearer ${jwt}` },
       });
       const roleData = await roleRes.json();
@@ -215,7 +220,7 @@ function Signup() {
         ...(profileImageId ? { profileimage: profileImageId } : {}),
         ...(targetRoleId ? { role: targetRoleId } : {}),
       };
-      const patchRes = await fetch(`http://localhost:1337/api/users/${userId}`, {
+      const patchRes = await fetch(API.users.update(userId), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -231,7 +236,7 @@ function Signup() {
       }
 
       // 5. Login ใหม่เพื่อรับ JWT ของ role admin
-      const loginRes = await fetch('http://localhost:1337/api/auth/local', {
+      const loginRes = await fetch(API.auth.login, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -249,7 +254,7 @@ function Signup() {
       const adminJwt = loginData.jwt;
 
       // 6. Create admin_profile (ใช้ JWT ใหม่)
-      const adminProfileRes = await fetch('http://localhost:1337/api/admin-profiles', {
+      const adminProfileRes = await fetch(API.adminProfiles.create(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -342,6 +347,14 @@ function Signup() {
           </div>
           <button type="submit" className="signup-submit-btn">
             {isEditMode ? "บันทึกการแก้ไข" : "บันทึกและลงชื่อเข้าใช้"}
+          </button>
+          <button 
+            type="button" 
+            className="signup-submit-btn" 
+            onClick={() => navigate(-1)}
+            style={{ marginTop: '8px', backgroundColor: '#6c757d' }}
+          >
+            กลับ
           </button>
         </form>
         <div className="signup-footer-note">

@@ -2,10 +2,20 @@ module.exports = () => ({
   'config-sync': {
     enabled: true,
     config: {
-      syncDir: 'config/sync/', // หรือเปลี่ยนชื่อ path ได้
+      syncDir: 'config/sync/',
       minify: false,
       importOnBootstrap: false,
-      exclude: [], // เช่น ['core-store.plugin_users-permissions_grant']
+      exclude: [],
+    },
+  },
+  upload: {
+    config: {
+      provider: 'local',
+      breakpoints: {
+        lg: 1000,
+        md: 750,
+        sm: 500,
+      },
     },
   },
 });

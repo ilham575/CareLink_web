@@ -41,6 +41,12 @@
     },
     "working_time": {
       "type": "json"
+    },
+    "notifications": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::notification.notification",
+      "mappedBy": "pharmacy_profile"
     }
   }
 }

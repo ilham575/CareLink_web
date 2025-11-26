@@ -8,6 +8,7 @@ import React, { useEffect, useState } from "react";
 import { Modal } from "antd";   // <<-- import Modal จาก antd
 import { toast, ToastContainer } from "react-toastify"; // <<-- Add ToastContainer import
 import "react-toastify/dist/ReactToastify.css"; // <<-- Add this import for toast styles
+import { API } from "../../../utils/apiConfig";
 
 function StaffPage({ id }) {
   const location = useLocation();
@@ -22,7 +23,7 @@ function StaffPage({ id }) {
   useEffect(() => {
     if (documentId) {
       // *** ดึงทุกร้าน ***
-      fetch(`http://localhost:1337/api/drug-stores`)
+      fetch(API.drugStores.list())
         .then(res => res.json())
         .then(json => {
           // หา record ที่ documentId ตรงกับที่ต้องการ
@@ -42,7 +43,7 @@ function StaffPage({ id }) {
     if (documentId) {
       const token = localStorage.getItem('jwt');
       fetch(
-        `http://localhost:1337/api/staff-profiles?filters[drug_store][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage`,
+        API.staffProfiles.list(`filters[drug_store][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage`),
         {
           headers: {
             Authorization: token ? `Bearer ${token}` : "",
@@ -82,7 +83,7 @@ function StaffPage({ id }) {
           const removeRelation = async () => {
             if (!staffId) return;
             const res = await fetch(
-              `http://localhost:1337/api/staff-profiles/${staffDocumentId}`,
+              API.staffProfiles.update(staffDocumentId),
               {
                 method: "PUT",
                 headers: {
@@ -104,7 +105,7 @@ function StaffPage({ id }) {
           const deleteStaffProfile = async () => {
             if (!staffId) return;
             const res = await fetch(
-              `http://localhost:1337/api/staff-profiles/${staffDocumentId}`,
+              API.staffProfiles.delete(staffDocumentId),
               { method: "DELETE", headers: authHeaders }
             );
             if (!res.ok && res.status !== 404) {
@@ -116,7 +117,7 @@ function StaffPage({ id }) {
             if (!userId) return;
             // ตรวจสอบว่ามี staff-profile อื่นที่เชื่อมกับ userId นี้หรือไม่
             const checkRes = await fetch(
-              `http://localhost:1337/api/staff-profiles?filters[users_permissions_user][id][$eq]=${userId}`,
+              API.staffProfiles.list(`filters[users_permissions_user][id][$eq]=${userId}`),
               { headers: authHeaders }
             );
             const checkJson = await checkRes.json().catch(() => ({}));
@@ -130,7 +131,7 @@ function StaffPage({ id }) {
             // ถ้าไม่มี profile อื่นเชื่อม user นี้ ค่อยลบ
             try {
               const res = await fetch(
-                `http://localhost:1337/api/users/${userId}`,
+                API.users.delete(userId),
                 { method: "DELETE", headers: authHeaders }
               );
               await res.text().catch(() => "");
@@ -140,7 +141,7 @@ function StaffPage({ id }) {
           const refreshList = async () => {
             if (!documentId) return;
             const res = await fetch(
-              `http://localhost:1337/api/staff-profiles?filters[drug_store][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage&_=${Date.now()}`,
+              API.staffProfiles.list(`filters[drug_store][documentId][$eq]=${documentId}&populate[users_permissions_user][populate]=true&populate=profileimage&_=${Date.now()}`),
               { headers: authHeaders }
             );
             const js = await res.json().catch(() => ({}));
@@ -190,12 +191,10 @@ function StaffPage({ id }) {
           ) : (
             staffList.map(staff => {
               const user = staff.users_permissions_user?.data?.attributes || staff.users_permissions_user || staff.attributes?.users_permissions_user;
-              const profileImg =
-                staff.profileimage?.data?.attributes?.formats?.thumbnail?.url ||
-                staff.profileimage?.data?.attributes?.url ||
-                staff.profileimage?.formats?.thumbnail?.url ||
-                staff.profileimage?.url ||
-                null;
+              const profileImageObj = staff.profileimage?.data?.attributes || staff.profileimage || null;
+              const profileImg = profileImageObj?.documentId 
+                ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}/api/upload/files/${profileImageObj.documentId}/serve`
+                : null;
               const staffDocumentId = staff.documentId || staff.attributes?.documentId;
               const userId = 
                 staff.users_permissions_user?.data?.id ||
@@ -210,11 +209,7 @@ function StaffPage({ id }) {
                   <div className="staff-card-image staff-card-image-box">
                     {profileImg ? (
                       <img
-                        src={
-                          profileImg.startsWith('/')
-                            ? `${process.env.REACT_APP_API_URL || 'http://localhost:1337'}${profileImg}`
-                            : profileImg
-                        }
+                        src={profileImg}
                         alt="รูปภาพพนักงาน"
                         className="staff-card-image-img"
                       />

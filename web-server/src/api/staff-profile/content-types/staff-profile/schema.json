@@ -53,6 +53,18 @@
     },
     "work_schedule": {
       "type": "json"
+    },
+    "notifications": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::notification.notification",
+      "mappedBy": "staff_profile"
+    },
+    "assigned_customers": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::customer-profile.customer-profile",
+      "mappedBy": "assigned_by_staff"
     }
   }
 }

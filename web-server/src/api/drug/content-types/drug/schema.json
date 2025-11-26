@@ -37,6 +37,12 @@
       "relation": "manyToOne",
       "target": "api::drug-store.drug-store",
       "inversedBy": "drugs"
+    },
+    "drug_batches": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::drug-batch.drug-batch",
+      "mappedBy": "drug"
     }
   }
 }

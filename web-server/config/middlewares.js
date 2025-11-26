@@ -8,7 +8,7 @@ module.exports = [
       headers: [
         'Content-Type',
         'Authorization',
-        'Cache-Control',          // ✅ เพิ่มบรรทัดนี้
+        'Cache-Control',
       ],
     },
   },
@@ -19,11 +19,11 @@ module.exports = [
   {
     name: 'strapi::body',
     config: {
-      formLimit: '256mb', // สำหรับ form data
-      jsonLimit: '256mb', // สำหรับ JSON data  
-      textLimit: '256mb', // สำหรับ text data
+      formLimit: '256mb',
+      jsonLimit: '256mb',
+      textLimit: '256mb',
       formidable: {
-        maxFileSize: 50 * 1024 * 1024, // 50MB สำหรับการอัพโหลดไฟล์
+        maxFileSize: 50 * 1024 * 1024,
       },
     },
   },
