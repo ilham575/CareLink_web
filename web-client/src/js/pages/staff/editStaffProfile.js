@@ -26,6 +26,7 @@ function EditStaffProfile() {
   const [modalData, setModalData] = useState({ position: '', workSchedule: [] });
   const [modalStaffId, setModalStaffId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
   const fileInputRef = useRef();
   const navigate = useNavigate();
 
@@ -41,8 +42,8 @@ function EditStaffProfile() {
           return;
         }
 
-        // โหลดข้อมูล user
-        const userRes = await fetch(API.users.list(), {
+        // โหลดข้อมูล user ปัจจุบัน
+        const userRes = await fetch(API.users.me(), {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -50,6 +51,9 @@ function EditStaffProfile() {
 
         const user = await userRes.json();
         console.log('User data:', user);
+
+        // เก็บ user id
+        setUserId(user.id);
 
         // แปลงชื่อ
         const fullName = user.full_name || "";
@@ -66,8 +70,9 @@ function EditStaffProfile() {
         });
 
         // โหลดข้อมูล staff profiles ของร้านทั้งหมดที่ทำงานอยู่
+        // ใช้ user.id จาก API response แทน userDocumentId
         const staffRes = await fetch(
-          API.staffProfiles.list(`filters[users_permissions_user][documentId][$eq]=${userDocumentId}&populate[0]=drug_store&populate[1]=users_permissions_user&populate[2]=profileimage`),
+          API.staffProfiles.list(`filters[users_permissions_user][id][$eq]=${user.id}&populate[0]=drug_store&populate[1]=users_permissions_user&populate[2]=profileimage`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -277,7 +282,7 @@ function EditStaffProfile() {
       
       // รีเฟรชข้อมูล
       const staffRes = await fetch(
-        API.staffProfiles.list(`filters[users_permissions_user][documentId][$eq]=${localStorage.getItem('user_documentId')}&populate[0]=drug_store&populate[1]=users_permissions_user&populate[2]=profileimage`),
+        API.staffProfiles.list(`filters[users_permissions_user][id][$eq]=${userId}&populate[0]=drug_store&populate[1]=users_permissions_user&populate[2]=profileimage`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

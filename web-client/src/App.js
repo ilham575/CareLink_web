@@ -34,9 +34,11 @@ import FormCustomerPage from './js/components/middle_page/formcustomerPage';
 import CustomerDetail from './js/pages/pharmacy/detail_customer';
 import RoleBasedRedirect from './js/utils/rolebasedredirect';
 import 'antd/dist/reset.css';
+import { API } from './utils/apiConfig';
 
 // Override console.log to disable all console.log calls
-// console.log = () => {};
+// console.log('🔗 API Base URL:', API.BASE_URL);
+console.log = () => {};
 
 function App() {
   return (

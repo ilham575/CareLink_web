@@ -161,6 +161,7 @@ function CustomerPage({ id }) {
 
           const removeRelation = async () => {
             if (!customerId) return;
+            // ตัดความสัมพันธ์ many-to-many กับ drug_stores
             const res = await fetch(
               API.customerProfiles.update(customerDocumentId),
               {
@@ -172,6 +173,9 @@ function CustomerPage({ id }) {
                 body: JSON.stringify({
                   data: {
                     users_permissions_user: null,
+                    drug_stores: {
+                      disconnect: []
+                    }
                   },
                 }),
               }

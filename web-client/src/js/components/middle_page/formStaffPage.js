@@ -94,7 +94,7 @@ function FormStaffPage() {
         return role === 'staff';
       });        // ใช้ internal ID ในการ filter
         const staffRes = await fetch(
-          API.staffProfiles.list(`filters[drug_store]=\${drugStoreInternalId}&populate=users_permissions_user`),
+          API.staffProfiles.list(`filters[drug_store]=\${drugStoreInternalId}&populate[0]=users_permissions_user&populate[1]=drug_store`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const staffProfiles = await staffRes.json();
@@ -109,6 +109,11 @@ function FormStaffPage() {
           
         const selectableUsers = staffUsers.filter(u => !staffUserIds.includes(u.id));
         
+        console.log('🔍 Debug - staffProfiles:', staffProfiles);
+        console.log('🔍 Debug - staffUserIds:', staffUserIds);
+        console.log('🔍 Debug - staffUsers before filter:', staffUsers.length);
+        console.log('🔍 Debug - selectableUsers:', selectableUsers.length);
+
         setExistingUsers(selectableUsers);
       })();
     }

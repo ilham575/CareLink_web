@@ -15,7 +15,7 @@
 // ============================================
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
 
-console.log('🔗 API Base URL:', BASE_URL);
+
 
 // ============================================
 // API Endpoints Structure
@@ -56,7 +56,7 @@ export const API = {
     listWithPhotos: () => `${BASE_URL}/api/drug-stores?populate[0]=pharmacy_profiles&populate[1]=photo_front&populate[2]=photo_in&populate[3]=photo_staff`,
     getById: (id) => `${BASE_URL}/api/drug-stores/${id}?populate[0]=pharmacy_profiles&populate[1]=photo_front&populate[2]=photo_in&populate[3]=photo_staff`,
     getByIdFull: (id) => `${BASE_URL}/api/drug-stores/${id}?populate=*`,
-    getByDocumentId: (documentId) => `${BASE_URL}/api/drug-stores?filters[documentId][$eq]=${documentId}`,
+    getByDocumentId: (documentId) => `${BASE_URL}/api/drug-stores?filters[documentId][$eq]=${documentId}&populate[0]=pharmacy_profiles&populate[1]=photo_front&populate[2]=photo_in&populate[3]=photo_staff`,
     listFiltered: (filterObj = {}) => {
       const params = new URLSearchParams();
       Object.entries(filterObj).forEach(([key, value]) => {
@@ -148,7 +148,7 @@ export const API = {
     },
     getByIdBasic: (id) =>
       `${BASE_URL}/api/customer-profiles/${id}?populate[0]=users_permissions_user&populate[1]=drug_stores`,
-    getByDocumentId: (documentId) => `${BASE_URL}/api/customer-profiles?filters[documentId][$eq]=${documentId}`,
+    getByDocumentId: (documentId) => `${BASE_URL}/api/customer-profiles?filters[documentId][$eq]=${documentId}&populate[0]=users_permissions_user&populate[1]=drug_stores&populate[2]=assigned_by_staff.users_permissions_user`,
     create: () => `${BASE_URL}/api/customer-profiles`,
     update: (id) => `${BASE_URL}/api/customer-profiles/${id}`,
     delete: (id) => `${BASE_URL}/api/customer-profiles/${id}`,
@@ -228,7 +228,7 @@ export const API = {
   getImageUrl: (imagePath, imageId) => {
     if (!imagePath && !imageId) return '';
     
-    // Strapi v5: ใช้ file ID เพื่อดึง blob และ convert เป็น data URL
+    // Strapi v5: ใช้ file ID เพื่อดึง blob
     if (imageId) {
       return `${BASE_URL}/api/upload/files/${imageId}/download`;
     }

@@ -48,7 +48,7 @@ function FormCustomerPage() {
     try {
       const token = localStorage.getItem('jwt');
       const response = await fetch(
-        API.customerProfiles.list(`filters[documentId][\$eq]=\${customerDocumentId}&populate[0]=users_permissions_user`),
+        API.customerProfiles.getByDocumentId(customerDocumentId),
         {
           headers: {
             Authorization: token ? `Bearer ${token}` : "",
@@ -56,14 +56,19 @@ function FormCustomerPage() {
         }
       );
       
+      if (!response.ok) {
+        throw new Error('ไม่สามารถโหลดข้อมูลลูกค้าได้');
+      }
+      
       const json = await response.json();
-      const customer = json.data?.[0];
+      const customerData = Array.isArray(json.data) ? json.data[0] : json.data;
+      const customer = customerData;
       
       if (customer) {
         const user = customer.users_permissions_user?.data?.attributes || customer.users_permissions_user;
         
-        setCustomerId(customer.id);
-        setCustomerDocumentId(customer.documentId);
+        setCustomerId(customer.id || customer.attributes?.id);
+        setCustomerDocumentId(customer.documentId || customer.attributes?.documentId);
         setFormData({
           full_name: user?.full_name || "",
           phone: user?.phone || "",
@@ -360,8 +365,8 @@ function FormCustomerPage() {
       }
     }
 
-    // Update customer profile
-    const profileResponse = await fetch(API.customerProfiles.update(customerDocumentId), {
+    // Update customer profile using internal ID
+    const profileResponse = await fetch(API.customerProfiles.update(customerId), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

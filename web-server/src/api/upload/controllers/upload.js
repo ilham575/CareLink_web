@@ -1,25 +1,38 @@
 module.exports = {
   // Custom controller สำหรับ serve image โดยตรง
   async serveFile(ctx) {
-    const { documentId } = ctx.params;
+    const { documentId, id } = ctx.params;
+    const fileId = id || documentId;
     
     try {
-      console.log('Attempting to serve file with documentId:', documentId);
+      console.log('Attempting to serve file with ID:', fileId);
       
-      // ดึงข้อมูลไฟล์จาก database ด้วย documentId
-      const files = await strapi.entityService.findMany('plugin::upload.file', {
-        filters: {
-          documentId: {
-            $eq: documentId
+      if (!fileId || fileId === 'undefined' || fileId === 'null') {
+        return ctx.badRequest('Invalid file ID');
+      }
+      
+      // ดึงข้อมูลไฟล์จาก database
+      let file;
+      
+      // ลองหาด้วย documentId ก่อน
+      if (fileId.length > 5 && isNaN(fileId)) {
+        file = await strapi.entityService.findMany('plugin::upload.file', {
+          filters: {
+            documentId: {
+              $eq: fileId
+            }
           }
-        }
-      });
+        });
+        file = file?.[0];
+      } 
       
-      // ดึงไฟล์ตัวแรกที่ตรง
-      const file = files.length > 0 ? files[0] : null;
+      // ถ้าหาไม่เจอ หรือไม่ใช่ documentId ให้หาด้วย ID
+      if (!file && !isNaN(fileId)) {
+        file = await strapi.entityService.findOne('plugin::upload.file', parseInt(fileId));
+      }
       
       if (!file) {
-        console.log('File not found in database for documentId:', documentId);
+        console.log('File not found in database for ID:', fileId);
         return ctx.notFound('File not found');
       }
 
@@ -28,7 +41,8 @@ module.exports = {
         name: file.name,
         hash: file.hash,
         ext: file.ext,
-        provider: file.provider
+        provider: file.provider,
+        mime: file.mime
       });
 
       // ถ้าเป็น local provider ให้หาไฟล์ที่มีอยู่จริง
@@ -40,11 +54,9 @@ module.exports = {
         const publicPath = path.join(strapi.dirs.public || process.cwd() + '/public', 'uploads');
         console.log('Looking in uploads directory:', publicPath);
         
-        // หาไฟล์ที่มี hash คล้ายๆ กัน
         if (fs.existsSync(publicPath)) {
           const allFiles = fs.readdirSync(publicPath);
           console.log(`Found ${allFiles.length} files in uploads directory`);
-          console.log('First 10 files:', allFiles.slice(0, 10));
           
           // ลองหา exact match ก่อน
           const exactMatch = file.hash + file.ext;

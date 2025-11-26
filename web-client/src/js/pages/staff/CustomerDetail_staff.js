@@ -53,6 +53,8 @@ function CustomerDetailStaff() {
   const [activeTab, setActiveTab] = useState('1');
   // Track selected batch (lot) for each drug: { drugId: batchDocumentId }
   const [selectedBatches, setSelectedBatches] = useState({});
+  // Track if lots have been saved
+  const [lotsSaved, setLotsSaved] = useState(false);
   
   // Get pharmacyId from URL params
   const searchParams = new URLSearchParams(location.search);
@@ -127,6 +129,10 @@ function CustomerDetailStaff() {
           // อ่านสถานะจาก notification data
           if (notif?.staff_work_status) {
             setStaffStatus(notif.staff_work_status);
+            // ดึง selected batches จากที่เก็บไว้ใน notification
+            if (notif.staff_work_status.batches_selected) {
+              setSelectedBatches(notif.staff_work_status.batches_selected);
+            }
           }
 
         } else {
@@ -168,6 +174,10 @@ function CustomerDetailStaff() {
                 // อ่านสถานะจาก notification staff_work_status
                 if (notif?.staff_work_status) {
                   setStaffStatus(notif.staff_work_status);
+                  // ดึง selected batches จากที่เก็บไว้ใน notification
+                  if (notif.staff_work_status.batches_selected) {
+                    setSelectedBatches(notif.staff_work_status.batches_selected);
+                  }
                 }
               }
             }
@@ -223,6 +233,78 @@ function CustomerDetailStaff() {
     }
   };
 
+  // ฟังก์ชันบันทึก Lot ยาที่เลือก
+  const handleSaveLots = async () => {
+    try {
+      const token = localStorage.getItem('jwt');
+      
+      if (!notification) {
+        toast.error('ไม่พบข้อมูล notification');
+        return;
+      }
+
+      // ตรวจสอบว่ายืนยันรับข้อมูลแล้ว
+      if (!staffStatus.received) {
+        toast.error('กรุณายืนยันรับข้อมูลก่อนบันทึก Lot ยา');
+        return;
+      }
+
+      // ตรวจสอบว่าเลือก Lot ครบทุกยาที่มี batch หรือไม่
+      const drugsWithBatches = customer.prescribed_drugs.filter(drugItem => {
+        const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
+        const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
+        return drug && drug.drug_batches && drug.drug_batches.length > 0;
+      });
+
+      console.log('Drugs with batches:', drugsWithBatches.length);
+      console.log('Selected batches:', selectedBatches);
+
+      // ตรวจสอบว่ายาทั้งหมดที่มี batch ถูกเลือกแล้ว
+      const missingBatches = drugsWithBatches.filter(drugItem => {
+        const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
+        const isSelected = selectedBatches[drugId] && selectedBatches[drugId].trim() !== '';
+        console.log(`Drug ${drugId}: isSelected=${isSelected}, selectedValue='${selectedBatches[drugId]}'`);
+        return !isSelected;
+      });
+
+      console.log('Missing batches:', missingBatches.length);
+
+      if (missingBatches.length > 0) {
+        toast.error(`กรุณาเลือก Lot สำหรับทุกรายการยา (ขาด ${missingBatches.length} รายการ)`);
+        return;
+      }
+
+      // บันทึก Lot ลงใน notification
+      const updatedStatus = { ...staffStatus, batches_selected: selectedBatches };
+
+      const notifIdentifier = notification?.documentId;
+      const res = await fetch(API.notifications.getById(notifIdentifier), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          data: {
+            staff_work_status: updatedStatus
+          }
+        })
+      });
+
+      if (res.ok) {
+        setStaffStatus(updatedStatus);
+        setNotification(prev => ({ ...prev, staff_work_status: updatedStatus }));
+        setLotsSaved(true);
+        toast.success('บันทึก Lot ยาสำเร็จ - ตอนนี้สามารถกด "จัดยาส่งแล้ว" ได้');
+      } else {
+        throw new Error('ไม่สามารถบันทึก Lot ได้');
+      }
+    } catch (error) {
+      console.error('Error saving lots:', error);
+      toast.error('เกิดข้อผิดพลาดในการบันทึก Lot');
+    }
+  };
+
   const handleUpdateStatus = async (type, note = '') => {
     try {
       const token = localStorage.getItem('jwt');
@@ -232,17 +314,10 @@ function CustomerDetailStaff() {
         return;
       }
 
-      // ถ้าเป็นการกด "จัดยาส่งแล้ว" ต้องเช็คว่าเลือก lot ครบทุกยาหรือไม่
+      // ถ้าเป็นการกด "จัดยาส่งแล้ว" ต้องเช็คว่าบันทึก Lot แล้ว
       if (type === 'prepared') {
-        const missingBatches = customer.prescribed_drugs.filter(drugItem => {
-          const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
-          const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
-          // ถ้ายามีบัช แต่ไม่เลือก → error
-          return drug && drug.drug_batches && drug.drug_batches.length > 0 && !selectedBatches[drugId];
-        });
-
-        if (missingBatches.length > 0) {
-          toast.error('กรุณาเลือก Lot สำหรับทุกรายการยา');
+        if (!lotsSaved) {
+          toast.error('กรุณาบันทึก Lot ยาก่อนสามารถกด "จัดยาส่งแล้ว"');
           return;
         }
       }
@@ -317,11 +392,8 @@ function CustomerDetailStaff() {
         toast.success('อัปเดตสถานะสำเร็จ');
         setStatusModal({ open: false, type: '', note: '' });
         
-        // Reset selected batches
-        setSelectedBatches({});
-        
-        // Reload customer data to reflect updated batch quantities
-        window.location.reload();
+        // Keep selectedBatches in state so they remain visible after prepare
+        // Don't reload - just update notification to reflect the changes
       } else {
         throw new Error('ไม่สามารถอัปเดตสถานะได้');
       }
@@ -462,18 +534,19 @@ function CustomerDetailStaff() {
             
             <button
               onClick={() => setStatusModal({ open: true, type: 'prepared', note: '' })}
-              disabled={staffStatus.prepared || !staffStatus.received}
+              disabled={staffStatus.prepared || !staffStatus.received || !lotsSaved}
               style={{
                 padding: '10px 20px',
                 borderRadius: '8px',
                 border: 'none',
-                background: staffStatus.prepared ? '#52c41a' : staffStatus.received ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
+                background: staffStatus.prepared ? '#52c41a' : (staffStatus.received && lotsSaved) ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
                 color: 'white',
-                cursor: staffStatus.prepared || !staffStatus.received ? 'default' : 'pointer',
+                cursor: staffStatus.prepared || !staffStatus.received || !lotsSaved ? 'default' : 'pointer',
                 fontSize: '14px',
                 fontWeight: 'bold',
-                opacity: !staffStatus.received ? 0.5 : 1
+                opacity: (!staffStatus.received || !lotsSaved) ? 0.5 : 1
               }}
+              title={!lotsSaved ? 'กรุณาบันทึก Lot ยาก่อน' : staffStatus.prepared ? 'จัดยาส่งแล้ว' : ''}
             >
               {staffStatus.prepared ? '✅ จัดยาส่งแล้ว' : '📦 จัดยาส่งไปแล้ว'}
             </button>
@@ -773,7 +846,7 @@ function CustomerDetailStaff() {
                                   color: '#000'
                                 }}
                               >
-                                <option value="">-- เลือก Lot --</option>
+                                {!selectedBatches[drugId] && <option value="">-- เลือก Lot --</option>}
                                 {drug.drug_batches.map((batch, idx) => (
                                   <option key={batch.documentId || idx} value={batch.documentId || batch.id}>
                                     {batch.lot_number} (เหลือ {batch.quantity}) | หมดอายุ: {batch.expiry_date}
@@ -821,6 +894,54 @@ function CustomerDetailStaff() {
                       );
                     })}
                   </div>
+
+                  {/* ปุ่มบันทึก Lot */}
+                  {!lotsSaved && (
+                    <div style={{ marginTop: '20px', padding: '15px', background: '#fff7e6', border: '2px solid #ffc53d', borderRadius: '8px' }}>
+                      <div style={{ marginBottom: '10px', fontSize: '14px', fontWeight: 'bold', color: '#ad6800' }}>
+                        ⚠️ กรุณาบันทึก Lot ยาที่เลือกก่อน
+                      </div>
+                      <button
+                        onClick={handleSaveLots}
+                        disabled={!staffStatus.received}
+                        style={{
+                          width: '100%',
+                          padding: '12px 20px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: staffStatus.received ? 'linear-gradient(135deg, #1890ff, #0050b3)' : 'rgba(0,0,0,0.25)',
+                          color: 'white',
+                          cursor: staffStatus.received ? 'pointer' : 'not-allowed',
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          transition: 'all 0.3s',
+                          opacity: staffStatus.received ? 1 : 0.6
+                        }}
+                        onMouseEnter={(e) => {
+                          if (staffStatus.received) {
+                            e.target.style.background = 'linear-gradient(135deg, #0050b3, #003d99)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (staffStatus.received) {
+                            e.target.style.background = 'linear-gradient(135deg, #1890ff, #0050b3)';
+                          }
+                        }}
+                        title={!staffStatus.received ? 'กรุณายืนยันรับข้อมูลก่อน' : ''}
+                      >
+                        💾 บันทึก Lot ยาที่เลือก
+                      </button>
+                    </div>
+                  )}
+
+                  {/* แสดงสถานะเมื่อบันทึกแล้ว */}
+                  {lotsSaved && (
+                    <div style={{ marginTop: '20px', padding: '15px', background: '#f6ffed', border: '2px solid #52c41a', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#274e0a' }}>
+                        ✅ บันทึก Lot ยาเรียบร้อยแล้ว - สามารถกด "จัดยาส่งแล้ว" ได้
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="no-drugs-placeholder">

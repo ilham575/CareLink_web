@@ -98,13 +98,21 @@ function CustomerDetail() {
     console.log('useEffect triggered with customerDocumentId:', customerDocumentId, 'pharmacyId:', pharmacyId);
     const loadCustomerData = async () => {
       console.log('loadCustomerData function called');
+      
+      // Validate customerDocumentId before making API call
+      if (!customerDocumentId) {
+        console.log('customerDocumentId is null or undefined, skipping load');
+        setLoading(false);
+        return;
+      }
+      
       try {
         const token = localStorage.getItem('jwt');
         console.log('Token exists:', !!token);
         
-        // Load customer data
+        // Load customer data using getByDocumentId instead of getById
         const customerRes = await fetch(
-          API.customerProfiles.getById(customerDocumentId),
+          API.customerProfiles.getByDocumentId(customerDocumentId),
           {
             headers: { Authorization: token ? `Bearer ${token}` : "" }
           }
@@ -114,12 +122,13 @@ function CustomerDetail() {
         
         const customerData = await customerRes.json();
         console.log('Customer data loaded:', customerData);
-        setCustomer(customerData.data);
+        const customer = Array.isArray(customerData.data) ? customerData.data[0] : customerData.data;
+        setCustomer(customer);
         
         // โหลด assigned_by_staff ถ้ามีและมี documentId ให้ถือว่าเป็นข้อมูลที่สมบูรณ์
-        if (customerData.data?.assigned_by_staff && customerData.data.assigned_by_staff.documentId) {
-          console.log('Customer has assigned_by_staff:', customerData.data.assigned_by_staff);
-          setAssignedByStaff(customerData.data.assigned_by_staff);
+        if (customer?.assigned_by_staff && customer.assigned_by_staff.documentId) {
+          console.log('Customer has assigned_by_staff:', customer.assigned_by_staff);
+          setAssignedByStaff(customer.assigned_by_staff);
         } else {
           console.log('Customer does NOT have assigned_by_staff or it is incomplete');
           setAssignedByStaff(null);
@@ -156,8 +165,8 @@ function CustomerDetail() {
           }
           
           // โหลด staff work status จาก latest notification
-          if (customerData.data?.assigned_by_staff?.documentId) {
-            console.log('Loading staff work status for assigned_by_staff:', customerData.data.assigned_by_staff.documentId);
+          if (customer?.assigned_by_staff?.documentId) {
+            console.log('Loading staff work status for assigned_by_staff:', customer.assigned_by_staff.documentId);
             try {
               // Query both customer_assignment and customer_assignment_update types using OR
               const notificationRes = await fetch(
@@ -291,7 +300,7 @@ function CustomerDetail() {
   const handleDeleteAppointment = async () => {
     try {
       const token = localStorage.getItem('jwt');
-      const res = await fetch(API.customerProfiles.update(customerDocumentId), {
+      const res = await fetch(API.customerProfiles.update(customer.id), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -308,11 +317,12 @@ function CustomerDetail() {
       setIsAppointmentModalOpen(false);
       // refresh customer data
       const customerRes = await fetch(
-        API.customerProfiles.getByIdBasic(customerDocumentId),
+        API.customerProfiles.getByDocumentId(customerDocumentId),
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
       );
       const customerData = await customerRes.json();
-      setCustomer(customerData.data);
+      const updatedCustomer = Array.isArray(customerData.data) ? customerData.data[0] : customerData.data;
+      setCustomer(updatedCustomer);
     } catch (err) {
       toast.error(err.message || 'เกิดข้อผิดพลาด');
     }
@@ -969,33 +979,49 @@ function CustomerDetail() {
       />
       
       <main className="customer-detail-main">
-        {/* Header summary: patient info only */}
-        <div className="detail-header-summary">
-          <div className="detail-header-left">
-            <div className="detail-header-name">{user?.full_name || 'ไม่พบชื่อ'}</div>
-            <div className="detail-header-meta">
-              <span>{user?.phone || '-'}</span>
-              <span className="dot">•</span>
-              <span>{customer.Follow_up_appointment_date ? formatThaiDate(customer.Follow_up_appointment_date) : 'ไม่มีวันนัด'}</span>
-            </div>
-            {assignedByStaff && assignedByStaff.documentId && (
-              <div className="detail-header-assigned-staff">
-                  <span className="assigned-label">จัดส่งโดย:</span>
-                  <span className="assigned-name">{assignedByStaff.users_permissions_user?.full_name || 'ไม่ระบุชื่อ'}</span>
-                {assignedByStaff.assigned_at && (
-                  <span className="assigned-date"> - {formatThaiDate(assignedByStaff.assigned_at)}</span>
+        {/* Modern Header Section */}
+        <div className="modern-detail-header">
+          <div className="header-backdrop" />
+          <div className="header-content">
+            <div className="header-left">
+              <div className="header-avatar">
+                {user?.full_name?.charAt(0)?.toUpperCase() || 'C'}
+              </div>
+              <div className="header-info">
+                <h1 className="header-name">{user?.full_name || 'ไม่พบชื่อ'}</h1>
+                <p className="header-phone">📞 {user?.phone || 'ไม่ระบุเบอร์'}</p>
+                {customer?.Follow_up_appointment_date && (
+                  <p className="header-appointment">
+                    <span className="appointment-icon">📅</span>
+                    นัดครั้งถัดไป: {formatThaiDate(customer.Follow_up_appointment_date)}
+                  </p>
+                )}
+                {assignedByStaff && assignedByStaff.documentId && (
+                  <p className="header-assigned">
+                    <span className="assigned-icon">👤</span>
+                    จัดส่งโดย: {assignedByStaff.users_permissions_user?.full_name || 'ไม่ระบุชื่อ'}
+                  </p>
                 )}
               </div>
-            )}
-          </div>
-          <div className="detail-header-right">
-            <div className="detail-header-badges">
-              <div className="pill-badge">ยา: {customer.prescribed_drugs ? customer.prescribed_drugs.length : 0} รายการ</div>
+            </div>
+            <div className="header-right">
+              <div className="header-stats">
+                <div className="stat-item">
+                  <span className="stat-label">รายการยา</span>
+                  <span className="stat-value">{customer?.prescribed_drugs?.length || 0}</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">สถานะ</span>
+                  <span className={`stat-badge ${assignedByStaff ? 'assigned' : 'pending'}`}>
+                    {assignedByStaff ? '✓ จัดส่งแล้ว' : 'รอดำเนินการ'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Staff Work Status Panel - Show only if customer was sent to staff (after notification sent) */}
+        {/* Staff Work Status Panel */}
         {assignedByStaff && assignedByStaff.documentId && latestNotification && latestNotification.id ? (
           <div className="staff-work-status-panel">
             <div className="status-panel-header">
@@ -2518,5 +2544,3 @@ function CustomerDetail() {
 }
 
 export default CustomerDetail;
-
-

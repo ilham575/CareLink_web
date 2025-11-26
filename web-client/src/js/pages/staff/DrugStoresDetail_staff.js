@@ -10,11 +10,16 @@ import { API } from '../../../utils/apiConfig';
 
 function getImageUrl(photo) {
   if (!photo) return null;
-  if (photo.documentId) {
-    return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+  // ถ้า photo มี id field (file ID)
+  if (photo.id) {
+    return `${API.BASE_URL}/api/upload/files/${photo.id}/download`;
   }
-  if (photo.formats?.medium?.url) return photo.formats.medium.url;
-  if (photo.url) return photo.url;
+  // ถ้า photo มี url ใน formats
+  if (photo.formats?.medium?.url) return `${API.BASE_URL}${photo.formats.medium.url}`;
+  if (photo.formats?.large?.url) return `${API.BASE_URL}${photo.formats.large.url}`;
+  if (photo.formats?.thumbnail?.url) return `${API.BASE_URL}${photo.formats.thumbnail.url}`;
+  // ถ้า photo มี url โดยตรง
+  if (photo.url) return photo.url.startsWith('http') ? photo.url : `${API.BASE_URL}${photo.url}`;
   return null;
 }
 
