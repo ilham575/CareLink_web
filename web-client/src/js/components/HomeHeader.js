@@ -176,8 +176,10 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch }) {
     location.pathname.startsWith('/drug_store_pharmacy/') ||
     location.pathname.startsWith('/drug_store_admin/') ||
     location.pathname.startsWith('/drug_store_staff/') ||
+    location.pathname.startsWith('/drug_store_customer/') ||
     location.pathname.startsWith('/staff_detail_admin/') ||
     location.pathname.startsWith('/customer_detail/') ||
+    location.pathname.startsWith('/customer_detail_view/') ||
     location.pathname.startsWith('/pharmacist_detail_admin/') ||
     location.pathname.startsWith('/add_pharmacy_admin/') ||
     location.pathname.startsWith('/edit_pharmacist_admin/'); // เพิ่มบรรทัดนี้

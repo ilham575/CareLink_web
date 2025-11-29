@@ -706,7 +706,7 @@ export default function DrugList() {
   return (
     <div className="app-container drugs-page">
       <ToastContainer />
-      <HomeHeader onSearch={() => {}} isLoggedIn={true} />
+      <HomeHeader pharmacyName={store?.attributes?.name_th || store?.name_th} onSearch={() => {}} isLoggedIn={true} />
       <main className="main-content drugs-main">
         <div className="drugs-header">
           <h2 className="store-title">{store?.attributes?.name_th || 'รายการยา'}</h2>

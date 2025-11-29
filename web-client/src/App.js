@@ -32,6 +32,8 @@ import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
 import EditStaffProfile from './js/pages/staff/editStaffProfile';
 import FormCustomerPage from './js/components/middle_page/formcustomerPage';
 import CustomerDetail from './js/pages/pharmacy/detail_customer';
+import DrugStoresDetail_customer from './js/pages/customer/DrugStoresDetail_customer';
+import CustomerDetail_customer from './js/pages/customer/CustomerDetail_customer';
 import RoleBasedRedirect from './js/utils/rolebasedredirect';
 import 'antd/dist/reset.css';
 import { API } from './utils/apiConfig';
@@ -83,6 +85,8 @@ function App() {
           {/* -------------------- CUSTOMER -------------------- */}
           <Route element={<RequireRole role="customer" />}>
             <Route path="/customerHome" element={<CustomerHome />} />
+            <Route path="/drug_store_customer/:id" element={<DrugStoresDetail_customer />} />
+            <Route path="/customer_detail_view/:customerDocumentId" element={<CustomerDetail_customer />} />
           </Route>
 
           {/* -------------------- STAFF MANAGEMENT -------------------- */}

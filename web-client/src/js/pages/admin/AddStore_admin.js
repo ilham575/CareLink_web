@@ -277,7 +277,9 @@ function AddStore_admin() {
     <>
       <HomeHeader />
       <div className="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6 mt-6">
-        <h2 className="text-2xl font-bold text-center mb-6 text-green-700">เพิ่มร้านขายยา</h2>
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-center mb-2 text-green-700">เพิ่มร้านขายยา</h2>
+        </div>
 
         {step === 1 && (
           <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -462,7 +464,20 @@ function AddStore_admin() {
               </div>
             </div>
 
-            <div className="md:col-span-2 flex justify-end">
+            <div className="md:col-span-2 flex justify-between items-center">
+              <button
+                type="button"
+                className="bg-gray-500 text-white font-bold py-2 px-4 rounded hover:bg-gray-600"
+                onClick={() => {
+                  const role = localStorage.getItem('role');
+                  if (role === 'admin') navigate('/adminHome');
+                  else if (role === 'pharmacy') navigate('/pharmacyHome');
+                  else if (role === 'staff') navigate('/staffHome');
+                  else navigate(-1);
+                }}
+              >
+                กลับ
+              </button>
               <button
                 type="button"
                 className="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700"
@@ -532,15 +547,31 @@ function AddStore_admin() {
               </label>
             </div>
 
-            <div className="flex justify-between">
-              <button
-                type="button"
-                className="bg-gray-500 text-white font-bold py-2 px-6 rounded hover:bg-gray-600"
-                onClick={handleBack}
-                disabled={isSubmitting}
-              >
-                ย้อนกลับ
-              </button>
+            <div className="flex items-center justify-between">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="bg-gray-500 text-white font-bold py-2 px-6 rounded hover:bg-gray-600"
+                  onClick={() => {
+                    const role = localStorage.getItem('role');
+                    if (role === 'admin') navigate('/adminHome');
+                    else if (role === 'pharmacy') navigate('/pharmacyHome');
+                    else if (role === 'staff') navigate('/staffHome');
+                    else navigate(-1);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  กลับ
+                </button>
+                <button
+                  type="button"
+                  className="bg-gray-500 text-white font-bold py-2 px-6 rounded hover:bg-gray-600"
+                  onClick={handleBack}
+                  disabled={isSubmitting}
+                >
+                  ย้อนกลับ
+                </button>
+              </div>
               <button
                 type="submit"
                 className={`py-2 px-6 rounded font-bold ${

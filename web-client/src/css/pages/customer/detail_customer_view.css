@@ -1,0 +1,767 @@
+/* ========================================
+   Customer Detail View CSS - Simplified
+   Adapted from detail_customer.css
+   ======================================== */
+
+.customer-detail-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.customer-detail-container .main-content {
+  flex: 1;
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ========================================
+   Tabs Styling
+   ======================================== */
+
+.customer-detail-tabs.responsive {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.customer-detail-tabs.responsive .ant-tabs-nav {
+  background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.customer-detail-tabs.responsive .ant-tabs-tab {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 16px 24px !important;
+  color: #64748b;
+  transition: all 0.3s ease;
+  border: none !important;
+}
+
+.customer-detail-tabs.responsive .ant-tabs-tab:hover {
+  color: #0050b3;
+  background: rgba(0, 80, 179, 0.05);
+}
+
+.customer-detail-tabs.responsive .ant-tabs-tab-active {
+  color: #0050b3 !important;
+  background: rgba(0, 80, 179, 0.1) !important;
+}
+
+.customer-detail-tabs.responsive .ant-tabs-tab-active::after {
+  background: linear-gradient(90deg, #1890ff, #0050b3) !important;
+}
+
+.customer-detail-tabs.responsive .ant-tabs-content {
+  padding: 30px 0;
+}
+
+.tab-badge {
+  background: #52c41a;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+/* ========================================
+   Basic Information Section
+   ======================================== */
+
+.customer-info-form.responsive {
+  padding: 20px 0;
+}
+
+.essential-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.info-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.info-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 80, 179, 0.12);
+  transform: translateY(-2px);
+}
+
+.info-card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.info-card-icon {
+  font-size: 28px;
+  margin-right: 12px;
+}
+
+.info-card h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.info-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-row label {
+  font-weight: 600;
+  color: #64748b;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-row span {
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.info-row .text-warning {
+  color: #ff4d4f;
+  font-weight: 600;
+}
+
+/* ========================================
+   Symptoms & Follow-up Section
+   ======================================== */
+
+.symptoms-followup-panel.responsive {
+  display: grid;
+  gap: 24px;
+}
+
+.symptom-section,
+.followup-section,
+.alert-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.symptom-section-header {
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.symptom-card {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 20px;
+  border-left: 4px solid #0050b3;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.symptom-main,
+.symptom-history,
+.symptom-note {
+  margin-bottom: 12px;
+}
+
+.symptom-main:last-child,
+.symptom-history:last-child,
+.symptom-note:last-child {
+  margin-bottom: 0;
+}
+
+.symptom-main label,
+.symptom-history label,
+.symptom-note label {
+  display: block;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.symptom-display {
+  color: #1e293b;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+}
+
+.symptom-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+}
+
+.symptom-empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.symptom-empty h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #64748b;
+}
+
+/* Follow-up Section */
+.followup-card {
+  background: #f0f5ff;
+  border-radius: 8px;
+  padding: 20px;
+  border-left: 4px solid #1890ff;
+}
+
+.current-appointment {
+  margin-bottom: 16px;
+}
+
+.appointment-info {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.appointment-label {
+  font-weight: 600;
+  color: #64748b;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.appointment-date {
+  color: #1e293b;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.appointment-status {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.status-badge {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.upcoming {
+  background: #f6ffed;
+  color: #274e0a;
+  border: 1px solid #b7eb8f;
+}
+
+.status-badge.overdue {
+  background: #fff7e6;
+  color: #ad6800;
+  border: 1px solid #ffc53d;
+}
+
+/* Alert Section */
+.alert-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.alert-card {
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  border-left: 4px solid;
+}
+
+.alert-card.allergy {
+  background: #fff7e6;
+  border-left-color: #fa8c16;
+}
+
+.alert-card.disease {
+  background: #f0f5ff;
+  border-left-color: #1890ff;
+}
+
+.alert-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.alert-content {
+  flex: 1;
+}
+
+.alert-content h4 {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.alert-content p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+/* ========================================
+   Prescribed Drugs Section
+   ======================================== */
+
+.customer-actions-panel.responsive {
+  padding: 0;
+}
+
+.actions-header.responsive {
+  margin-bottom: 24px;
+}
+
+.actions-header h2 {
+  margin: 0;
+  padding-top: 10px;
+  padding-left: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.prescribed-drugs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f0f5ff 0%, #e6f7ff 100%);
+  border-radius: 12px;
+  border-left: 5px solid #0050b3;
+}
+
+.prescribed-drugs-info {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex: 1;
+}
+
+.prescribed-drugs-icon {
+  font-size: 32px;
+}
+
+.prescribed-drugs-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0050b3;
+}
+
+.prescribed-drugs-patient {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.prescribed-drugs-count {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0050b3;
+  background: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Drug Grid */
+.prescribed-drugs-grid {
+  display: grid;
+  /* give each card more visual space to avoid cramped layout */
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 24px;
+}
+
+.prescribed-drug-card-individual {
+  background: white;
+  border-radius: 12px;
+  padding: 24px; /* slightly larger padding for better spacing */
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 150px; /* prevents visually short cards */
+}
+
+.prescribed-drug-card-individual:hover {
+  box-shadow: 0 4px 16px rgba(0, 80, 179, 0.12);
+  border-color: #0050b3;
+  transform: translateY(-2px);
+}
+
+.prescribed-drug-quantity-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: #16a34a; /* slightly darker green for contrast */
+  color: white;
+  padding: 6px 12px;
+  border-radius: 999px; /* pill */
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.prescribed-drug-header {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  align-items: center; /* vertically center icon + info */
+}
+
+.prescribed-drug-icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #0050b3, #1890ff);
+  color: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.prescribed-drug-info {
+  flex: 1;
+}
+
+.prescribed-drug-name {
+  margin: 0 0 6px 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.prescribed-drug-name-en {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #8c8c8c;
+  font-style: italic;
+}
+
+.prescribed-drug-price {
+  font-size: 14px;
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.prescribed-drug-description {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+  min-height: 44px;
+}
+
+.prescribed-drug-description p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.8;
+  word-break: break-word;
+  background: transparent; /* ensure no input-like backgrounds leak in */
+  border-radius: 6px;
+}
+
+/* ========================================
+   Actions Panel
+   ======================================== */
+
+.customer-actions-panel {
+  padding: 24px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  margin-top: 24px;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.action-btn {
+  padding: 14px 24px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.action-btn.green {
+  background: linear-gradient(135deg, #52c41a, #73d13d);
+  color: white;
+  box-shadow: 0 2px 8px rgba(82, 196, 26, 0.3);
+}
+
+.action-btn.green:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.4);
+  background: linear-gradient(135deg, #73d13d, #95de64);
+}
+
+.action-btn.green:active {
+  transform: translateY(0);
+}
+
+/* ========================================
+   Empty State
+   ======================================== */
+
+.no-drugs-placeholder {
+  text-align: center;
+  padding: 60px 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 2px dashed #e2e8f0;
+}
+
+.no-drugs-placeholder-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.no-drugs-placeholder h3 {
+  color: #64748b;
+  font-size: 18px;
+  margin: 0;
+  font-weight: 600;
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .essential-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .alert-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prescribed-drugs-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .customer-detail-container .main-content {
+    padding: 15px;
+  }
+
+  .customer-detail-tabs.responsive .ant-tabs-tab {
+    padding: 12px 16px !important;
+    font-size: 12px;
+  }
+
+  .info-card,
+  .symptom-section,
+  .followup-section,
+  .alert-section {
+    padding: 16px;
+  }
+
+  .info-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .prescribed-drugs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prescribed-drug-card-individual {
+    min-height: 120px;
+    padding: 16px;
+  }
+
+  .prescribed-drugs-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .prescribed-drugs-count {
+    width: 100%;
+  }
+
+  .actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .appointment-info {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .customer-detail-container .main-content {
+    padding: 12px;
+  }
+
+  .customer-detail-tabs.responsive .ant-tabs-content {
+    padding: 15px 0;
+  }
+
+  .info-card,
+  .symptom-section,
+  .followup-section,
+  .alert-section,
+  .customer-actions-panel {
+    padding: 12px;
+  }
+
+  .prescribed-drug-name {
+    font-size: 14px;
+  }
+
+  .prescribed-drug-name-en {
+    font-size: 11px;
+  }
+
+  .action-btn {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+
+  .prescribed-drug-header {
+    gap: 10px;
+  }
+
+  .prescribed-drug-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+  }
+}
+
+/* ========================================
+   Animations
+   ======================================== */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.info-card,
+.symptom-card,
+.followup-card,
+.alert-card,
+.prescribed-drug-card-individual {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.info-card:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.info-card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+/* ========================================
+   Utility Classes
+   ======================================== */
+
+.responsive {
+  width: 100%;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mt-20 {
+  margin-top: 20px;
+}
+
+.mb-20 {
+  margin-bottom: 20px;
+}
+
+.p-20 {
+  padding: 20px;
+}
