@@ -128,37 +128,72 @@ function CustomerDetailCustomer() {
   }
 
   const customerData = customer.attributes || customer;
+  const user = customerData.users_permissions_user;
 
   return (
-    <div className="customer-detail-container">
+    <div className="cust-detail-container">
       <ToastContainer />
       <HomeHeader isLoggedIn={true} pharmacyName={pharmacyName} pharmacistName={pharmacistName} />
-      <main className="main-content">
+      <main className="cust-main-content">
+        {/* Header Summary - แสดงข้อมูลสำคัญ */}
+        <div className="cust-header-summary">
+          <div className="cust-header-avatar">
+            {user?.full_name?.charAt(0)?.toUpperCase() || customerData.full_name?.charAt(0)?.toUpperCase() || 'C'}
+          </div>
+          <div className="cust-header-info">
+            <h1 className="cust-header-name">{user?.full_name || customerData.full_name || 'ไม่พบชื่อ'}</h1>
+            <div className="cust-header-meta">
+              <span className="cust-meta-item">📞 {user?.phone || customerData.phone || 'ไม่ระบุเบอร์'}</span>
+              {customerData.Follow_up_appointment_date && (
+                <span className="cust-meta-item">📅 นัดถัดไป: {formatThaiDate(customerData.Follow_up_appointment_date)}</span>
+              )}
+            </div>
+            {pharmacyName && (
+              <div className="cust-header-pharmacy">
+                <span>🏥 ร้านยา: {pharmacyName}</span>
+                {pharmacistName && <span className="cust-pharmacist">👨‍⚕️ เภสัชกร: {pharmacistName}</span>}
+              </div>
+            )}
+          </div>
+          <div className="cust-header-stats">
+            <div className="cust-stat-box">
+              <span className="cust-stat-value">{customerData.prescribed_drugs?.length || 0}</span>
+              <span className="cust-stat-label">รายการยา</span>
+            </div>
+            {customerData.Allergic_drugs && (
+              <div className="cust-stat-box warning">
+                <span className="cust-stat-icon">⚠️</span>
+                <span className="cust-stat-label">มียาที่แพ้</span>
+              </div>
+            )}
+          </div>
+        </div>
+
         <Tabs
           defaultActiveKey="1"
           type="card"
-          className="customer-detail-tabs responsive"
+          className="cust-detail-tabs"
         >
           {/* Tab 1: ข้อมูลพื้นฐาน */}
           <Tabs.TabPane tab={<span>📋 ข้อมูลพื้นฐาน</span>} key="1">
-            <div className="customer-info-form responsive">
-              <div className="essential-info-grid">
+            <div className="cust-info-form">
+              <div className="cust-info-grid">
                 {/* Card 1: ข้อมูลติดต่อ */}
-                <div className="info-card">
-                  <div className="info-card-header">
-                    <span className="info-card-icon">👤</span>
+                <div className="cust-info-card">
+                  <div className="cust-info-card-header">
+                    <span className="cust-info-card-icon">👤</span>
                     <h3>ข้อมูลติดต่อ</h3>
                   </div>
-                  <div className="info-card-content">
-                    <div className="info-row">
+                  <div className="cust-info-card-content">
+                    <div className="cust-info-row">
                       <label>ชื่อ-นามสกุล:</label>
                       <span>{customerData.users_permissions_user?.full_name || customerData.full_name || 'ไม่มีข้อมูล'}</span>
                     </div>
-                    <div className="info-row">
+                    <div className="cust-info-row">
                       <label>เบอร์โทรศัพท์:</label>
                       <span>{customerData.users_permissions_user?.phone || customerData.phone || 'ไม่มีข้อมูล'}</span>
                     </div>
-                    <div className="info-row">
+                    <div className="cust-info-row">
                       <label>อีเมล:</label>
                       <span>{customerData.users_permissions_user?.email || customerData.email || 'ไม่มีข้อมูล'}</span>
                     </div>
@@ -166,17 +201,17 @@ function CustomerDetailCustomer() {
                 </div>
 
                 {/* Card 2: ข้อมูลสำคัญ */}
-                <div className="info-card">
-                  <div className="info-card-header">
-                    <span className="info-card-icon">⚠️</span>
+                <div className="cust-info-card">
+                  <div className="cust-info-card-header">
+                    <span className="cust-info-card-icon">⚠️</span>
                     <h3>ข้อมูลสำคัญ</h3>
                   </div>
-                  <div className="info-card-content">
-                    <div className="info-row">
+                  <div className="cust-info-card-content">
+                    <div className="cust-info-row">
                       <label>ยาที่แพ้:</label>
-                      <span className="text-warning">{customerData.Allergic_drugs || 'ไม่มีข้อมูล'}</span>
+                      <span className="cust-text-warning">{customerData.Allergic_drugs || 'ไม่มีข้อมูล'}</span>
                     </div>
-                    <div className="info-row">
+                    <div className="cust-info-row">
                       <label>โรคประจำตัว:</label>
                       <span>{customerData.congenital_disease || 'ไม่มีข้อมูล'}</span>
                     </div>
@@ -188,23 +223,23 @@ function CustomerDetailCustomer() {
 
           {/* Tab 2: อาการและการติดตาม */}
           <Tabs.TabPane tab={<span>🩺 อาการและการติดตาม</span>} key="2">
-            <div className="symptoms-followup-panel responsive">
+            <div className="cust-symptoms-panel">
               {/* อาการปัจจุบัน */}
-              <div className="symptom-section">
-                <div className="symptom-section-header">
-                  <h3 className="section-title">🩺 อาการปัจจุบัน</h3>
+              <div className="cust-symptom-section">
+                <div className="cust-symptom-header">
+                  <h3 className="cust-section-title">🩺 อาการปัจจุบัน</h3>
                 </div>
                 
-                <div className="symptom-card">
+                <div className="cust-symptom-card">
                   {customerData.Customers_symptoms ? (
-                    <div className="symptom-main">
-                      <div className="symptom-display">
+                    <div className="cust-symptom-main">
+                      <div className="cust-symptom-display">
                         {customerData.Customers_symptoms}
                       </div>
                     </div>
                   ) : (
-                    <div className="symptom-empty">
-                      <div className="symptom-empty-icon">📝</div>
+                    <div className="cust-symptom-empty">
+                      <div className="cust-symptom-empty-icon">📝</div>
                       <h4>ไม่มีข้อมูลอาการ</h4>
                     </div>
                   )}
@@ -212,20 +247,20 @@ function CustomerDetailCustomer() {
               </div>
 
               {/* การนัดติดตาม */}
-              <div className="followup-section">
-                <h3 className="section-title">📅 การนัดติดตาม</h3>
-                <div className="followup-card">
-                  <div className="current-appointment">
-                    <div className="appointment-info">
-                      <span className="appointment-label">วันนัดติดตามอาการ:</span>
-                      <span className="appointment-date">
+              <div className="cust-followup-section">
+                <h3 className="cust-section-title">📅 การนัดติดตาม</h3>
+                <div className="cust-followup-card">
+                  <div className="cust-appointment">
+                    <div className="cust-appointment-info">
+                      <span className="cust-appointment-label">วันนัดติดตามอาการ:</span>
+                      <span className="cust-appointment-date">
                         {customerData.Follow_up_appointment_date ? formatThaiDate(customerData.Follow_up_appointment_date) : 'ยังไม่ได้กำหนด'}
                       </span>
                     </div>
                   </div>
                   {customerData.Follow_up_appointment_date && (
-                    <div className="appointment-status">
-                      <div className={`status-badge ${new Date(customerData.Follow_up_appointment_date) > new Date() ? 'upcoming' : 'overdue'}`}>
+                    <div className="cust-appointment-status">
+                      <div className={`cust-status-badge ${new Date(customerData.Follow_up_appointment_date) > new Date() ? 'upcoming' : 'overdue'}`}>
                         {new Date(customerData.Follow_up_appointment_date) > new Date() ? '📋 กำหนดการ' : '⚠️ ครบกำหนด'}
                       </div>
                     </div>
@@ -234,19 +269,19 @@ function CustomerDetailCustomer() {
               </div>
 
               {/* ข้อมูลเตือนสำคัญ */}
-              <div className="alert-section">
-                <h3 className="section-title">⚠️ ข้อมูลสำคัญที่ต้องระวัง</h3>
-                <div className="alert-grid">
-                  <div className="alert-card allergy">
-                    <div className="alert-icon">🚫</div>
-                    <div className="alert-content">
+              <div className="cust-alert-section">
+                <h3 className="cust-section-title">⚠️ ข้อมูลสำคัญที่ต้องระวัง</h3>
+                <div className="cust-alert-grid">
+                  <div className="cust-alert-card allergy">
+                    <div className="cust-alert-icon">🚫</div>
+                    <div className="cust-alert-content">
                       <h4>ยาที่แพ้</h4>
                       <p>{customerData.Allergic_drugs || 'ไม่มีข้อมูล'}</p>
                     </div>
                   </div>
-                  <div className="alert-card disease">
-                    <div className="alert-icon">🏥</div>
-                    <div className="alert-content">
+                  <div className="cust-alert-card disease">
+                    <div className="cust-alert-icon">🏥</div>
+                    <div className="cust-alert-content">
                       <h4>โรคประจำตัว</h4>
                       <p>{customerData.congenital_disease || 'ไม่มีข้อมูล'}</p>
                     </div>
@@ -257,75 +292,69 @@ function CustomerDetailCustomer() {
           </Tabs.TabPane>
 
           {/* Tab 3: รายการยา */}
-          <Tabs.TabPane tab={<span>💊 รายการยา <span className="tab-badge">{customerData?.prescribed_drugs?.length || 0}</span></span>} key="3">
-            <div className="customer-actions-panel responsive">
-              <div className="actions-header responsive">
-                <h2>รายการยาที่ต้องใช้</h2>
-              </div>
-
+          <Tabs.TabPane tab={<span>💊 รายการยา <span className="cust-tab-badge">{customerData?.prescribed_drugs?.length || 0}</span></span>} key="3">
+            <div className="cust-drugs-panel">
               {customerData.prescribed_drugs && customerData.prescribed_drugs.length > 0 ? (
-                <div style={{ marginBottom: '20px' }}>
-                  <div className="prescribed-drugs-header">
-                    <div className="prescribed-drugs-info">
-                      <span className="prescribed-drugs-icon">💊</span>
+                <>
+                  <div className="cust-drugs-header">
+                    <div className="cust-drugs-info">
+                      <span className="cust-drugs-icon">💊</span>
                       <div>
-                        <h3 className="prescribed-drugs-title">ยาที่กำหนดแล้ว:</h3>
-                        <p className="prescribed-drugs-patient">
-                          {customerData.users_permissions_user?.full_name || customerData.full_name || 'ผู้ป่วย'}
+                        <h3 className="cust-drugs-title">รายการยาที่กำหนด</h3>
+                        <p className="cust-drugs-patient">
+                          {user?.full_name || customerData.full_name || 'ผู้ป่วย'}
                         </p>
                       </div>
                     </div>
-                    <div className="prescribed-drugs-count">
-                      {customerData.prescribed_drugs.length} รายการ
+                    <div className="cust-drugs-count">
+                      {customerData.prescribed_drugs.length}
                     </div>
                   </div>
                   
-                  <div className="prescribed-drugs-grid">
+                  <div className="cust-drugs-grid">
                     {customerData.prescribed_drugs.map((drugItem, index) => {
                       const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
                       const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
                       const drug = availableDrugs.find(d => d.documentId === drugId || d.id === drugId);
                       
                       return (
-                        <div key={drugId || index} className="prescribed-drug-card-individual">
-                          <div className="prescribed-drug-quantity-badge">
-                            จำนวน {quantity}
+                        <div key={drugId || index} className="cust-drug-card">
+                          <div className="cust-drug-qty-badge">
+                            x{quantity}
                           </div>
 
-                          <div className="prescribed-drug-header">
-                            <div className="prescribed-drug-icon">
+                          <div className="cust-drug-header">
+                            <div className="cust-drug-icon">
                               Rx
                             </div>
-                            <div className="prescribed-drug-info">
-                              <h4 className="prescribed-drug-name">
+                            <div className="cust-drug-info">
+                              <h4 className="cust-drug-name">
                                 {drug ? drug.name_th : 'กำลังโหลด...'}
                               </h4>
-                              <p className="prescribed-drug-name-en">
+                              <p className="cust-drug-name-en">
                                 {drug ? drug.name_en : '-'}
                               </p>
                               {drug && drug.price && (
-                                <div className="prescribed-drug-price">
-                                  ราคา: {drug.price} บาท
+                                <div className="cust-drug-price">
+                                  ฿{drug.price}
                                 </div>
                               )}
                             </div>
                           </div>
 
                           {drug && drug.description && (
-                            <div className="prescribed-drug-description">
+                            <div className="cust-drug-desc">
                               <p>{drug.description}</p>
                             </div>
                           )}
-
-                          {/* Lot details Removed - customers should not see batch/lot info */}
                         </div>
                       );
                     })}
                   </div>
-                </div>
+                </>
               ) : (
-                <div className="no-drugs-placeholder">
-                  <div className="no-drugs-placeholder-icon">💊</div>
+                <div className="cust-no-drugs">
+                  <div className="cust-no-drugs-icon">💊</div>
                   <h3>ยังไม่มีรายการยาที่กำหนด</h3>
                 </div>
               )}
@@ -334,10 +363,10 @@ function CustomerDetailCustomer() {
 
           {/* Tab 4: ดำเนินการ */}
           <Tabs.TabPane tab={<span>📋 ดำเนินการ</span>} key="4">
-            <div className="customer-actions-panel">
-              <div className="actions-grid">
+            <div className="cust-actions-panel">
+              <div className="cust-actions-grid">
                 <button 
-                  className="action-btn green responsive" 
+                  className="cust-action-btn" 
                   onClick={handleBack}
                 >
                   ← กลับไปหน้าหลัก

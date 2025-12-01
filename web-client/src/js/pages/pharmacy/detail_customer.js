@@ -65,7 +65,10 @@ function CustomerDetail() {
     received_at: null,
     prepared_at: null,
     prepared_note: '',
-    outOfStock: []
+    outOfStock: [],
+    cancelled: false,
+    cancelled_at: null,
+    cancelled_note: ''
   });
   // Keep latest notification (if any) so we can tell initial assign vs update
   const [latestNotification, setLatestNotification] = useState(null);
@@ -197,7 +200,10 @@ function CustomerDetail() {
                       received_at: null,
                       prepared_at: null,
                       prepared_note: '',
-                      outOfStock: []
+                      outOfStock: [],
+                      cancelled: false,
+                      cancelled_at: null,
+                      cancelled_note: ''
                     });
                   }
                 } else {
@@ -210,7 +216,10 @@ function CustomerDetail() {
                     received_at: null,
                     prepared_at: null,
                     prepared_note: '',
-                    outOfStock: []
+                    outOfStock: [],
+                    cancelled: false,
+                    cancelled_at: null,
+                    cancelled_note: ''
                   });
                 }
               } else {
@@ -238,6 +247,50 @@ function CustomerDetail() {
       loadCustomerData();
     }
   }, [customerDocumentId, pharmacyId]);
+
+  // Poll notification status ทุก 3 วินาที เพื่อรับข้อมูลอัพเดตจาก staff
+  useEffect(() => {
+    if (!customerDocumentId || !assignedByStaff?.documentId) return;
+
+    const pollNotificationStatus = async () => {
+      try {
+        const token = localStorage.getItem('jwt');
+        const notificationRes = await fetch(
+          API.notifications.getCustomerNotifications(customerDocumentId),
+          {
+            headers: { Authorization: token ? `Bearer ${token}` : "" }
+          }
+        );
+
+        if (notificationRes.ok) {
+          const notifData = await notificationRes.json();
+          const notification = notifData.data?.[0];
+          
+          if (notification && notification.staff_work_status) {
+            // อัพเดต staffWorkStatus ถ้าข้อมูลเปลี่ยนแปลง
+            setStaffWorkStatus(prevStatus => {
+              const hasChanges = JSON.stringify(prevStatus) !== JSON.stringify(notification.staff_work_status);
+              if (hasChanges) {
+                console.log('Staff work status updated:', notification.staff_work_status);
+              }
+              return notification.staff_work_status;
+            });
+            setLatestNotification(notification);
+          }
+        }
+      } catch (error) {
+        console.error('Error polling notification status:', error);
+      }
+    };
+
+    // เรียก poll ทันที
+    pollNotificationStatus();
+
+    // ตั้ง interval เพื่อ poll ทุก 3 วินาที
+    const intervalId = setInterval(pollNotificationStatus, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [customerDocumentId, assignedByStaff?.documentId]);
 
   const handleEdit = () => {
     navigate(`/form_customer?documentId=${customerDocumentId}&pharmacyId=${pharmacy?.documentId || pharmacyId}`);
@@ -900,7 +953,10 @@ function CustomerDetail() {
               received_at: createdEntry.staff_work_status.received_at || null,
               prepared_at: createdEntry.staff_work_status.prepared_at || null,
               prepared_note: createdEntry.staff_work_status.prepared_note || '',
-              outOfStock: createdEntry.staff_work_status.outOfStock || []
+              outOfStock: createdEntry.staff_work_status.outOfStock || [],
+              cancelled: createdEntry.staff_work_status.cancelled || false,
+              cancelled_at: createdEntry.staff_work_status.cancelled_at || null,
+              cancelled_note: createdEntry.staff_work_status.cancelled_note || ''
             }));
           } else {
             console.warn('NO staff_work_status in notification response - initializing defaults');
@@ -910,7 +966,10 @@ function CustomerDetail() {
               received_at: null,
               prepared_at: null,
               prepared_note: '',
-              outOfStock: []
+              outOfStock: [],
+              cancelled: false,
+              cancelled_at: null,
+              cancelled_note: ''
             });
           }
         } catch (e) {
@@ -938,9 +997,9 @@ function CustomerDetail() {
 
   if (loading) {
     return (
-      <div className="customer-detail-page">
+      <div className="staff-cust-detail-page">
         <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
-        <main className="customer-detail-main">
+        <main className="staff-cust-detail-main">
           <div className="loading-container">
             <div className="loading-spinner"></div>
             <p>กำลังโหลดข้อมูล...</p>
@@ -953,9 +1012,9 @@ function CustomerDetail() {
 
   if (!customer) {
     return (
-      <div className="customer-detail-page">
+      <div className="staff-cust-detail-page">
         <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
-        <main className="customer-detail-main">
+        <main className="staff-cust-detail-main">
           <div className="error-container">
             <h2>ไม่พบข้อมูลลูกค้า</h2>
             <button className="btn-back" onClick={handleBack}>
@@ -971,14 +1030,14 @@ function CustomerDetail() {
   const user = customer.users_permissions_user;
 
   return (
-    <div className="customer-detail-page">
+    <div className="staff-cust-detail-page">
       <ToastContainer />
       <HomeHeader 
         pharmacyName={pharmacy?.name_th || pharmacy?.attributes?.name_th || ''}
         pharmacistName={getPharmacistName(pharmacy)}
       />
       
-      <main className="customer-detail-main">
+      <main className="staff-cust-detail-main">
         {/* Modern Header Section */}
         <div className="modern-detail-header">
           <div className="header-backdrop" />
@@ -1043,16 +1102,30 @@ function CustomerDetail() {
               </button>
               
               <button
-                className={`status-btn ${staffWorkStatus.prepared ? 'completed' : staffWorkStatus.received ? 'pending' : 'disabled'}`}
+                className={`status-btn ${staffWorkStatus.prepared && !staffWorkStatus.cancelled ? 'completed' : staffWorkStatus.received ? 'pending' : 'disabled'}`}
                 disabled={true}
-                title="รอพนักงานอัปเดตสถานะ"
+                title={staffWorkStatus.cancelled ? 'พนักงานยกเลิกการจัดส่ง - รอจัดส่งใหม่' : 'รอพนักงานอัปเดตสถานะ'}
               >
-                <span className="status-icon">{staffWorkStatus.prepared ? '✅' : '📦'}</span>
+                <span className="status-icon">{staffWorkStatus.prepared && !staffWorkStatus.cancelled ? '✅' : '📦'}</span>
                 <span className="status-text">จัดยาส่งแล้ว</span>
-                {staffWorkStatus.prepared_at && (
+                {staffWorkStatus.prepared_at && !staffWorkStatus.cancelled && (
                   <span className="status-time">{formatThaiDate(staffWorkStatus.prepared_at)}</span>
                 )}
               </button>
+
+              {staffWorkStatus.cancelled && (
+                <button
+                  className={`status-btn cancelled`}
+                  disabled={true}
+                  title="ยกเลิกการจัดส่งแล้ว"
+                >
+                  <span className="status-icon">⏮️</span>
+                  <span className="status-text">ยกเลิกการจัดส่ง</span>
+                  {staffWorkStatus.cancelled_at && (
+                    <span className="status-time">{formatThaiDate(staffWorkStatus.cancelled_at)}</span>
+                  )}
+                </button>
+              )}
               
               <button
                 className={`status-btn ${staffWorkStatus.outOfStock.length > 0 ? 'warning' : 'pending'}`}
@@ -1085,6 +1158,13 @@ function CustomerDetail() {
                 <span className="note-text">{staffWorkStatus.prepared_note}</span>
               </div>
             )}
+
+            {staffWorkStatus.cancelled_note && (
+              <div className="status-note" style={{ background: '#fff7e6', borderLeft: '4px solid #ffc53d' }}>
+                <span className="note-icon">⏮️</span>
+                <span className="note-text" style={{ color: '#ad6800' }}>การยกเลิก: {staffWorkStatus.cancelled_note}</span>
+              </div>
+            )}
           </div>
         ) : null}
 
@@ -1094,10 +1174,10 @@ function CustomerDetail() {
           defaultActiveKey="1" 
           type="card" 
           size="large"
-          className="customer-detail-tabs responsive"
+          className="staff-cust-detail-tabs responsive"
         >
           <Tabs.TabPane tab={<span>ข้อมูลพื้นฐาน</span>} key="1">
-            <div className="customer-info-form responsive">
+            <div className="staff-cust-info-form responsive">
               {/* Essential Customer Info */}
               <div className="essential-info-grid">
                 <div className="info-card">
@@ -1258,55 +1338,38 @@ function CustomerDetail() {
             </div>
           </Tabs.TabPane>
           <Tabs.TabPane tab={<span>ยาและการดำเนินการ <span className="tab-badge">{customer?.prescribed_drugs?.length || 0}</span></span>} key="3">
-            <div className="customer-actions-panel responsive">
-            <div className="actions-header responsive">
-              <h2>รายการยาที่ต้องใช้</h2>
-              <button 
-                className="btn-add" 
-                onClick={staffWorkStatus.prepared ? undefined : handleOpenAddDrugModal}
-                disabled={staffWorkStatus.prepared}
-                title={staffWorkStatus.prepared ? 'พนักงานจัดยาแล้ว — ไม่สามารถเพิ่มยาใหม่ได้' : 'เพิ่มยา'}
-              >
-                เพิ่มยา
-              </button>
-            </div>
+            <div className="staff-cust-actions-panel responsive">
+              {/* แสดงรายการยาที่กำหนดแล้วในรูปแบบ Card Layout */}
+              {customer.prescribed_drugs && customer.prescribed_drugs.length > 0 ? (
+                <div className="pharm-prescribed-drugs-container">
+                  <div className="pharm-prescribed-drugs-toolbar">
+                    <h2>รายการยาที่ต้องใช้</h2>
+                    <button 
+                      className="btn-add" 
+                      onClick={staffWorkStatus.prepared ? undefined : handleOpenAddDrugModal}
+                      disabled={staffWorkStatus.prepared}
+                      title={staffWorkStatus.prepared ? 'พนักงานจัดยาแล้ว — ไม่สามารถเพิ่มยาใหม่ได้' : 'เพิ่มยา'}
+                    >
+                      เพิ่มยา
+                    </button>
+                  </div>
 
-            {/* แสดงรายการยาที่กำหนดแล้วในรูปแบบ Card Layout */}
-            {customer.prescribed_drugs && customer.prescribed_drugs.length > 0 ? (
-              <div style={{ marginBottom: '20px' }}>
-                <div className="prescribed-drugs-header">
-                  <div className="prescribed-drugs-info">
-                    <span className="prescribed-drugs-icon">💊</span>
-                    <div>
-                      <h3 className="prescribed-drugs-title">
-                        ยาที่กำหนดแล้ว:
-                      </h3>
-                      <p className="prescribed-drugs-patient">
-                        {user?.full_name || 'ผู้ป่วย'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="prescribed-drugs-count">
-                    {customer.prescribed_drugs.length} รายการ
-                  </div>
-                </div>
-                
-                {/* Grid Layout สำหรับยา */}
-                <div className="prescribed-drugs-grid">
-                  {customer.prescribed_drugs.map((drugItem, index) => {
-                    // รองรับทั้งรูปแบบเก่า (string) และใหม่ (object)
-                    const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
-                    const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
-                    const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
-                    const isOutOfStock = (
-                      Array.isArray(outOfStockIds) && outOfStockIds.includes(drugId)
-                    ) || (
-                      Array.isArray(staffWorkStatus?.outOfStock) && staffWorkStatus.outOfStock.includes(drugId)
-                    );
-                    return (
-                      <div
+                  {/* Grid Layout สำหรับยา */}
+                  <div className="prescribed-drugs-grid">
+                    {customer.prescribed_drugs.map((drugItem, index) => {
+                      // รองรับทั้งรูปแบบเก่า (string) และใหม่ (object)
+                      const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
+                      const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
+                      const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
+                      const isOutOfStock = (
+                        Array.isArray(outOfStockIds) && outOfStockIds.includes(drugId)
+                      ) || (
+                        Array.isArray(staffWorkStatus?.outOfStock) && staffWorkStatus.outOfStock.includes(drugId)
+                      );
+                      return (
+                        <div
                         key={drugId}
-                        className="prescribed-drug-card-individual"
+                        className="pharm-prescribed-drug-card-individual"
                         style={{
                           opacity: isOutOfStock ? 0.85 : 1,
                           background: isOutOfStock ? '#fff7f6' : undefined,
@@ -1315,7 +1378,7 @@ function CustomerDetail() {
                         }}
                       >
                         {/* Quantity Badge */}
-                        <div className="prescribed-drug-quantity-badge">
+                        <div className="pharm-prescribed-drug-quantity-badge">
                           จำนวน {quantity}
                         </div>
 
@@ -1420,19 +1483,24 @@ function CustomerDetail() {
                                 toast.error(err.message || 'เกิดข้อผิดพลาด');
                               }
                             }}
+                            disabled={staffWorkStatus.prepared}
+                            title={staffWorkStatus.prepared ? 'ไม่สามารถลบยา — พนักงานจัดส่งแล้ว' : 'ลบยา'}
                             style={{
-                              background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                              color: 'white',
+                              background: staffWorkStatus.prepared ? '#d9d9d9' : 'linear-gradient(135deg, #ef4444, #dc2626)',
+                              color: staffWorkStatus.prepared ? '#999' : 'white',
                               border: 'none',
                               padding: '8px 12px',
                               borderRadius: '6px',
                               fontSize: '12px',
-                              cursor: 'pointer',
+                              cursor: staffWorkStatus.prepared ? 'not-allowed' : 'pointer',
                               fontWeight: 'bold',
-                              transition: 'all 0.3s ease'
+                              transition: 'all 0.3s ease',
+                              opacity: staffWorkStatus.prepared ? 0.6 : 1
                             }}
                             onMouseEnter={e => {
-                              e.target.style.transform = 'scale(1.05)';
+                              if (!staffWorkStatus.prepared) {
+                                e.target.style.transform = 'scale(1.05)';
+                              }
                             }}
                             onMouseLeave={e => {
                               e.target.style.transform = 'scale(1)';
@@ -1500,22 +1568,38 @@ function CustomerDetail() {
                 </div>
               </div>
             ) : (
-              <div className="no-drugs-placeholder">
-                <div className="no-drugs-placeholder-icon">💊</div>
-                <h3>
-                  ยังไม่มีรายการยาที่กำหนด
-                </h3>
-                <p>
-                  คลิกปุ่ม "เพิ่มยา" เพื่อเริ่มเลือกยาสำหรับผู้ป่วย
-                </p>
+              <div className="pharm-prescribed-drugs-container">
+                <div className="pharm-prescribed-drugs-toolbar">
+                  <h2>รายการยาที่ต้องใช้</h2>
+                  <button 
+                    className="btn-add" 
+                    onClick={staffWorkStatus.prepared ? undefined : handleOpenAddDrugModal}
+                    disabled={staffWorkStatus.prepared}
+                    title={staffWorkStatus.prepared ? 'พนักงานจัดยาแล้ว — ไม่สามารถเพิ่มยาใหม่ได้' : 'เพิ่มยา'}
+                  >
+                    เพิ่มยา
+                  </button>
+                </div>
+                <div className="no-drugs-placeholder">
+                  <div className="no-drugs-placeholder-icon">💊</div>
+                  <h3>
+                    ยังไม่มีรายการยาที่กำหนด
+                  </h3>
+                  <p>
+                    คลิกปุ่ม "เพิ่มยา" เพื่อเริ่มเลือกยาสำหรับผู้ป่วย
+                  </p>
+                </div>
               </div>
             )}
-          </div>
+            </div>
           </Tabs.TabPane>
           <Tabs.TabPane tab={<span>ดำเนินการ</span>} key="4">
-            <div className="customer-actions-panel responsive">
+            <div className="staff-cust-actions-panel responsive">
               <div className="actions-grid responsive">
-                <button className="action-btn green responsive">
+                <button 
+                  className="action-btn green responsive"
+                  onClick={() => navigate(`/print_allergy_card/${customerDocumentId}?pharmacyId=${pharmacy?.documentId || pharmacyId}`)}
+                >
                   <span>พิมพ์บัตรแพ้ยา</span>
                 </button>
 
@@ -1523,11 +1607,23 @@ function CustomerDetail() {
                   <span>{customer.Follow_up_appointment_date ? 'แก้ไขวันนัดติดตามอาการ' : 'เพิ่มวันนัดติดตามอาการ'}</span>
                 </button>
 
-                <button className="action-btn green responsive" onClick={handleOpenStaffAssignModal}>
+                <button 
+                  className="action-btn green responsive" 
+                  onClick={handleOpenStaffAssignModal}
+                  disabled={staffWorkStatus.prepared}
+                  title={staffWorkStatus.prepared ? 'ไม่สามารถส่งอัพเดต — พนักงานจัดส่งแล้ว' : 'ส่งข้อมูลให้พนักงาน'}
+                  style={{
+                    opacity: staffWorkStatus.prepared ? 0.5 : 1,
+                    cursor: staffWorkStatus.prepared ? 'not-allowed' : 'pointer'
+                  }}
+                >
                   <span>{latestNotification && latestNotification.id ? 'ส่งข้อมูลอัพเดต' : 'ส่งข้อมูลให้พนักงาน'}</span>
                 </button>
 
-                <button className="action-btn green responsive">
+                <button 
+                  className="action-btn green responsive" 
+                  onClick={() => navigate(`/print_transfer_form/${customerDocumentId}?pharmacyId=${pharmacy?.documentId || pharmacyId}`)}
+                >
                   <span>ใบส่งต่อร้านยา</span>
                 </button>
 

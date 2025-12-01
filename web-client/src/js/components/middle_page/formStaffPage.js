@@ -94,7 +94,7 @@ function FormStaffPage() {
         return role === 'staff';
       });        // ใช้ internal ID ในการ filter
         const staffRes = await fetch(
-          API.staffProfiles.list(`filters[drug_store]=\${drugStoreInternalId}&populate[0]=users_permissions_user&populate[1]=drug_store`),
+          API.staffProfiles.list(`filters[drug_store]=${drugStoreInternalId}&populate[0]=users_permissions_user&populate[1]=drug_store`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const staffProfiles = await staffRes.json();
@@ -128,7 +128,7 @@ function FormStaffPage() {
     
     const token = localStorage.getItem('jwt');
     fetch(
-      API.staffProfiles.list(`filters[documentId][\$eq]=\${documentId}&populate=*`),
+      API.staffProfiles.list(`filters[documentId][$eq]=${documentId}&populate=*`),
       { headers: { Authorization: token ? `Bearer ${token}` : "" } }
     )
       .then(res => res.json())
@@ -242,7 +242,7 @@ function FormStaffPage() {
     
     try {
       const response = await fetch(
-        API.staffProfiles.list(`filters[users_permissions_user][id][\$eq]=\${userId}&populate=drug_store`),
+        API.staffProfiles.list(`filters[users_permissions_user][id][$eq]=${userId}&populate=drug_store`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
       

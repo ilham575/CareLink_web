@@ -1,0 +1,634 @@
+/* ========================================
+   Print Allergy Card CSS
+   บัตรแพ้ยา
+   - Screen: แสดงเป็นบัตรสวยงามมีสีสัน
+   - Print: A4 แนวตั้ง เป็นทางการ พอดี 1 หน้า
+   ======================================== */
+
+/* ========================================
+   SCREEN STYLES (หน้าเว็บ)
+   ======================================== */
+
+.allergy-card-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 50%, #dc3545 100%);
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ปุ่มควบคุม */
+.allergy-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 25px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.allergy-btn-print,
+.allergy-btn-back {
+  padding: 12px 28px;
+  border-radius: 25px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.allergy-btn-print {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+}
+
+.allergy-btn-print:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(40,167,69,0.4);
+}
+
+.allergy-btn-back {
+  background: white;
+  color: #333;
+}
+
+.allergy-btn-back:hover {
+  background: #f5f5f5;
+  transform: translateY(-2px);
+}
+
+/* บัตรแพ้ยา - หน้าเว็บ */
+.allergy-card {
+  background: linear-gradient(145deg, #fff8f8 0%, #ffffff 100%);
+  border-radius: 16px;
+  box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+  width: 450px;
+  max-width: 95vw;
+  padding: 0;
+  overflow: hidden;
+  border: 3px solid #dc3545;
+}
+
+/* Header */
+.allergy-card-header {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: white;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.allergy-warning-icon {
+  font-size: 32px;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.allergy-header-text {
+  text-align: center;
+}
+
+.allergy-header-text h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 3px;
+}
+
+.allergy-header-en {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  opacity: 0.9;
+  letter-spacing: 1px;
+}
+
+/* Warning Banner */
+.allergy-warning-banner {
+  background: #fff3cd;
+  color: #856404;
+  text-align: center;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 2px solid #ffc107;
+}
+
+/* Sections */
+.allergy-patient-section,
+.allergy-drugs-section,
+.allergy-symptoms-section,
+.allergy-disease-section,
+.allergy-pharmacy-section {
+  padding: 15px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.allergy-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.allergy-section-title.danger {
+  color: #dc3545;
+  border-bottom-color: #dc3545;
+}
+
+.allergy-section-title.warning {
+  color: #856404;
+  border-bottom-color: #ffc107;
+}
+
+.allergy-section-title.info {
+  color: #0c5460;
+  border-bottom-color: #17a2b8;
+}
+
+.allergy-section-icon {
+  font-size: 16px;
+}
+
+/* Patient Info */
+.allergy-patient-info {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.allergy-info-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.allergy-info-row:last-child {
+  margin-bottom: 0;
+}
+
+.allergy-info-row.two-cols .allergy-info-item {
+  flex: 1;
+  min-width: 130px;
+}
+
+.allergy-info-item {
+  flex: 1;
+}
+
+.allergy-info-item label {
+  font-size: 11px;
+  color: #666;
+  font-weight: 600;
+}
+
+.allergy-info-value {
+  display: block;
+  font-size: 15px;
+  color: #333;
+  font-weight: 600;
+}
+
+.allergy-patient-id {
+  font-family: 'Courier New', monospace;
+  background: #e9ecef;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* Drug Allergy Box */
+.allergy-drugs-box {
+  background: linear-gradient(135deg, #ffe6e6, #ffcccc);
+  border: 3px solid #dc3545;
+  border-radius: 12px;
+  padding: 15px;
+}
+
+.allergy-drugs-content {
+  font-size: 20px;
+  font-weight: 700;
+  color: #dc3545;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Symptoms Box */
+.allergy-symptoms-box {
+  background: #fff8e1;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+  color: #856404;
+}
+
+/* Disease Box */
+.allergy-disease-box {
+  background: #e3f2fd;
+  border: 1px solid #2196f3;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+  color: #0c5460;
+}
+
+/* Pharmacy Info */
+.allergy-pharmacy-info {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.allergy-pharmacy-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.allergy-pharmacy-details {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Footer */
+.allergy-card-footer {
+  background: #f8f9fa;
+  padding: 12px 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.allergy-footer-date {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.allergy-footer-note {
+  font-size: 11px;
+  color: #999;
+  font-style: italic;
+}
+
+/* Emergency */
+.allergy-emergency {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: white;
+  text-align: center;
+  padding: 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* No Data */
+.allergy-no-data {
+  background: white;
+  border-radius: 16px;
+  padding: 50px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.allergy-no-data-icon {
+  font-size: 70px;
+  margin-bottom: 20px;
+}
+
+.allergy-no-data h2 {
+  color: #666;
+  margin: 0 0 12px 0;
+  font-size: 22px;
+}
+
+.allergy-no-data p {
+  color: #999;
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Preview Info */
+.allergy-preview-info {
+  background: rgba(255,255,255,0.9);
+  border-radius: 12px;
+  padding: 25px;
+  margin-top: 30px;
+  text-align: center;
+  max-width: 450px;
+}
+
+.allergy-preview-info h3 {
+  color: #333;
+  margin: 0 0 12px 0;
+  font-size: 16px;
+}
+
+.allergy-preview-info p {
+  color: #666;
+  margin: 6px 0;
+  font-size: 14px;
+}
+
+/* Loading & Error */
+.allergy-loading,
+.allergy-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 18px;
+  color: white;
+  background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
+}
+
+/* ========================================
+   PRINT STYLES (พิมพ์ - A4 แนวตั้ง เป็นทางการ พอดี 1 หน้า)
+   ======================================== */
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* ตั้งค่าหน้ากระดาษ A4 แนวตั้ง */
+  @page {
+    size: 210mm 297mm portrait !important;
+    margin: 10mm !important;
+  }
+
+  html, body {
+    width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    font-size: 12pt !important;
+    overflow: visible !important;
+  }
+
+  /* ซ่อนส่วนที่ไม่ต้องการพิมพ์ */
+  .no-print,
+  .allergy-controls,
+  .allergy-preview-info {
+    display: none !important;
+  }
+
+  /* Container */
+  .allergy-card-container {
+    background: white !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    display: block !important;
+  }
+
+  /* บัตรแพ้ยา - พิมพ์ */
+  .allergy-card {
+    width: 100% !important;
+    max-width: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: 2pt solid #000 !important;
+    overflow: visible !important;
+    page-break-inside: avoid !important;
+    background: white !important;
+  }
+
+  /* Header - พิมพ์ */
+  .allergy-card-header {
+    background: #000 !important;
+    color: white !important;
+    padding: 8mm 10mm !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8mm !important;
+  }
+
+  .allergy-warning-icon {
+    font-size: 24pt !important;
+    animation: none !important;
+  }
+
+  .allergy-header-text h1 {
+    font-size: 22pt !important;
+    font-weight: bold !important;
+    letter-spacing: 2mm !important;
+    margin: 0 !important;
+  }
+
+  .allergy-header-en {
+    font-size: 10pt !important;
+    margin-top: 2mm !important;
+    opacity: 1 !important;
+  }
+
+  /* Warning Banner - พิมพ์ */
+  .allergy-warning-banner {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+    padding: 4mm !important;
+    font-size: 11pt !important;
+    font-weight: bold !important;
+    border-bottom: 1pt solid #000 !important;
+    text-align: center !important;
+  }
+
+  /* Sections - พิมพ์ */
+  .allergy-patient-section,
+  .allergy-drugs-section,
+  .allergy-symptoms-section,
+  .allergy-disease-section,
+  .allergy-pharmacy-section {
+    padding: 5mm 8mm !important;
+    border-bottom: 0.5pt solid #666 !important;
+  }
+
+  .allergy-section-title {
+    font-size: 12pt !important;
+    font-weight: bold !important;
+    color: #000 !important;
+    margin-bottom: 3mm !important;
+    padding-bottom: 2mm !important;
+    border-bottom: 1pt solid #000 !important;
+    gap: 3mm !important;
+  }
+
+  .allergy-section-title.danger,
+  .allergy-section-title.warning,
+  .allergy-section-title.info {
+    color: #000 !important;
+    border-bottom-color: #000 !important;
+  }
+
+  .allergy-section-icon {
+    font-size: 14pt !important;
+  }
+
+  /* Patient Info - พิมพ์ */
+  .allergy-patient-info {
+    background: none !important;
+    border: 0.5pt solid #666 !important;
+    padding: 4mm !important;
+    border-radius: 0 !important;
+  }
+
+  .allergy-info-row {
+    gap: 5mm !important;
+    margin-bottom: 3mm !important;
+  }
+
+  .allergy-info-item label {
+    font-size: 10pt !important;
+    font-weight: bold !important;
+    color: #000 !important;
+  }
+
+  .allergy-info-value {
+    font-size: 12pt !important;
+    color: #000 !important;
+  }
+
+  .allergy-patient-id {
+    font-size: 10pt !important;
+    padding: 1mm 3mm !important;
+    background: #f0f0f0 !important;
+    border-radius: 0 !important;
+    border: 0.5pt solid #666 !important;
+  }
+
+  /* Drug Box - พิมพ์ (เน้นชัดเจน) */
+  .allergy-drugs-box {
+    background: #f5f5f5 !important;
+    border: 2pt solid #000 !important;
+    border-radius: 0 !important;
+    padding: 8mm !important;
+  }
+
+  .allergy-drugs-content {
+    font-size: 18pt !important;
+    font-weight: bold !important;
+    color: #000 !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Symptoms/Disease - พิมพ์ */
+  .allergy-symptoms-box,
+  .allergy-disease-box {
+    background: #fafafa !important;
+    border: 0.5pt solid #666 !important;
+    border-radius: 0 !important;
+    padding: 4mm !important;
+    font-size: 11pt !important;
+    color: #000 !important;
+  }
+
+  /* Pharmacy - พิมพ์ */
+  .allergy-pharmacy-info {
+    background: none !important;
+    border: 0.5pt solid #666 !important;
+    padding: 4mm !important;
+    border-radius: 0 !important;
+  }
+
+  .allergy-pharmacy-name {
+    font-size: 12pt !important;
+    font-weight: bold !important;
+    color: #000 !important;
+    margin-bottom: 2mm !important;
+  }
+
+  .allergy-pharmacy-details {
+    font-size: 10pt !important;
+    color: #000 !important;
+  }
+
+  /* Footer - พิมพ์ */
+  .allergy-card-footer {
+    background: #f5f5f5 !important;
+    padding: 5mm 8mm !important;
+    border-top: 1pt solid #000 !important;
+  }
+
+  .allergy-footer-date {
+    font-size: 10pt !important;
+    color: #000 !important;
+    margin-bottom: 2mm !important;
+  }
+
+  .allergy-footer-note {
+    font-size: 9pt !important;
+    color: #333 !important;
+    font-style: normal !important;
+  }
+
+  /* Emergency - พิมพ์ */
+  .allergy-emergency {
+    background: #000 !important;
+    color: white !important;
+    padding: 5mm !important;
+    font-size: 14pt !important;
+    font-weight: bold !important;
+  }
+
+  /* No Data - พิมพ์ */
+  .allergy-no-data {
+    padding: 20mm !important;
+    border: 1pt solid #000 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+}
+
+/* ========================================
+   Responsive Design (หน้าเว็บเท่านั้น)
+   ======================================== */
+
+@media screen and (max-width: 480px) {
+  .allergy-card-container {
+    padding: 15px;
+  }
+
+  .allergy-controls {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .allergy-btn-print,
+  .allergy-btn-back {
+    width: 100%;
+  }
+
+  .allergy-card {
+    width: 100%;
+    border-radius: 12px;
+  }
+
+  .allergy-header-text h1 {
+    font-size: 20px;
+  }
+
+  .allergy-drugs-content {
+    font-size: 16px;
+  }
+
+  .allergy-preview-info {
+    margin-top: 20px;
+    padding: 15px;
+  }
+}

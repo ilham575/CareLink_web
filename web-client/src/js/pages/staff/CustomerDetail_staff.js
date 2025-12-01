@@ -332,6 +332,10 @@ function CustomerDetailStaff() {
         updatedStatus.prepared = true;
         updatedStatus.prepared_at = now;
         updatedStatus.prepared_note = note;
+        // Reset cancelled status เมื่อจัดส่งยารอบใหม่
+        updatedStatus.cancelled = false;
+        updatedStatus.cancelled_at = null;
+        updatedStatus.cancelled_note = '';
 
         // ลดสต็อก batch ที่เลือก
         for (const drugItem of customer.prescribed_drugs) {
@@ -445,6 +449,96 @@ function CustomerDetailStaff() {
     }
   };
 
+  // ฟังก์ชันยกเลิกการจัดส่ง
+  const handleCancelDelivery = async (confirmNote = '') => {
+    try {
+      const token = localStorage.getItem('jwt');
+      
+      if (!notification) {
+        toast.error('ไม่พบข้อมูล notification');
+        return;
+      }
+
+      // กู้คืนสต็อก batch ที่ลดไป
+      for (const drugItem of customer.prescribed_drugs) {
+        const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
+        const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
+        const selectedBatchId = selectedBatches[drugId];
+
+        if (selectedBatchId) {
+          try {
+            const batchRes = await fetch(API.drugBatches.getById(selectedBatchId), {
+              method: 'GET',
+              headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (batchRes.ok) {
+              const batchData = await batchRes.json();
+              const batch = batchData.data;
+              // บวกคืนจำนวนยาที่ลดไป
+              const newQuantity = (batch.quantity || 0) + quantity;
+
+              await fetch(API.drugBatches.getById(selectedBatchId), {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  data: { quantity: newQuantity }
+                })
+              });
+            }
+          } catch (err) {
+            console.error(`Error restoring batch ${selectedBatchId}:`, err);
+          }
+        }
+      }
+
+      // รีเซ็ตสถานะการจัดส่ง พร้อมบันทึกข้อมูลการยกเลิก
+      const resetStatus = {
+        received: true, // ยังคงรับข้อมูล
+        prepared: false, // ยกเลิกสถานะจัดส่ง
+        received_at: staffStatus.received_at, // เก็บวันรับไว้
+        prepared_at: null,
+        prepared_note: staffStatus.prepared_note || '',
+        outOfStock: staffStatus.outOfStock || [], // เก็บข้อมูลยาหมดสต็อก
+        batches_selected: selectedBatches, // เก็บ batch ที่เลือก
+        // บันทึกข้อมูลการยกเลิกให้เภสัชกรรับทราบ
+        cancelled: true,
+        cancelled_at: new Date().toISOString(),
+        cancelled_note: confirmNote || 'พนักงานยกเลิกการจัดส่ง'
+      };
+
+      const notifIdentifier = notification?.documentId;
+      const res = await fetch(API.notifications.getById(notifIdentifier), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          data: {
+            staff_work_status: resetStatus
+          }
+        })
+      });
+
+      if (res.ok) {
+        setStaffStatus(resetStatus);
+        setNotification(prev => ({ ...prev, staff_work_status: resetStatus }));
+        setLotsSaved(false); // ปล่อย lot lock เพื่อให้เลือก lot ใหม่ได้
+        toast.success('ยกเลิกการจัดส่งสำเร็จ - บันทึก Lot ใหม่เพื่อดำเนินการต่อ');
+        setStatusModal({ open: false, type: '', note: '' });
+      } else {
+        throw new Error('ไม่สามารถยกเลิกการจัดส่งได้');
+      }
+    } catch (error) {
+      console.error('Error canceling delivery:', error);
+      toast.error('เกิดข้อผิดพลาดในการยกเลิกการจัดส่ง');
+    }
+  };
+
   if (loading) {
     return (
       <div className="customer-detail-page">
@@ -551,18 +645,47 @@ function CustomerDetailStaff() {
               {staffStatus.prepared ? '✅ จัดยาส่งแล้ว' : '📦 จัดยาส่งไปแล้ว'}
             </button>
             
+            {staffStatus.prepared && (
+              <button
+                onClick={() => setStatusModal({ open: true, type: 'cancelDelivery', note: '' })}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: '2px solid #ff4d4f',
+                  background: 'transparent',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = 'rgba(255, 77, 79, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'transparent';
+                }}
+                title="ยกเลิกการจัดส่งและกู้คืนสต็อกยา"
+              >
+                ⏮️ ยกเลิกการจัดส่ง
+              </button>
+            )}
+            
             <button
               onClick={() => setStatusModal({ open: true, type: 'outOfStock', note: '', selectedDrugs: [] })}
+              disabled={staffStatus.prepared}
               style={{
                 padding: '10px 20px',
                 borderRadius: '8px',
                 border: 'none',
-                background: 'rgba(255,255,255,0.2)',
+                background: staffStatus.prepared ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)',
                 color: 'white',
-                cursor: 'pointer',
+                cursor: staffStatus.prepared ? 'not-allowed' : 'pointer',
                 fontSize: '14px',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                opacity: staffStatus.prepared ? 0.5 : 1
               }}
+              title={staffStatus.prepared ? 'ปิดปุ่มนี้หลังจากจัดส่งยา' : ''}
             >
               🚨 แจ้งยาหมดสต็อก
             </button>
@@ -895,8 +1018,8 @@ function CustomerDetailStaff() {
                     })}
                   </div>
 
-                  {/* ปุ่มบันทึก Lot */}
-                  {!lotsSaved && (
+                  {/* ปุ่มบันทึก Lot - ซ่อนเมื่อบันทึกแล้วหรือจัดส่งยาแล้ว */}
+                  {!lotsSaved && !staffStatus.prepared && (
                     <div style={{ marginTop: '20px', padding: '15px', background: '#fff7e6', border: '2px solid #ffc53d', borderRadius: '8px' }}>
                       <div style={{ marginBottom: '10px', fontSize: '14px', fontWeight: 'bold', color: '#ad6800' }}>
                         ⚠️ กรุณาบันทึก Lot ยาที่เลือกก่อน
@@ -934,11 +1057,20 @@ function CustomerDetailStaff() {
                     </div>
                   )}
 
-                  {/* แสดงสถานะเมื่อบันทึกแล้ว */}
-                  {lotsSaved && (
+                  {/* แสดงสถานะเมื่อบันทึก Lot แล้ว แต่ยังไม่ได้จัดส่ง */}
+                  {lotsSaved && !staffStatus.prepared && (
                     <div style={{ marginTop: '20px', padding: '15px', background: '#f6ffed', border: '2px solid #52c41a', borderRadius: '8px' }}>
                       <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#274e0a' }}>
                         ✅ บันทึก Lot ยาเรียบร้อยแล้ว - สามารถกด "จัดยาส่งแล้ว" ได้
+                      </div>
+                    </div>
+                  )}
+
+                  {/* แสดงสถานะเมื่อจัดส่งยาแล้ว */}
+                  {staffStatus.prepared && (
+                    <div style={{ marginTop: '20px', padding: '15px', background: '#e6f7ff', border: '2px solid #1890ff', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#0050b3' }}>
+                        ✅ จัดส่งยาเรียบร้อยแล้ว
                       </div>
                     </div>
                   )}
@@ -975,12 +1107,13 @@ function CustomerDetailStaff() {
             {statusModal.type === 'received' && '📥 ยืนยันรับข้อมูล'}
             {statusModal.type === 'prepared' && '📦 ยืนยันจัดยาส่งแล้ว'}
             {statusModal.type === 'outOfStock' && '🚨 แจ้งยาหมดสต็อก'}
+            {statusModal.type === 'cancelDelivery' && '⏮️ ยกเลิกการจัดส่ง'}
           </div>
         }
         open={statusModal.open}
         onCancel={() => setStatusModal({ open: false, type: '', note: '', selectedDrugs: [] })}
         centered
-        width={statusModal.type === 'outOfStock' ? 600 : 400}
+        width={statusModal.type === 'outOfStock' ? 600 : 450}
         footer={[
           <button
             key="cancel"
@@ -1004,6 +1137,8 @@ function CustomerDetailStaff() {
                   return;
                 }
                 handleReportOutOfStock(statusModal.selectedDrugs, statusModal.note);
+              } else if (statusModal.type === 'cancelDelivery') {
+                handleCancelDelivery(statusModal.note);
               } else {
                 handleUpdateStatus(statusModal.type, statusModal.note);
               }
@@ -1012,13 +1147,13 @@ function CustomerDetailStaff() {
               padding: '8px 16px',
               borderRadius: '6px',
               border: 'none',
-              background: 'linear-gradient(135deg, #52c41a, #73d13d)',
+              background: statusModal.type === 'cancelDelivery' ? 'linear-gradient(135deg, #ff7a45, #ff4d4f)' : 'linear-gradient(135deg, #52c41a, #73d13d)',
               color: 'white',
               cursor: 'pointer',
               marginLeft: '8px'
             }}
           >
-            ยืนยัน
+            {statusModal.type === 'cancelDelivery' ? 'ยืนยันยกเลิก' : 'ยืนยัน'}
           </button>
         ]}
       >
@@ -1028,6 +1163,33 @@ function CustomerDetailStaff() {
           )}
           {statusModal.type === 'prepared' && (
             <p>คุณได้จัดยาส่งไปให้ลูกค้าเรียบร้อยแล้วใช่หรือไม่?</p>
+          )}
+          {statusModal.type === 'cancelDelivery' && (
+            <div>
+              <div style={{
+                padding: '12px',
+                background: '#fff7e6',
+                border: '2px solid #ffc53d',
+                borderRadius: '6px',
+                marginBottom: '15px',
+                color: '#ad6800',
+                fontWeight: 'bold'
+              }}>
+                ⚠️ ยกเลิกการจัดส่ง?
+              </div>
+              <p style={{ marginBottom: '10px' }}>
+                การทำการนี้จะ:
+              </p>
+              <ul style={{ marginBottom: '15px', paddingLeft: '20px', color: '#666' }}>
+                <li>🔄 กู้คืนสต็อกยาทั้งหมดที่ลดไป</li>
+                <li>♻️ รีเซ็ตสถานะการจัดส่ง</li>
+                <li>📝 บันทึกหมายเหตุการยกเลิก</li>
+                <li>📢 แจ้งเภสัชกรรับทราบ</li>
+              </ul>
+              <p style={{ fontSize: '14px', color: '#999' }}>
+                กรุณาระบุเหตุผลการยกเลิก (ตัวเลือก):
+              </p>
+            </div>
           )}
           {statusModal.type === 'outOfStock' && (
             <div>

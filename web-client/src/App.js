@@ -34,13 +34,21 @@ import FormCustomerPage from './js/components/middle_page/formcustomerPage';
 import CustomerDetail from './js/pages/pharmacy/detail_customer';
 import DrugStoresDetail_customer from './js/pages/customer/DrugStoresDetail_customer';
 import CustomerDetail_customer from './js/pages/customer/CustomerDetail_customer';
+import PrintTransferForm from './js/pages/pharmacy/PrintTransferForm';
+import PrintAllergyCard from './js/pages/pharmacy/PrintAllergyCard';
 import RoleBasedRedirect from './js/utils/rolebasedredirect';
 import 'antd/dist/reset.css';
 import { API } from './utils/apiConfig';
 
-// Override console.log to disable all console.log calls
-// console.log('🔗 API Base URL:', API.BASE_URL);
-console.log = () => {};
+// Override console.log based on environment/branch
+const isDevelopBranch = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+if (isDevelopBranch) {
+  console.log('🔗 API Base URL:', API.BASE_URL);
+  // console.log = () => {};
+} else {
+  // console.log('🔗 API Base URL:', API.BASE_URL);
+  console.log = () => {};
+}
 
 function App() {
   return (
@@ -108,6 +116,8 @@ function App() {
             <Route path="/form_customer" element={<FormCustomerPage />} />
             <Route path="/form_customer/:id" element={<FormCustomerPage />} />
             <Route path="/customer_detail/:customerDocumentId" element={<CustomerDetail />} />
+            <Route path="/print_transfer_form/:customerDocumentId" element={<PrintTransferForm />} />
+            <Route path="/print_allergy_card/:customerDocumentId" element={<PrintAllergyCard />} />
           </Route>
         </Routes>
         <Footer />
