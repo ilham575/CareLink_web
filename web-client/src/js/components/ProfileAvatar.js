@@ -1,4 +1,6 @@
 import React from "react";
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from "react-router-dom";
 import { API } from '../../utils/apiConfig';
 
@@ -29,11 +31,11 @@ function ProfileAvatar({ profileUrl, profileFullName, userData }) {
             navigate(`/edit_pharmacist_admin/${profile.documentId}`, {
               state: { isSelfEdit: true }
             });
-          } else {
-            alert("ไม่พบข้อมูลโปรไฟล์เภสัชกร");
-          }
+            } else {
+              toast.error("ไม่พบข้อมูลโปรไฟล์เภสัชกร");
+            }
         } catch (err) {
-          alert("เกิดข้อผิดพลาดในการดึงข้อมูลเภสัชกร");
+          toast.error("เกิดข้อผิดพลาดในการดึงข้อมูลเภสัชกร");
         }
       }
     } else if (role === 'staff') {

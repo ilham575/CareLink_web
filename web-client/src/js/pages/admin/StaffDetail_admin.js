@@ -115,6 +115,33 @@ function StaffDetailAdmin() {
 
   const jwt = localStorage.getItem('jwt');
 
+  const askConfirm = (message) => {
+    return new Promise((resolve) => {
+      const id = toast.info(
+        ({ closeToast }) => (
+          <div>
+            <div>{message}</div>
+            <div style={{ marginTop: 8, textAlign: 'right' }}>
+              <button
+                className="px-3 py-1 rounded bg-red-600 text-white mr-2"
+                onClick={() => { toast.dismiss(id); resolve(true); }}
+              >
+                ใช่
+              </button>
+              <button
+                className="px-3 py-1 rounded bg-gray-300 text-black"
+                onClick={() => { toast.dismiss(id); resolve(false); }}
+              >
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+        ),
+        { autoClose: false, closeButton: false }
+      );
+    });
+  }
+
   // แสดง toast message หากมี
   useEffect(() => {
     if (location.state?.toastMessage) {
@@ -238,7 +265,8 @@ function StaffDetailAdmin() {
   const handleDelete = async (staff) => {
     const confirmMessage = `คุณต้องการลบพนักงาน "${staff.firstName} ${staff.lastName}" หรือไม่?\n\nหมายเหตุ: การลบจะเป็นการลบข้อมูลพนักงานออกจากร้านยานี้เท่านั้น ไม่ได้ลบบัญชีผู้ใช้`;
     
-    if (!window.confirm(confirmMessage)) {
+    const proceed = await askConfirm(confirmMessage);
+    if (!proceed) {
       return;
     }
 
@@ -295,7 +323,6 @@ function StaffDetailAdmin() {
 
   return (
     <div className="staff-detail-page">
-      <ToastContainer />
       <HomeHeader
         pharmacyName={pharmacyInfo?.name}
         pharmacistName={pharmacyInfo?.pharmacistName || ''}

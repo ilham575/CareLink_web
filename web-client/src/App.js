@@ -5,6 +5,7 @@ import LoginPage from './js/pages/default/signin';
 import Signup from './js/pages/default/Signup';
 import './css/theme.css';
 import './App.css';
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AdminHome from './js/pages/admin/home';
 import PharmacyHome from './js/pages/pharmacy/home';
@@ -34,6 +35,7 @@ import FormCustomerPage from './js/components/middle_page/formcustomerPage';
 import CustomerDetail from './js/pages/pharmacy/detail_customer';
 import DrugStoresDetail_customer from './js/pages/customer/DrugStoresDetail_customer';
 import CustomerDetail_customer from './js/pages/customer/CustomerDetail_customer';
+import EditSymptomsCustomer from './js/pages/customer/EditSymptoms_customer';
 import PrintTransferForm from './js/pages/pharmacy/PrintTransferForm';
 import PrintAllergyCard from './js/pages/pharmacy/PrintAllergyCard';
 import RoleBasedRedirect from './js/utils/rolebasedredirect';
@@ -95,6 +97,7 @@ function App() {
             <Route path="/customerHome" element={<CustomerHome />} />
             <Route path="/drug_store_customer/:id" element={<DrugStoresDetail_customer />} />
             <Route path="/customer_detail_view/:customerDocumentId" element={<CustomerDetail_customer />} />
+            <Route path="/customer/edit_symptoms/:customerDocumentId" element={<EditSymptomsCustomer />} />
           </Route>
 
           {/* -------------------- STAFF MANAGEMENT -------------------- */}
@@ -121,6 +124,8 @@ function App() {
           </Route>
         </Routes>
         <Footer />
+        {/* Global Toast Container to persist across navigation */}
+        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnHover />
       </div>
     </Router>
   );

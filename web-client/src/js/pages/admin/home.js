@@ -100,6 +100,32 @@ function AdminHome() {
   const navigate = useNavigate();
 
   const jwt = localStorage.getItem('jwt');
+  const askConfirm = (message) => {
+    return new Promise((resolve) => {
+      const id = toast.info(
+        ({ closeToast }) => (
+          <div>
+            <div>{message}</div>
+            <div style={{ marginTop: 8, textAlign: 'right' }}>
+              <button
+                className="px-3 py-1 rounded bg-red-600 text-white mr-2"
+                onClick={() => { toast.dismiss(id); resolve(true); }}
+              >
+                ใช่
+              </button>
+              <button
+                className="px-3 py-1 rounded bg-gray-300 text-black"
+                onClick={() => { toast.dismiss(id); resolve(false); }}
+              >
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+        ),
+        { autoClose: false, closeButton: false }
+      );
+    });
+  }
 
   // เพิ่ม function สำหรับ refresh ข้อมูล
   const refreshData = async () => {
@@ -294,7 +320,8 @@ function AdminHome() {
   }, [jwt, navigate, loading, location.state?.forceRefresh]); // เพิ่ม forceRefresh dependency
 
   const handleDelete = async (documentId) => {
-    if (!window.confirm("คุณต้องการลบร้านยานี้หรือไม่?")) return;
+    const proceed = await askConfirm("คุณต้องการลบร้านยานี้หรือไม่?");
+    if (!proceed) return;
 
     if (!jwt) {
       toast.error('กรุณาเข้าสู่ระบบ');

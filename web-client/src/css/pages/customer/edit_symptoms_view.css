@@ -1,0 +1,526 @@
+/* Unique prefix for this view: symrec- */
+:root {
+  --symrec-bg: #f0f4f8;
+  --symrec-card: #ffffff;
+  --symrec-text: #1f2937;
+  --symrec-muted: #6b7280;
+  --symrec-accent: #10b981;
+  --symrec-accent-light: #d1fae5;
+  --symrec-danger: #ef4444;
+  --symrec-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --symrec-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.symrec-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 20px;
+  background: var(--symrec-bg);
+  min-height: 80vh;
+}
+
+/* Header Section with Title and Date */
+.symrec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(16, 185, 129, 0.1);
+}
+
+.symrec-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--symrec-text);
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.symrec-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--symrec-accent-light);
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.symrec-date-label {
+  font-weight: 600;
+  color: var(--symrec-text);
+}
+
+.symrec-date-value {
+  font-weight: 700;
+  color: var(--symrec-accent);
+  font-size: 16px;
+}
+
+/* Tabs Styling */
+.symrec-tabs {
+  margin-bottom: 28px;
+}
+
+.symrec-tabs .ant-tabs-tab {
+  border: none !important;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.symrec-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--symrec-accent) !important;
+}
+
+.symrec-tabs .ant-tabs-ink-bar {
+  background: var(--symrec-accent) !important;
+}
+
+.symrec-tabs .ant-tabs-content {
+  padding-top: 16px;
+}
+
+/* Main Layout Grid */
+.symrec-main {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 28px;
+  align-items: start;
+  margin-bottom: 28px;
+}
+
+/* Cards */
+.symrec-box {
+  background: var(--symrec-card);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--symrec-shadow);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.symrec-box:hover {
+  box-shadow: var(--symrec-shadow-lg);
+  transform: translateY(-1px);
+}
+
+.symrec-box-title {
+  font-weight: 700;
+  font-size: 18px;
+  text-align: center;
+  padding: 0 0 16px 0;
+  color: var(--symrec-text);
+  border-bottom: 2px solid rgba(16, 185, 129, 0.15);
+  margin-bottom: 16px;
+}
+
+/* Tabs: Remove box styling inside tab panes */
+.symrec-tabs .ant-tabs-tabpane .symrec-box {
+  box-shadow: none;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+/* Symptoms Textarea */
+.symrec-textarea {
+  width: 100%;
+  min-height: 260px;
+  padding: 16px 18px;
+  border: 2px solid rgba(107, 114, 128, 0.1);
+  border-radius: 10px;
+  font-size: 15px;
+  line-height: 1.7;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--symrec-text);
+  background: linear-gradient(
+    180deg,
+    rgba(240, 244, 248, 0.5) 0%,
+    #ffffff 100%
+  );
+  resize: vertical;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.symrec-textarea:focus {
+  border-color: var(--symrec-accent);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.symrec-textarea::placeholder {
+  color: rgba(107, 114, 128, 0.5);
+  line-height: 1.7;
+}
+
+/* Allergies Section */
+.symrec-allergies-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.symrec-add-allergy-btn {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--symrec-accent);
+  color: white;
+  border: none;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 16px;
+  letter-spacing: 0.3px;
+}
+
+.symrec-add-allergy-btn:hover {
+  background: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.symrec-add-allergy-btn:active {
+  transform: translateY(0);
+}
+
+/* Modal content styles */
+.symrec-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.symrec-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.symrec-modal-label {
+  font-weight: 700;
+  color: var(--symrec-text);
+  font-size: 14px;
+}
+
+.symrec-select,
+.symrec-allergy-input,
+.symrec-allergy-time {
+  padding: 11px 14px;
+  border-radius: 8px;
+  border: 2px solid rgba(107, 114, 128, 0.1);
+  background: #ffffff;
+  font-size: 14px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--symrec-text);
+  transition: all 0.3s ease;
+}
+
+.symrec-select:focus,
+.symrec-allergy-input:focus,
+.symrec-allergy-time:focus {
+  outline: none;
+  border-color: var(--symrec-accent);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.symrec-select {
+  flex: 1;
+  min-width: 160px;
+}
+
+.symrec-allergy-input {
+  flex: 1;
+  min-width: 120px;
+}
+
+.symrec-allergy-time {
+  flex: 0.8;
+  min-width: 100px;
+}
+
+.symrec-add-btn {
+  padding: 11px 20px;
+  border-radius: 8px;
+  background: var(--symrec-accent);
+  color: white;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.symrec-add-btn:hover {
+  background: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.symrec-add-btn:active {
+  transform: translateY(0);
+}
+
+/* Allergies Table */
+.symrec-allergy-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+
+.symrec-allergy-table thead tr {
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.symrec-allergy-table th {
+  padding: 14px 12px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--symrec-text);
+  font-size: 14px;
+  border-bottom: 2px solid rgba(16, 185, 129, 0.15);
+}
+
+.symrec-allergy-table td {
+  padding: 13px 12px;
+  text-align: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 14px;
+  color: var(--symrec-text);
+}
+
+.symrec-allergy-table tbody tr:hover {
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.symrec-empty {
+  padding: 20px 12px;
+  color: var(--symrec-muted);
+  font-style: italic;
+}
+
+.symrec-remove-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--symrec-danger);
+  border: 1.5px solid rgba(239, 68, 68, 0.2);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.symrec-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Action Buttons */
+.symrec-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.symrec-save {
+  background: var(--symrec-accent);
+  color: white;
+  padding: 13px 32px;
+  border-radius: 8px;
+  border: none;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 0.3px;
+}
+
+.symrec-save:hover {
+  background: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+}
+
+.symrec-save:active {
+  transform: translateY(0);
+}
+
+.symrec-save[disabled] {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.symrec-cancel {
+  background: #ffffff;
+  color: var(--symrec-accent);
+  padding: 13px 32px;
+  border-radius: 8px;
+  border: 2px solid var(--symrec-accent);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 0.3px;
+}
+
+.symrec-cancel:hover {
+  background: var(--symrec-accent-light);
+  transform: translateY(-2px);
+}
+
+.symrec-cancel:active {
+  transform: translateY(0);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .symrec-wrapper {
+    padding: 24px 18px;
+  }
+
+  .symrec-main {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .symrec-header {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .symrec-title {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .symrec-wrapper {
+    padding: 20px 16px;
+    min-height: 100vh;
+  }
+
+  .symrec-title {
+    font-size: 22px;
+  }
+
+  .symrec-header {
+    margin-bottom: 24px;
+  }
+
+  .symrec-box {
+    padding: 18px;
+    border-radius: 10px;
+  }
+
+  .symrec-textarea {
+    min-height: 200px;
+    font-size: 14px;
+  }
+
+  .symrec-allergies-selector {
+    gap: 10px;
+  }
+
+  .symrec-select,
+  .symrec-allergy-input,
+  .symrec-allergy-time {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  .symrec-add-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .symrec-allergy-table th,
+  .symrec-allergy-table td {
+    padding: 11px 8px;
+    font-size: 13px;
+  }
+
+  .symrec-actions {
+    gap: 10px;
+    flex-direction: column;
+  }
+
+  .symrec-save,
+  .symrec-cancel {
+    padding: 12px 24px;
+    font-size: 14px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .symrec-wrapper {
+    padding: 16px 12px;
+  }
+
+  .symrec-title {
+    font-size: 20px;
+  }
+
+  .symrec-date {
+    padding: 8px 14px;
+    font-size: 13px;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .symrec-box {
+    padding: 16px;
+  }
+
+  .symrec-box-title {
+    font-size: 16px;
+    padding: 0 0 12px 0;
+  }
+
+  .symrec-textarea {
+    min-height: 180px;
+    padding: 14px 12px;
+    font-size: 13px;
+  }
+
+  .symrec-allergies-selector {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .symrec-select,
+  .symrec-allergy-input,
+  .symrec-allergy-time,
+  .symrec-add-btn {
+    width: 100%;
+  }
+
+  .symrec-allergy-table th,
+  .symrec-allergy-table td {
+    padding: 10px 6px;
+    font-size: 12px;
+  }
+
+  .symrec-save,
+  .symrec-cancel {
+    padding: 11px 20px;
+    font-size: 13px;
+  }
+}

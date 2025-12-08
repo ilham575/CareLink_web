@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate, useParams } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
 import Footer from "../../components/footer";
@@ -150,7 +152,7 @@ function EditStore_admin() {
         });
       } catch (err) {
         console.error('Fetch error:', err);
-        alert("เกิดข้อผิดพลาดในการโหลดข้อมูลร้าน: " + err.message);
+        toast.error("เกิดข้อผิดพลาดในการโหลดข้อมูลร้าน: " + err.message);
         navigate(-1);
       }
     };
@@ -277,7 +279,7 @@ function EditStore_admin() {
       }
       await res.json();
 
-      alert("แก้ไขข้อมูลร้านเรียบร้อย!");
+      toast.success("แก้ไขข้อมูลร้านเรียบร้อย!");
       const role = localStorage.getItem('role');
       if (role === 'pharmacy') {
         navigate(`/drug_store_pharmacy/${documentId}`);
@@ -287,7 +289,7 @@ function EditStore_admin() {
       }
     } catch (err) {
       console.error(err);
-      alert("เกิดข้อผิดพลาด: " + err.message);
+      toast.error("เกิดข้อผิดพลาด: " + err.message);
     } finally {
       setIsSubmitting(false);
     }

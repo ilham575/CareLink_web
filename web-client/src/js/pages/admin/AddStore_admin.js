@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
 import { API } from "../../../utils/apiConfig";
@@ -256,7 +258,7 @@ function AddStore_admin() {
         }
       }
 
-      alert("บันทึกร้านขายยาเรียบร้อย!");
+      toast.success("บันทึกร้านขายยาเรียบร้อย!");
       // Force refresh หน้า adminHome
       navigate("/adminhome", { 
         state: { 
@@ -267,7 +269,7 @@ function AddStore_admin() {
 
     } catch (error) {
       console.error('Error creating pharmacy:', error);
-      alert(`เกิดข้อผิดพลาด: ${error.message}`);
+      toast.error(`เกิดข้อผิดพลาด: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }

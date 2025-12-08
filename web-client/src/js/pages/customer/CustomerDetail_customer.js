@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
 import '../../../css/pages/customer/detail_customer_view.css';
@@ -33,6 +33,7 @@ function CustomerDetailCustomer() {
   const [availableDrugs, setAvailableDrugs] = useState([]);
   const [pharmacyName, setPharmacyName] = useState('');
   const [pharmacistName, setPharmacistName] = useState('');
+  // temporary state removed; we use antd modal textarea value instead
 
   useEffect(() => {
     const loadCustomerData = async () => {
@@ -99,6 +100,16 @@ function CustomerDetailCustomer() {
     navigate('/customerHome');
   };
 
+  const handleOpenEditSymptoms = () => {
+    // Navigate the user to the Edit Symptoms page for this customer
+    // Pass availableDrugs via state so it can be used in the modal
+    navigate(`/customer/edit_symptoms/${customerDocumentId}`, { 
+      state: { availableDrugs } 
+    });
+  };
+
+  // Delete feature removed per request
+
   if (loading) {
     return (
       <div className="app-container">
@@ -132,7 +143,7 @@ function CustomerDetailCustomer() {
 
   return (
     <div className="cust-detail-container">
-      <ToastContainer />
+      {/* Global ToastContainer in App.js */}
       <HomeHeader isLoggedIn={true} pharmacyName={pharmacyName} pharmacistName={pharmacistName} />
       <main className="cust-main-content">
         {/* Header Summary - แสดงข้อมูลสำคัญ */}
@@ -365,13 +376,18 @@ function CustomerDetailCustomer() {
           <Tabs.TabPane tab={<span>📋 ดำเนินการ</span>} key="4">
             <div className="cust-actions-panel">
               <div className="cust-actions-grid">
-                <button 
-                  className="cust-action-btn" 
-                  onClick={handleBack}
-                >
-                  ← กลับไปหน้าหลัก
-                </button>
-              </div>
+                    <button 
+                      className="cust-action-btn" 
+                      onClick={handleBack}
+                    >
+                      ← กลับไปหน้าหลัก
+                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" className="cust-action-btn" onClick={handleOpenEditSymptoms}>
+                        อัพเดตอาการ
+                      </button>
+                    </div>
+                  </div>
             </div>
           </Tabs.TabPane>
         </Tabs>

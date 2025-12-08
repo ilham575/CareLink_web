@@ -32,6 +32,34 @@ function PharmacistDetail_admin() {
 
   const jwt = localStorage.getItem("jwt");
 
+  // toast-based confirmation helper returns a Promise<boolean>
+  const askConfirm = (message) => {
+    return new Promise((resolve) => {
+      const id = toast.info(
+        ({ closeToast }) => (
+          <div>
+            <div>{message}</div>
+            <div style={{ marginTop: 8, textAlign: 'right' }}>
+              <button
+                className="px-3 py-1 rounded bg-red-600 text-white mr-2"
+                onClick={() => { toast.dismiss(id); resolve(true); }}
+              >
+                ใช่
+              </button>
+              <button
+                className="px-3 py-1 rounded bg-gray-300 text-black"
+                onClick={() => { toast.dismiss(id); resolve(false); }}
+              >
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+        ),
+        { autoClose: false, closeButton: false }
+      );
+    });
+  };
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -84,7 +112,8 @@ function PharmacistDetail_admin() {
 
   // ✅ ฟังก์ชันลบเภสัชกร (แก้ไขใหม่) - ไม่ลบ profile ทั้งหมด
   const handleDelete = async (documentId) => {
-    if (!window.confirm("คุณต้องการลบเภสัชกรจากร้านนี้หรือไม่?")) return;
+    const proceed = await askConfirm("คุณต้องการลบเภสัชกรจากร้านนี้หรือไม่?");
+    if (!proceed) return;
 
     try {
       // 1. ดึง pharmacy-profile ที่จะแก้ไข
@@ -207,7 +236,6 @@ function PharmacistDetail_admin() {
         <HomeHeader />
         <div className="p-6 text-center">กำลังโหลดข้อมูล...</div>
         <Footer />
-        <ToastContainer />
       </>
     );
 
@@ -225,7 +253,6 @@ function PharmacistDetail_admin() {
           </button>
         </div>
         <Footer />
-        <ToastContainer />
       </>
     );
   }
@@ -387,7 +414,7 @@ function PharmacistDetail_admin() {
         </div>
       </div>
       <Footer />
-      <ToastContainer />
+      {/* Global ToastContainer in App.js will render toasts */}
     </>
   );
 }
