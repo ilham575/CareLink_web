@@ -31,6 +31,7 @@ function CustomerDetailCustomer() {
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [availableDrugs, setAvailableDrugs] = useState([]);
+  const [drugsLoaded, setDrugsLoaded] = useState(false);
   const [pharmacyName, setPharmacyName] = useState('');
   const [pharmacistName, setPharmacistName] = useState('');
   // temporary state removed; we use antd modal textarea value instead
@@ -81,8 +82,26 @@ function CustomerDetailCustomer() {
         
         if (drugsRes.ok) {
           const drugsData = await drugsRes.json();
-          const drugs = (drugsData.data || []).map(d => d.attributes || d);
+          // API returns flat data structure with all properties directly on the object
+          const drugs = (drugsData.data || []).map(d => ({
+            id: d.id,
+            documentId: d.documentId,
+            name_th: d.name_th,
+            name_en: d.name_en,
+            price: d.price,
+            description: d.description,
+            drug_batches: d.drug_batches,
+            drug_store: d.drug_store
+          }));
+          console.log('✅ Drugs mapped successfully:', drugs.length, 'items');
+          if (drugs.length > 0) {
+            console.log('✅ First drug:', drugs[0]);
+          }
           setAvailableDrugs(drugs);
+          setDrugsLoaded(true);
+        } else {
+          console.warn('⚠️ Failed to fetch drugs');
+          setDrugsLoaded(true);
         }
 
       } catch (e) {
@@ -383,8 +402,14 @@ function CustomerDetailCustomer() {
                       ← กลับไปหน้าหลัก
                     </button>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button type="button" className="cust-action-btn" onClick={handleOpenEditSymptoms}>
-                        อัพเดตอาการ
+                      <button 
+                        type="button" 
+                        className="cust-action-btn" 
+                        onClick={handleOpenEditSymptoms}
+                        disabled={!drugsLoaded}
+                        title={!drugsLoaded ? 'กำลังโหลดข้อมูลยา...' : 'คลิกเพื่ออัพเดตอาการ'}
+                      >
+                        {!drugsLoaded ? '⏳ กำลังโหลด...' : 'อัพเดตอาการ'}
                       </button>
                     </div>
                   </div>

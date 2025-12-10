@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Modal, Tabs } from 'antd';
+import { fetchWithAuth } from '../../../utils/apiConfig';
 import { API } from '../../../utils/apiConfig';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
@@ -40,22 +41,15 @@ function EditSymptomsCustomer() {
     // Get drugs from location state (passed from CustomerDetail) or fetch them
     const passedDrugs = location.state?.availableDrugs;
     
-    console.log('🔍 Passed drugs from CustomerDetail:', passedDrugs);
-    
     if (passedDrugs && passedDrugs.length > 0) {
       // Use drugs from CustomerDetail page
-      // The drugs are already in attributes format (d.name_th, d.id, d.documentId)
-      const drugList = passedDrugs.map(d => {
-        const drugId = d.id || d.documentId;
-        const drugName = d.name_th || d.name_en || 'ยาที่ไม่ระบุ';
-        console.log('📦 Processing drug:', { id: drugId, name: drugName });
-        return { id: drugId, name: drugName };
-      });
-      console.log('✅ Drug list to set:', drugList);
+      const drugList = passedDrugs.map(d => ({
+        id: d.id || d.documentId,
+        name: d.name_th || d.name_en || 'ยาที่ไม่ระบุ'
+      }));
       setAvailableDrugs(drugList);
     } else {
       // Fallback: fetch drugs if not passed
-      console.warn('⚠️ No passed drugs, fetching from API...');
       const loadDrugs = async () => {
         try {
           const res = await fetch(API.drugs.listWithBatches());
@@ -63,9 +57,8 @@ function EditSymptomsCustomer() {
           const js = await res.json();
           const list = (js.data || []).map(d => ({
             id: d.id || d.documentId,
-            name: (d.attributes || d).name_th || (d.attributes || d).name_en || 'ยาที่ไม่ระบุ'
+            name: d.name_th || d.name_en || 'ยาที่ไม่ระบุ'
           }));
-          console.log('📊 Fetched drugs from API:', list);
           setAvailableDrugs(list);
         } catch (e) {
           console.warn('Failed to load drugs for allergy select', e);
@@ -132,32 +125,37 @@ function EditSymptomsCustomer() {
   const handleRemoveAllergy = (id) => setAllergies(prev => prev.filter(a => a.id !== id));
 
   const handleSave = async () => {
+    // Validation: require either a symptoms text or at least one allergy
+    if (!symptomsText.trim() && allergies.length === 0) {
+      toast.warn('กรุณากรอกอาการ หรือเพิ่มยาที่แพ้ ก่อนบันทึก');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      // This is a placeholder. In a real implementation, you would call the API.
-      // Example payload structure that Strapi could accept (adapt as needed):
+      // Build payload (backend expects text fields)
       const payload = {
         data: {
           Customers_symptoms: symptomsText,
-          Allergic_drugs: allergies.map(a => a.name),
+          Allergic_drugs: allergies.map(a => a.name).join(', '),
         }
       };
 
-      // Example API call - uncomment if backend supports it
-      // const token = localStorage.getItem('jwt');
-      // await fetch(API.customerProfiles.update(customerDocumentId), {
-      //   method: 'PUT',
-      //   headers: { Authorization: token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload)
-      // });
-
       console.log('Saving symptoms (payload):', payload);
+
+      // Use fetchWithAuth helper so token and headers are handled consistently
+      await fetchWithAuth(API.customerProfiles.update(customerDocumentId), {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+
       toast.success('บันทึกอัพเดตอาการเรียบร้อย');
-      // Navigate back or show success
+      // Navigate back after a short delay
       setTimeout(() => navigate(-1), 700);
-    } catch (e) {
-      console.error('Save symptoms error:', e);
-      toast.error('ไม่สามารถบันทึกข้อมูลได้ ลองอีกครั้ง');
+    } catch (error) {
+      console.error('Save symptoms error:', error);
+      // If an error has a message, show it; otherwise show generic message
+      toast.error(error?.message || 'ไม่สามารถบันทึกข้อมูลได้ ลองอีกครั้ง');
     } finally {
       setIsSaving(false);
     }
