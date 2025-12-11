@@ -58,7 +58,7 @@ function AddPharmacist_admin() {
     // { day: "จันทร์", open: "08:00", close: "20:00" }
   ]);
 
-  // ✅ Fetch existing pharmacists - แก้ไขการ debug
+  // ✅ ดึงข้อมูลเภสัชกรทั้งหมดพร้อมข้อมูลร้านที่ทำงาน
   useEffect(() => {
     const fetchExistingPharmacists = async () => {
       if (!jwt) {
@@ -67,8 +67,9 @@ function AddPharmacist_admin() {
 
       try {
         setLoading(true);
+        // ใช้ listAll เพื่อให้ได้ข้อมูล drug_stores ว่าเภสัชกรคนไหนทำงานในร้านไหน
         const response = await fetch(
-          API.pharmacyProfiles.list(),
+          API.pharmacyProfiles.listAll(),
           {
             headers: { Authorization: `Bearer ${jwt}` },
           }
@@ -76,11 +77,13 @@ function AddPharmacist_admin() {
 
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ ดึงเภสัชกรทั้งหมด:', data.data?.length, 'คน');
           setExistingPharmacists(data.data);
         } else {
-          // await response.text(); // Removed unused assignment
+          console.warn('⚠️ ไม่สามารถดึงเภสัชกรได้');
         }
       } catch (error) {
+        console.error('❌ เกิดข้อผิดพลาด:', error);
         toast.error("ไม่สามารถโหลดข้อมูลเภสัชกรได้");
       } finally {
         setLoading(false);
@@ -727,20 +730,35 @@ function AddPharmacist_admin() {
                         new Map(
                           existingPharmacists
                             .filter((pharmacist) => {
-                              const stores =
-                                pharmacist.drug_stores ||
-                                pharmacist.attributes?.drug_stores?.data ||
-                                [];
-                              const storeDocumentIds = stores.map(
-                                (store) => store.documentId || store.attributes?.documentId
-                              );
+                              // ดึงข้อมูลร้านทั้งหมดที่เภสัชกรคนนี้ทำงาน
+                              let stores = [];
+                              
+                              // ลองหลาย path เพื่อความยืดหยุ่น
+                              if (Array.isArray(pharmacist.drug_stores)) {
+                                stores = pharmacist.drug_stores;
+                              } else if (Array.isArray(pharmacist.attributes?.drug_stores?.data)) {
+                                stores = pharmacist.attributes.drug_stores.data;
+                              } else if (Array.isArray(pharmacist.attributes?.drug_stores)) {
+                                stores = pharmacist.attributes.drug_stores;
+                              }
+                              
+                              // แยกเอา documentId จากแต่ละร้าน
+                              const storeDocumentIds = stores.map((store) => {
+                                if (typeof store === 'string') return store; // ถ้าเป็น string ตรงกันเลย
+                                return store.documentId || store.attributes?.documentId || store.id;
+                              });
+                              
+                              // ตรวจสอบว่าเภสัชกรนี้ทำงานในร้านปัจจุบันแล้วหรือไม่
                               const isAlreadyInStore = storeDocumentIds.includes(storeId);
+                              
+                              // ถ้ายังไม่ได้ทำงานในร้านนี้ ให้แสดงในรายการ
                               return !isAlreadyInStore;
                             })
                             .map((pharmacist) => [
-                              // ใช้ user id เป็น key เพื่อ uniqueness
+                              // ใช้ user id เป็น key เพื่อความเป็นเอกลักษณ์
                               pharmacist.users_permissions_user?.id ||
-                                pharmacist.users_permissions_user?.data?.id,
+                                pharmacist.users_permissions_user?.data?.id ||
+                                pharmacist.id,
                               pharmacist,
                             ])
                         ).values()
@@ -765,8 +783,25 @@ function AddPharmacist_admin() {
                     </select>
                     {(() => {
                       const availablePharmacists = existingPharmacists.filter((pharmacist) => {
-                        const stores = pharmacist.drug_stores || pharmacist.attributes?.drug_stores?.data || [];
-                        const storeDocumentIds = stores.map((store) => store.documentId || store.attributes?.documentId);
+                        // ดึงข้อมูลร้านทั้งหมดที่เภสัชกรคนนี้ทำงาน
+                        let stores = [];
+                        
+                        // ลองหลาย path เพื่อความยืดหยุ่น
+                        if (Array.isArray(pharmacist.drug_stores)) {
+                          stores = pharmacist.drug_stores;
+                        } else if (Array.isArray(pharmacist.attributes?.drug_stores?.data)) {
+                          stores = pharmacist.attributes.drug_stores.data;
+                        } else if (Array.isArray(pharmacist.attributes?.drug_stores)) {
+                          stores = pharmacist.attributes.drug_stores;
+                        }
+                        
+                        // แยกเอา documentId จากแต่ละร้าน
+                        const storeDocumentIds = stores.map((store) => {
+                          if (typeof store === 'string') return store;
+                          return store.documentId || store.attributes?.documentId || store.id;
+                        });
+                        
+                        // ถ้ายังไม่ได้ทำงานในร้านนี้ ให้แสดงในรายการ
                         return !storeDocumentIds.includes(storeId);
                       });
                       
