@@ -8,7 +8,12 @@ RUN apk update && apk add --no-cache \
     vips-dev git
 
 # 2. ตั้งค่า Environment
-ENV NODE_ENV=production
+ARG PUBLIC_URL=http://localhost:1337
+ARG STRAPI_ADMIN_BACKEND_URL
+ENV NODE_ENV=production \
+    PUBLIC_URL=$PUBLIC_URL \
+    URL=$PUBLIC_URL \
+    STRAPI_ADMIN_BACKEND_URL=${STRAPI_ADMIN_BACKEND_URL:-$PUBLIC_URL}
 WORKDIR /opt/app
 
 # 3. ติดตั้ง Dependencies (ใช้วิธี install ธรรมดาเพื่อความชัวร์)
@@ -22,8 +27,9 @@ COPY . .
 RUN mkdir -p public/uploads && \
     chmod -R 777 public/uploads
 
-# 6. Build หน้า Admin Panel
-RUN npm run build
+# 6. Build หน้า Admin Panel with correct URL
+# STRAPI_ADMIN_BACKEND_URL tells admin panel where to connect to API
+RUN STRAPI_ADMIN_BACKEND_URL=$PUBLIC_URL URL=$PUBLIC_URL npm run build
 
 # 7. เปิด Port
 EXPOSE 1337

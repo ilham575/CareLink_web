@@ -78,7 +78,12 @@ function EditStore_admin() {
     photo_staff: null,
     photo_staff_preview: null,
     services: defaultServices,
-    confirm: false,
+  });
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [mapData, setMapData] = useState({
+    name: '',
+    latitude: '',
+    longitude: ''
   });
   const [storeId, setStoreId] = useState(null); // numeric Strapi id
 
@@ -186,6 +191,65 @@ function EditStore_admin() {
     } else {
       setFormData({ ...formData, [name]: value });
     }
+  };
+
+  // ฟังก์ชันเปิด Google Map Picker
+  const openMapPicker = () => {
+    setShowMapPicker(true);
+  };
+
+  // ฟังก์ชันปิด Google Map Picker
+  const closeMapPicker = () => {
+    setShowMapPicker(false);
+  };
+
+  // ฟังก์ชันเซ็ต Google Map Link
+  const setMapLink = () => {
+    if (mapData.latitude && mapData.longitude) {
+      // ใช้ query parameter format เพื่อให้ปักหมุดที่พิกัดที่ต้องการ
+      const gpsLink = `https://www.google.com/maps/search/${mapData.latitude}+${mapData.longitude}/@${mapData.latitude},${mapData.longitude},18z`;
+      setFormData({ ...formData, link_gps: gpsLink });
+      closeMapPicker();
+      toast.success('บันทึกพิกัดร้านยาเรียบร้อยแล้ว!');
+    } else {
+      toast.error('กรุณากำหนดพิกัดร้านยา');
+    }
+  };
+
+  // ฟังก์ชันรับพิกัดจาก Geolocation API ของเครื่อง
+  const getLocationFromDevice = () => {
+    if (!navigator.geolocation) {
+      toast.error('เบราว์เซอร์ของคุณไม่รองรับการหาพิกัด');
+      return;
+    }
+
+    toast.info('กำลังค้นหาพิกัด... (กรุณายอมรับการขออนุญาต)', { autoClose: false });
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setMapData({
+          ...mapData,
+          latitude: latitude.toFixed(4),
+          longitude: longitude.toFixed(4),
+          name: `พิกัดปัจจุบัน (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
+        });
+        toast.dismiss();
+        toast.success(`✓ พบพิกัด: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+      },
+      (error) => {
+        toast.dismiss();
+        if (error.code === error.PERMISSION_DENIED) {
+          toast.error('คุณปฏิเสธการเข้าถึงพิกัด กรุณาอนุญาตในการตั้งค่าเบราว์เซอร์');
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          toast.error('ไม่สามารถหาพิกัดได้ โปรดลองใหม่');
+        } else if (error.code === error.TIMEOUT) {
+          toast.error('หมดเวลาการหาพิกัด กรุณาลองใหม่');
+        } else {
+          toast.error('เกิดข้อผิดพลาดในการหาพิกัด');
+        }
+      }
+    );
   };
 
   // ✅ อัพโหลดรูปไป Strapi
@@ -402,14 +466,28 @@ function EditStore_admin() {
 
             <div className="md:col-span-2">
               <label className="block font-semibold mb-1">Link Google Map*</label>
-              <input
-                type="text"
-                name="link_gps"
-                value={formData.link_gps}
-                onChange={handleChange}
-                className="w-full border rounded p-2"
-                required
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  name="link_gps"
+                  value={formData.link_gps}
+                  onChange={handleChange}
+                  className="flex-1 border rounded p-2"
+                  placeholder="https://www.google.com/maps/search/lat+lng/@lat,lng,18z"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={openMapPicker}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 whitespace-nowrap"
+                  title="เลือกสถานที่จาก Google Maps"
+                >
+                  📍 เลือก
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                หรือคลิกปุ่ม "เลือก" เพื่อเปลี่ยนสถานที่
+              </p>
             </div>
 
             <div className="md:col-span-2">
@@ -565,6 +643,123 @@ function EditStore_admin() {
           </form>
         )}
       </div>
+
+      {/* Google Map Picker Modal */}
+      {showMapPicker && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
+            <div className="border-b px-6 py-4 flex justify-between items-center">
+              <h2 className="text-lg font-bold">เลือกสถานที่ร้านยา</h2>
+              <button
+                onClick={closeMapPicker}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto px-6 py-4 flex flex-col gap-4">
+              {/* ส่วนหาพิกัดจากเครื่อง */}
+              <div className="border rounded p-4 bg-yellow-50">
+                <h3 className="font-semibold mb-3 text-amber-900">📍 วิธี 0: ใช้พิกัดจากเครื่องของคุณ (ด่วนที่สุด)</h3>
+                <button
+                  type="button"
+                  onClick={getLocationFromDevice}
+                  className="w-full px-4 py-3 bg-amber-500 text-white rounded hover:bg-amber-600 font-semibold flex items-center justify-center gap-2"
+                >
+                  🎯 ค้นหาพิกัดปัจจุบัน
+                </button>
+                <p className="text-xs text-amber-700 mt-2">
+                  💡 กดปุ่มนี้เพื่อให้ระบบหาพิกัดของตำแหน่งปัจจุบันของคุณ (ต้องอนุญาตในเบราว์เซอร์)
+                </p>
+              </div>
+
+              {/* ส่วนใส่พิกัด */}
+              <div className="border rounded p-4 bg-gray-50">
+                <h3 className="font-semibold mb-3">วิธี 1: ใส่พิกัดโดยตรง (ทั้ง 2 ช่อง)</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">ละติจูด (Latitude)</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      placeholder="13.7563"
+                      value={mapData.latitude}
+                      onChange={(e) => setMapData({...mapData, latitude: e.target.value})}
+                      className="w-full border rounded p-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">ลองจิจูด (Longitude)</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      placeholder="100.4925"
+                      value={mapData.longitude}
+                      onChange={(e) => setMapData({...mapData, longitude: e.target.value})}
+                      className="w-full border rounded p-2 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ส่วนใส่ชื่อสถานที่ */}
+              <div className="border rounded p-4 bg-gray-50">
+                <h3 className="font-semibold mb-3">วิธี 2: ค้นหาชื่อสถานที่</h3>
+                <input
+                  type="text"
+                  placeholder="ใส่ชื่อร้านยา หรือที่อยู่ (เช่น 'ร้านยาสวัสดิ์ บางนา')"
+                  value={mapData.name}
+                  onChange={(e) => setMapData({...mapData, name: e.target.value})}
+                  className="w-full border rounded p-2 text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 ทำการค้นหา Google Maps จากชื่อ แล้วสำเร็จรูป URL จากการค้นหา
+                </p>
+              </div>
+
+              {/* ส่วนสาธิตการใช้ */}
+              <div className="border rounded p-4 bg-blue-50">
+                <h3 className="font-semibold mb-2 text-blue-900">📌 วิธีการหาพิกัด:</h3>
+                <ol className="text-sm text-blue-900 list-decimal list-inside space-y-1">
+                  <li>เปิด <strong>Google Maps</strong> ใน browser</li>
+                  <li>ค้นหาชื่อร้านยา หรือปักหมุดตำแหน่ง</li>
+                  <li>กดเลือก <strong>แชร์</strong> → คัดลอก URL</li>
+                  <li>หรือดูแถบ address bar ที่มี <code>@lat,lng</code></li>
+                  <li>ใส่ละติจูด กับ ลองจิจูด ด้านบน</li>
+                </ol>
+              </div>
+
+              {/* แสดงตัวอย่าง */}
+              {mapData.latitude && mapData.longitude && (
+                <div className="border rounded p-4 bg-green-50">
+                  <p className="text-sm font-semibold text-green-900">✅ URL ที่สร้างจาก:</p>
+                  <code className="text-xs bg-white border rounded p-2 block mt-2 break-all">
+                    https://www.google.com/maps/search/{mapData.latitude}+{mapData.longitude}/@{mapData.latitude},{mapData.longitude},18z
+                  </code>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t px-6 py-4 flex gap-3 justify-end">
+              <button
+                onClick={closeMapPicker}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={setMapLink}
+                disabled={!mapData.latitude || !mapData.longitude}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                ✓ บันทึกพิกัด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </>
   );

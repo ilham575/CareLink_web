@@ -12,7 +12,20 @@ module.exports = [
       ],
     },
   },
-  'strapi::security',
+  {
+    name: 'strapi::security',
+    config: {
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          'connect-src': ["'self'", 'https:', 'http://localhost:1337', 'ws://localhost:1337'],
+          'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+          'media-src': ["'self'", 'data:', 'blob:', 'https:'],
+          'frame-src': ["'self'", 'https:'],
+        },
+      },
+    },
+  },
   'strapi::poweredBy',
   'strapi::logger',
   'strapi::query',

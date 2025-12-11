@@ -61,13 +61,14 @@ function EditStaffProfile() {
         const firstName = nameParts[0] || "";
         const lastName = nameParts.slice(1).join(" ") || "";
 
-        setForm({
+        setForm(prev => ({
+          ...prev,
           firstName: firstName,
           lastName: lastName,
           phone: user.phone || "",
           username: user.username || "",
           profileImage: null,
-        });
+        }));
 
         // โหลดข้อมูล staff profiles ของร้านทั้งหมดที่ทำงานอยู่
         // ใช้ user.id จาก API response แทน userDocumentId
@@ -166,9 +167,8 @@ function EditStaffProfile() {
 
     try {
       const token = localStorage.getItem('jwt');
-      const userDocumentId = localStorage.getItem('user_documentId');
 
-      // อัปเดตข้อมูล user
+      // อัปเดตข้อมูล user โดยใช้ userId ที่เก็บไว้
       const userData = {
         full_name: `${form.firstName} ${form.lastName}`.trim(),
         phone: form.phone,
@@ -179,7 +179,7 @@ function EditStaffProfile() {
         userData.password = form.password;
       }
 
-      const userUpdateRes = await fetch(API.users.update(userDocumentId), {
+      const userUpdateRes = await fetch(API.users.update(userId), {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(userData),

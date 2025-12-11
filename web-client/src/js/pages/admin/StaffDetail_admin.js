@@ -117,20 +117,20 @@ function StaffDetailAdmin() {
 
   const askConfirm = (message) => {
     return new Promise((resolve) => {
-      const id = toast.info(
+      toast.info(
         ({ closeToast }) => (
           <div>
             <div>{message}</div>
             <div style={{ marginTop: 8, textAlign: 'right' }}>
               <button
                 className="px-3 py-1 rounded bg-red-600 text-white mr-2"
-                onClick={() => { toast.dismiss(id); resolve(true); }}
+                onClick={() => { closeToast?.(); resolve(true); }}
               >
                 ใช่
               </button>
               <button
                 className="px-3 py-1 rounded bg-gray-300 text-black"
-                onClick={() => { toast.dismiss(id); resolve(false); }}
+                onClick={() => { closeToast?.(); resolve(false); }}
               >
                 ยกเลิก
               </button>

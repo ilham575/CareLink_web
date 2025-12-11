@@ -8,9 +8,13 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/carelink-strapi:$SHORT_SHA'
+      - 'gcr.io/$PROJECT_ID/carelink-strapi:$BUILD_ID'
       - '-t'
       - 'gcr.io/$PROJECT_ID/carelink-strapi:latest'
+      - '--build-arg'
+      - 'PUBLIC_URL=${_PUBLIC_URL}'
+      - '--build-arg'
+      - 'STRAPI_ADMIN_BACKEND_URL=${_PUBLIC_URL}'
       - '-f'
       - 'Dockerfile.gcp'
       - '.'
@@ -20,7 +24,7 @@ steps:
     id: 'push-image'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/carelink-strapi:$SHORT_SHA'
+      - 'gcr.io/$PROJECT_ID/carelink-strapi:$BUILD_ID'
     waitFor: ['build-image']
 
   - name: 'gcr.io/cloud-builders/docker'
@@ -30,14 +34,42 @@ steps:
       - 'gcr.io/$PROJECT_ID/carelink-strapi:latest'
     waitFor: ['build-image']
 
-  # Step 3: Deploy to Cloud Run
-  - name: 'gcr.io/cloud-builders/run'
+  # Step 3: Run database migrations (optional - can fail without blocking deployment)
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'run-migrations'
+    args:
+      - 'run'
+      - '--rm'
+      - '--env'
+      - 'NODE_ENV=production'
+      - '--env'
+      - 'DATABASE_CLIENT=${_DATABASE_CLIENT}'
+      - '--env'
+      - 'DATABASE_HOST=${_DATABASE_HOST}'
+      - '--env'
+      - 'DATABASE_PORT=${_DATABASE_PORT}'
+      - '--env'
+      - 'DATABASE_NAME=${_DATABASE_NAME}'
+      - '--env'
+      - 'DATABASE_USERNAME=${_DATABASE_USERNAME}'
+      - '--env'
+      - 'DATABASE_PASSWORD=${_DATABASE_PASSWORD}'
+      - 'gcr.io/$PROJECT_ID/carelink-strapi:$BUILD_ID'
+      - 'sh'
+      - '-c'
+      - 'npm run db:migrate || true'
+    waitFor: ['push-latest']
+    allowFailure: true
+
+  # Step 4: Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
     id: 'deploy-cloud-run'
     args:
+      - 'run'
       - 'deploy'
       - 'carelink-strapi'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/carelink-strapi:$SHORT_SHA'
+      - 'gcr.io/$PROJECT_ID/carelink-strapi:$BUILD_ID'
       - '--platform'
       - 'managed'
       - '--region'
@@ -51,27 +83,35 @@ steps:
       - '--timeout'
       - '3600'
       - '--set-env-vars'
-      - 'NODE_ENV=production,DATABASE_CLIENT=${_DATABASE_CLIENT},DATABASE_HOST=${_DATABASE_HOST},DATABASE_PORT=${_DATABASE_PORT},DATABASE_NAME=${_DATABASE_NAME},ADMIN_JWT_SECRET=${_ADMIN_JWT_SECRET},JWT_SECRET=${_JWT_SECRET},API_TOKEN_SALT=${_API_TOKEN_SALT},TRANSFER_TOKEN_SALT=${_TRANSFER_TOKEN_SALT},STRAPI_URL=${_STRAPI_URL}'
+      - 'NODE_ENV=production,DATABASE_CLIENT=${_DATABASE_CLIENT},DATABASE_HOST=/cloudsql/${_CLOUDSQL_INSTANCE},DATABASE_PORT=${_DATABASE_PORT},DATABASE_NAME=${_DATABASE_NAME},DATABASE_USERNAME=${_DATABASE_USERNAME},DATABASE_PASSWORD=${_DATABASE_PASSWORD},ADMIN_JWT_SECRET=${_ADMIN_JWT_SECRET},JWT_SECRET=${_JWT_SECRET},API_TOKEN_SALT=${_API_TOKEN_SALT},TRANSFER_TOKEN_SALT=${_TRANSFER_TOKEN_SALT},STRAPI_URL=${_STRAPI_URL},PUBLIC_URL=${_PUBLIC_URL},URL=${_PUBLIC_URL},INSTANCE_CONNECTION_NAME=${_CLOUDSQL_INSTANCE},APP_KEYS=${_APP_KEYS},ENCRYPTION_KEY=${_ENCRYPTION_KEY}'
+      - '--add-cloudsql-instances'
+      - '${_CLOUDSQL_INSTANCE}'
       - '--allow-unauthenticated'
-    waitFor: ['push-latest']
+    waitFor: ['push-latest', 'run-migrations']
 
 # Images to push
 images:
-  - 'gcr.io/$PROJECT_ID/carelink-strapi:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/carelink-strapi:$BUILD_ID'
   - 'gcr.io/$PROJECT_ID/carelink-strapi:latest'
 
 # Substitutions สำหรับตัวแปร (แก้ไขตามของคุณ)
 substitutions:
   _CLOUD_RUN_REGION: 'asia-southeast1'  # ลงทะเบียนเหมาะสมสำหรับ Thailand
   _DATABASE_CLIENT: 'postgres'
-  _DATABASE_HOST: '35.247.XXX.XXX'  # Cloud SQL Proxy IP
+  _DATABASE_HOST: '34.87.77.242'  # Cloud SQL Proxy IP
   _DATABASE_PORT: '5432'
   _DATABASE_NAME: 'carelink_db'
+  _DATABASE_USERNAME: 'postgres'
+  _DATABASE_PASSWORD: 'Ihsan53295'
   _ADMIN_JWT_SECRET: 'your-admin-jwt-secret'
   _JWT_SECRET: 'your-jwt-secret'
   _API_TOKEN_SALT: 'your-api-token-salt'
   _TRANSFER_TOKEN_SALT: 'your-transfer-token-salt'
-  _STRAPI_URL: 'https://carelink-strapi-xxxxx.run.app'
+  _PUBLIC_URL: 'https://carelink-strapi-290491493302.asia-southeast1.run.app'
+  _STRAPI_URL: 'https://carelink-strapi-290491493302.asia-southeast1.run.app'
+  _APP_KEYS: 'TJwbNCJKiMAZ/HF1DYboEw==,qOG9x82HcJZig9QWOvsrtw==,5WmxWYUO7x2Mq9qsHKgAoQ==,dY43xeBOM20ejdIlPhj9gg=='
+  _ENCRYPTION_KEY: 'f1INpq5QPenZhbPRyb0x+w=='
+  _CLOUDSQL_INSTANCE: 'carelink-web:asia-southeast1:carelink-db'  # set to your Cloud SQL connection name
 
 # Build timeout
 timeout: '3600s'

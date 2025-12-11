@@ -55,6 +55,12 @@
       "relation": "manyToOne",
       "target": "api::staff-profile.staff-profile",
       "inversedBy": "assigned_customers"
+    },
+    "pharmacy_profile": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::pharmacy-profile.pharmacy-profile",
+      "inversedBy": "customer_profiles"
     }
   }
 }

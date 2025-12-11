@@ -185,7 +185,8 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch, forceShowPharmacy 
     location.pathname.startsWith('/edit_pharmacist_admin/'); // เพิ่มบรรทัดนี้
 
   // If parent explicitly wants pharmacy name shown (e.g., edit screens), allow it
-  const showPharmacyName = isPharmacyDetail || forceShowPharmacy;
+  // Also show when `pharmacyName` prop is provided
+  const showPharmacyName = isPharmacyDetail || forceShowPharmacy || !!pharmacyName;
 
   const isSignup = location.pathname === '/signup';
   

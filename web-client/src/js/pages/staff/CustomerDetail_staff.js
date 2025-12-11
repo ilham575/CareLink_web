@@ -8,6 +8,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Modal, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import { API, fetchWithAuth } from '../../../utils/apiConfig';
+import useSmartPolling from '../../../hooks/useSmartPolling';
 
 // เพิ่มฟังก์ชันแปลงวันที่เป็นภาษาไทย
 function formatThaiDate(dateStr) {
@@ -53,12 +54,42 @@ function CustomerDetailStaff() {
   const [activeTab, setActiveTab] = useState('1');
   // Track selected batch (lot) for each drug: { drugId: batchDocumentId }
   const [selectedBatches, setSelectedBatches] = useState({});
-  // Track if lots have been saved
-  const [lotsSaved, setLotsSaved] = useState(false);
   
   // Get pharmacyId from URL params
   const searchParams = new URLSearchParams(location.search);
   const pharmacyId = searchParams.get('pharmacyId');
+
+  // Helper: get pharmacist name from pharmacy object
+  const getPharmacistName = (pharmacyObj) => {
+        if (!pharmacyObj) return '';
+
+        // 1) If API populated staff_profiles, prefer staff with position 'pharmacist' (Thai/EN), else first staff
+        if (Array.isArray(pharmacyObj.staff_profiles) && pharmacyObj.staff_profiles.length > 0) {
+          // find pharmacist by position
+          const pharmacist = pharmacyObj.staff_profiles.find(s => {
+            const pos = (s.position || '').toString().toLowerCase();
+            return pos.includes('เภสัช') || pos.includes('pharmac');
+          }) || pharmacyObj.staff_profiles[0];
+
+          const userName = pharmacist?.users_permissions_user?.full_name || pharmacist?.users_permissions_user?.username;
+          if (userName) return userName;
+        }
+
+        // 2) If pharmacy has pharmacy_profiles that link to a user (owner/pharmacist), use it
+        if (Array.isArray(pharmacyObj.pharmacy_profiles) && pharmacyObj.pharmacy_profiles.length > 0) {
+          const p = pharmacyObj.pharmacy_profiles[0];
+          const userName = p?.users_permissions_user?.full_name || p?.users_permissions_user?.username;
+          if (userName) return userName;
+        }
+
+        // 3) Fallbacks: nested attributes or direct field
+        const userFullName = pharmacyObj.users_permissions_user?.full_name || pharmacyObj.attributes?.users_permissions_user?.full_name;
+        if (userFullName) return userFullName;
+        return pharmacyObj.pharmacist_name || pharmacyObj.attributes?.pharmacist_name || '';
+  };
+
+  // Computed: Check if lots have been saved (from staffStatus.batches_selected)
+  const lotsSaved = !!(staffStatus?.batches_selected && Object.keys(staffStatus.batches_selected).length > 0);
 
   useEffect(() => {
     const loadCustomerData = async () => {
@@ -224,6 +255,34 @@ function CustomerDetailStaff() {
       loadCustomerData();
     }
   }, [customerDocumentId, pharmacyId]);
+  // Smart Polling: ใช้ exponential backoff + ETag caching + change detection
+  const { resetInterval: resetNotificationPoll } = useSmartPolling(
+    notification?.documentId
+      ? API.notifications.getByDocumentId(notification.documentId)
+      : null,
+    {
+      initialInterval: 2000, // เริ่มต้น 2 วินาที
+      maxInterval: 30000, // สูงสุด 30 วินาที
+      backoffMultiplier: 1.3,
+      enabled: !!notification?.documentId,
+      onDataChange: (newData) => {
+        // เมื่อมีข้อมูลใหม่
+        const updatedNotif = newData.data;
+        if (updatedNotif?.staff_work_status) {
+          // Check if status changed from pharmacy end
+          const hasChanges = JSON.stringify(staffStatus) !== JSON.stringify(updatedNotif.staff_work_status);
+          if (hasChanges) {
+            setStaffStatus(updatedNotif.staff_work_status);
+            setNotification(updatedNotif);
+            toast.info('🔄 เภสัชกรได้ส่งข้อมูลอัพเดต');
+          }
+        }
+      },
+      onError: (error) => {
+        console.error('Error in smart polling:', error);
+      }
+    }
+  );
 
   const handleBack = () => {
     if (pharmacyId) {
@@ -278,7 +337,7 @@ function CustomerDetailStaff() {
       const updatedStatus = { ...staffStatus, batches_selected: selectedBatches };
 
       const notifIdentifier = notification?.documentId;
-      const res = await fetch(API.notifications.getById(notifIdentifier), {
+      const res = await fetch(API.notifications.updateByDocumentId(notifIdentifier), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -294,7 +353,6 @@ function CustomerDetailStaff() {
       if (res.ok) {
         setStaffStatus(updatedStatus);
         setNotification(prev => ({ ...prev, staff_work_status: updatedStatus }));
-        setLotsSaved(true);
         toast.success('บันทึก Lot ยาสำเร็จ - ตอนนี้สามารถกด "จัดยาส่งแล้ว" ได้');
       } else {
         throw new Error('ไม่สามารถบันทึก Lot ได้');
@@ -341,7 +399,8 @@ function CustomerDetailStaff() {
         for (const drugItem of customer.prescribed_drugs) {
           const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
           const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
-          const selectedBatchId = selectedBatches[drugId];
+          // ดึง batch ID จาก staffStatus.batches_selected (ที่บันทึกไปแล้ว)
+          const selectedBatchId = staffStatus.batches_selected?.[drugId] || selectedBatches[drugId];
 
           if (selectedBatchId) {
             // ลดสต็อก batch นี้
@@ -376,7 +435,7 @@ function CustomerDetailStaff() {
       }
 
       const notifIdentifier = notification?.documentId;
-      const res = await fetch(API.notifications.getById(notifIdentifier), {
+      const res = await fetch(API.notifications.updateByDocumentId(notifIdentifier), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -395,6 +454,22 @@ function CustomerDetailStaff() {
         setNotification(prev => ({ ...prev, staff_work_status: updatedStatus, is_read: true }));
         toast.success('อัปเดตสถานะสำเร็จ');
         setStatusModal({ open: false, type: '', note: '' });
+        
+        // Broadcast update event ให้ pharmacy detail page ทราบเพื่อให้อัพเดตแบบ real-time
+        window.dispatchEvent(new CustomEvent('staffStatusUpdated', { 
+          detail: { 
+            customerDocumentId, 
+            staffStatus: updatedStatus,
+            notificationId: notifIdentifier
+          } 
+        }));
+        
+        // Also store in localStorage for cross-tab communication
+        localStorage.setItem(`staffStatus_${customerDocumentId}`, JSON.stringify({
+          updatedAt: new Date().toISOString(),
+          staffStatus: updatedStatus,
+          notificationId: notifIdentifier
+        }));
         
         // Keep selectedBatches in state so they remain visible after prepare
         // Don't reload - just update notification to reflect the changes
@@ -422,7 +497,7 @@ function CustomerDetailStaff() {
       };
 
       const notifIdentifier = notification?.documentId;
-      const res = await fetch(API.notifications.getById(notifIdentifier), {
+      const res = await fetch(API.notifications.updateByDocumentId(notifIdentifier), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -511,7 +586,7 @@ function CustomerDetailStaff() {
       };
 
       const notifIdentifier = notification?.documentId;
-      const res = await fetch(API.notifications.getById(notifIdentifier), {
+      const res = await fetch(API.notifications.updateByDocumentId(notifIdentifier), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -527,7 +602,6 @@ function CustomerDetailStaff() {
       if (res.ok) {
         setStaffStatus(resetStatus);
         setNotification(prev => ({ ...prev, staff_work_status: resetStatus }));
-        setLotsSaved(false); // ปล่อย lot lock เพื่อให้เลือก lot ใหม่ได้
         toast.success('ยกเลิกการจัดส่งสำเร็จ - บันทึก Lot ใหม่เพื่อดำเนินการต่อ');
         setStatusModal({ open: false, type: '', note: '' });
       } else {
@@ -542,7 +616,7 @@ function CustomerDetailStaff() {
   if (loading) {
     return (
       <div className="customer-detail-page">
-        <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
+        <HomeHeader pharmacyName={pharmacy?.name_th || ''} pharmacistName={getPharmacistName(pharmacy)} />
         <main className="customer-detail-main">
           <div className="loading-container">
             <div className="loading-spinner"></div>
@@ -557,7 +631,7 @@ function CustomerDetailStaff() {
   if (!customer) {
     return (
       <div className="customer-detail-page">
-        <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
+        <HomeHeader pharmacyName={pharmacy?.name_th || ''} pharmacistName={getPharmacistName(pharmacy)} />
         <main className="customer-detail-main">
           <div className="error-container">
             <h2>ไม่พบข้อมูลลูกค้า</h2>
@@ -576,9 +650,20 @@ function CustomerDetailStaff() {
 
   return (
     <div className="customer-detail-page">
-      <ToastContainer />
+      <ToastContainer 
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
       <HomeHeader 
         pharmacyName={pharmacy?.name_th || pharmacy?.attributes?.name_th || ''}
+        pharmacistName={getPharmacistName(pharmacy)}
       />
       
       <main className="customer-detail-main">

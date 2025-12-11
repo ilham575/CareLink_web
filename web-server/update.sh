@@ -39,7 +39,7 @@ if [ "${DRY_RUN}" = "1" ]; then
   warn "DRY_RUN=1 — skipping docker/gcloud operations. This is a dry run."
 fi
 
-info "Building Docker image locally..."
+info "Building Docker image (local or Cloud Build)..."
 
 # Determine the directory of this script (the web-server folder)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -61,15 +61,52 @@ info "Using Dockerfile: ${DOCKERFILE_PATH}"
 info "Build context: ${SCRIPT_DIR}"
 
 # Build using the script directory as build context and explicit Dockerfile
-if [ "${DRY_RUN}" = "1" ]; then
-  info "(dry) docker build -t \"${IMAGE_NAME}:${TAG}\" -f \"${DOCKERFILE_PATH}\" \"${SCRIPT_DIR}\""
-else
-  if ! docker build -t "${IMAGE_NAME}:${TAG}" -f "${DOCKERFILE_PATH}" "${SCRIPT_DIR}"; then
-    fail "Docker build failed"
+# Decide whether to use Cloud Build (default) or local Docker
+USE_CLOUDBUILD=${USE_CLOUDBUILD:-1}
+if [ "${USE_CLOUDBUILD}" = "1" ]; then
+  # Use Cloud Build with cloudbuild.yaml (substitutions will default to those in the file)
+  info "Using Google Cloud Build with 'cloudbuild.yaml'"
+  # Use cloudbuild file from web-client folder
+  CLOUDBUILD_CONFIG="${SCRIPT_DIR}/../web-client/cloudbuild.yaml"
+  if [ ! -f "${CLOUDBUILD_CONFIG}" ]; then
+    warn "Cloud Build config not found at ${CLOUDBUILD_CONFIG}, falling back to local cloudbuild.yaml"
+    CLOUDBUILD_CONFIG="${SCRIPT_DIR}/cloudbuild.yaml"
+  else
+    info "Using Cloud Build config: ${CLOUDBUILD_CONFIG}"
+  fi
+  if ! command -v gcloud >/dev/null 2>&1; then
+    warn "gcloud not found in PATH. Falling back to local Docker build. To force Cloud Build, install gcloud or set USE_CLOUDBUILD=0"
+    USE_CLOUDBUILD=0
   fi
 fi
 
-# Tag for GCR
+if [ "${USE_CLOUDBUILD}" = "1" ]; then
+  if [ "${DRY_RUN}" = "1" ]; then
+    info "(dry) gcloud builds submit --config=cloudbuild.yaml"
+  else
+    # Run Cloud Build submit which will build, push and deploy as defined by cloudbuild.yaml
+    if ! gcloud builds submit --config="${CLOUDBUILD_CONFIG}"; then
+      fail "gcloud builds submit failed"
+    fi
+  fi
+else
+  # Fallback to local Docker build and push
+  if [ "${DRY_RUN}" = "1" ]; then
+    info "(dry) docker build --build-arg PUBLIC_URL=http://localhost:1337 -t \"${IMAGE_NAME}:${TAG}\" -f \"${DOCKERFILE_PATH}\" \"${SCRIPT_DIR}\""
+  else
+    if ! docker build --build-arg PUBLIC_URL=http://localhost:1337 -t "${IMAGE_NAME}:${TAG}" -f "${DOCKERFILE_PATH}" "${SCRIPT_DIR}"; then
+      fail "Docker build failed"
+    fi
+  fi
+fi
+
+# If we used Cloud Build, the cloudbuild job should have handled push and deploy.
+if [ "${USE_CLOUDBUILD}" = "1" ]; then
+  success "Cloud Build job submitted and completed (check Cloud Build logs for details)."
+  exit 0
+fi
+
+# Tag for GCR (local path)
 info "Tagging image for GCR..."
 if [ "${DRY_RUN}" = "1" ]; then
   info "(dry) docker tag \"${IMAGE_NAME}:${TAG}\" \"gcr.io/${PROJECT_ID}/${IMAGE_NAME}:${TAG}\""
@@ -89,8 +126,7 @@ else
   fi
 fi
 
-# Deploy to Cloud Run
-# Deploy to Cloud Run
+# Deploy to Cloud Run (local path)
 info "Deploying to Cloud Run..."
 # Use an array for arguments so that splitting is safe
 GCLOUD_ARGS=(run deploy "${IMAGE_NAME}" --image "gcr.io/${PROJECT_ID}/${IMAGE_NAME}:${TAG}" --region "${REGION}" --allow-unauthenticated --platform managed --memory 512Mi --cpu 2 --timeout 3600)

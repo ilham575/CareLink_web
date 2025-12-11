@@ -163,7 +163,33 @@ function FormCustomerPage() {
   };
 
   const createCustomer = async (token) => {
-    // First, get the drug store internal ID
+    // First, get the current user ID
+    const userRes = await fetch(API.users.me(), {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const userData = await userRes.json();
+    const currentUserId = userData.id;
+
+    // Get the current pharmacist's profile
+    let pharmacyProfileDocumentId = null;
+    try {
+      const pharmacyRes = await fetch(API.pharmacyProfiles.getByUserId(currentUserId), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const pharmacyData = await pharmacyRes.json();
+      if (pharmacyData.data && pharmacyData.data.length > 0) {
+        // Use the pharmacy profile that matches the current store
+        const matchingProfile = pharmacyData.data.find(profile => {
+          const storeIds = profile.drug_stores?.map(s => s.documentId || s.id || s) || [];
+          return storeIds.length > 0;
+        }) || pharmacyData.data[0];
+        pharmacyProfileDocumentId = matchingProfile.documentId;
+      }
+    } catch (error) {
+      console.warn('Could not fetch pharmacy profile:', error);
+    }
+
+    // Get the drug store internal ID
     const drugStoreRes = await fetch(
       API.drugStores.getByDocumentId(pharmacyId),
       { headers: { Authorization: `Bearer ${token}` } }
@@ -195,7 +221,7 @@ function FormCustomerPage() {
     const passwordToUse = formData.password?.trim() || formData.phone;
 
     // Create user with basic fields only
-    const userResponse = await fetch(API.auth.register, {
+    const createUserResponse = await fetch(API.auth.register, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -207,16 +233,16 @@ function FormCustomerPage() {
       })
     });
 
-    if (!userResponse.ok) {
-      const errorData = await userResponse.json();
+    if (!createUserResponse.ok) {
+      const errorData = await createUserResponse.json();
       throw new Error(errorData.error?.message || 'ไม่สามารถสร้างบัญชีผู้ใช้ได้');
     }
 
-    const userData = await userResponse.json();
+    const newUserData = await createUserResponse.json();
 
     try {
       // Update user with additional fields
-      const updateUserResponse = await fetch(API.users.getById(userData.user.id), {
+      const updateUserResponse = await fetch(API.users.getById(newUserData.user.id), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -232,7 +258,7 @@ function FormCustomerPage() {
       if (!updateUserResponse.ok) {
         // If user update fails, try to clean up the created user
         try {
-          await fetch(API.users.getById(userData.user.id), {
+          await fetch(API.users.getById(newUserData.user.id), {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -244,7 +270,21 @@ function FormCustomerPage() {
         throw new Error(errorData.error?.message || 'ไม่สามารถอัปเดตข้อมูลผู้ใช้ได้');
       }
 
-      // Create customer profile
+      // Create customer profile with pharmacy_profile
+      const profileData = {
+        users_permissions_user: newUserData.user.documentId,
+        drug_stores: [targetStore.documentId],
+        congenital_disease: formData.congenital_disease,
+        Allergic_drugs: formData.Allergic_drugs,
+        Customers_symptoms: formData.Customers_symptoms,
+        Follow_up_appointment_date: formData.Follow_up_appointment_date || null
+      };
+
+      // Add pharmacy_profile if found
+      if (pharmacyProfileDocumentId) {
+        profileData.pharmacy_profile = pharmacyProfileDocumentId;
+      }
+
       const profileResponse = await fetch(API.customerProfiles.create(), {
         method: 'POST',
         headers: {
@@ -252,21 +292,14 @@ function FormCustomerPage() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          data: {
-            users_permissions_user: userData.user.id,
-            drug_stores: [targetStore.id],
-            congenital_disease: formData.congenital_disease,
-            Allergic_drugs: formData.Allergic_drugs,
-            Customers_symptoms: formData.Customers_symptoms,
-            Follow_up_appointment_date: formData.Follow_up_appointment_date || null
-          }
+          data: profileData
         })
       });
 
       if (!profileResponse.ok) {
         // If profile creation fails, try to clean up the user
         try {
-          await fetch(API.users.getById(userData.user.id), {
+          await fetch(API.users.getById(newUserData.user.id), {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -285,7 +318,7 @@ function FormCustomerPage() {
     } catch (error) {
       // If anything fails after user creation, try to clean up the user
       try {
-        await fetch(API.users.getById(userData.user.id), {
+        await fetch(API.users.getById(newUserData.user.id), {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -297,6 +330,32 @@ function FormCustomerPage() {
   };
 
   const updateCustomer = async (token) => {
+    // Get the current user ID and pharmacy profile
+    const userRes = await fetch(API.users.me(), {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const meData = await userRes.json();
+    const currentUserId = meData.id;
+
+    // Get the current pharmacist's profile
+    let pharmacyProfileDocumentId = null;
+    try {
+      const pharmacyRes = await fetch(API.pharmacyProfiles.getByUserId(currentUserId), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const pharmacyData = await pharmacyRes.json();
+      if (pharmacyData.data && pharmacyData.data.length > 0) {
+        // Use the pharmacy profile that matches the current store
+        const matchingProfile = pharmacyData.data.find(profile => {
+          const storeIds = profile.drug_stores?.map(s => s.documentId || s.id || s) || [];
+          return storeIds.length > 0;
+        }) || pharmacyData.data[0];
+        pharmacyProfileDocumentId = matchingProfile.documentId;
+      }
+    } catch (error) {
+      console.warn('Could not fetch pharmacy profile:', error);
+    }
+
     // ดึง userId จากข้อมูลที่โหลดมาจาก API
     let userId = null;
     
@@ -365,21 +424,28 @@ function FormCustomerPage() {
       }
     }
 
-    // Update customer profile using internal ID
-    const profileResponse = await fetch(API.customerProfiles.update(customerId), {
+    // Update customer profile using documentId with pharmacy_profile
+    const updateData = {
+      data: {
+        congenital_disease: formData.congenital_disease,
+        Allergic_drugs: formData.Allergic_drugs,
+        Customers_symptoms: formData.Customers_symptoms,
+        Follow_up_appointment_date: formData.Follow_up_appointment_date || null
+      }
+    };
+
+    // Add pharmacy_profile if found
+    if (pharmacyProfileDocumentId) {
+      updateData.data.pharmacy_profile = pharmacyProfileDocumentId;
+    }
+
+    const profileResponse = await fetch(API.customerProfiles.update(customerDocumentId), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({
-        data: {
-          congenital_disease: formData.congenital_disease,
-          Allergic_drugs: formData.Allergic_drugs,
-          Customers_symptoms: formData.Customers_symptoms,
-          Follow_up_appointment_date: formData.Follow_up_appointment_date || null
-        }
-      })
+      body: JSON.stringify(updateData)
     });
 
     if (!profileResponse.ok) {

@@ -8,6 +8,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Modal, DatePicker, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import { API, fetchWithAuth } from '../../../utils/apiConfig';
+import useSmartPolling from '../../../hooks/useSmartPolling';
 
 // เพิ่มฟังก์ชันแปลงวันที่เป็นภาษาไทย
 function formatThaiDate(dateStr) {
@@ -248,49 +249,97 @@ function CustomerDetail() {
     }
   }, [customerDocumentId, pharmacyId]);
 
-  // Poll notification status ทุก 3 วินาที เพื่อรับข้อมูลอัพเดตจาก staff
-  useEffect(() => {
-    if (!customerDocumentId || !assignedByStaff?.documentId) return;
+  // Smart Polling: ใช้ exponential backoff + ETag caching + change detection
+  const { resetInterval: resetNotificationPoll } = useSmartPolling(
+    customerDocumentId && assignedByStaff?.documentId
+      ? API.notifications.getCustomerNotifications(customerDocumentId)
+      : null,
+    {
+      initialInterval: 2000, // เริ่มต้น 2 วินาที
+      maxInterval: 30000, // สูงสุด 30 วินาที
+      backoffMultiplier: 1.3, // เพิ่มขึ้น 30% ทุกครั้ง
+      enabled: !!customerDocumentId && !!assignedByStaff?.documentId,
+      onDataChange: (newData) => {
+        // เมื่อมีข้อมูลใหม่
+        const notifData = newData.data?.[0];
+        if (notifData) {
+          const newStatus = notifData.staff_work_status || {
+            received: false,
+            prepared: false,
+            received_at: null,
+            prepared_at: null,
+            prepared_note: '',
+            outOfStock: [],
+            cancelled: false,
+            cancelled_at: null,
+            cancelled_note: ''
+          };
 
-    const pollNotificationStatus = async () => {
-      try {
-        const token = localStorage.getItem('jwt');
-        const notificationRes = await fetch(
-          API.notifications.getCustomerNotifications(customerDocumentId),
-          {
-            headers: { Authorization: token ? `Bearer ${token}` : "" }
-          }
-        );
+          setStaffWorkStatus(newStatus);
+          setLatestNotification(notifData);
 
-        if (notificationRes.ok) {
-          const notifData = await notificationRes.json();
-          const notification = notifData.data?.[0];
-          
-          if (notification && notification.staff_work_status) {
-            // อัพเดต staffWorkStatus ถ้าข้อมูลเปลี่ยนแปลง
-            setStaffWorkStatus(prevStatus => {
-              const hasChanges = JSON.stringify(prevStatus) !== JSON.stringify(notification.staff_work_status);
-              if (hasChanges) {
-                console.log('Staff work status updated:', notification.staff_work_status);
-              }
-              return notification.staff_work_status;
-            });
-            setLatestNotification(notification);
+          // แจ้งเตือนเมื่อมีการเปลี่ยนแปลงสำคัญ
+          if (newStatus.prepared) {
+            toast.info('🔄 ข้อมูลอัพเดตจากพนักงาน');
           }
         }
-      } catch (error) {
-        console.error('Error polling notification status:', error);
+      },
+      onError: (error) => {
+        console.error('Error in smart polling:', error);
+      }
+    }
+  );
+
+  // Force refresh เมื่อ window ได้ focus (user switch tab กลับมา)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && customerDocumentId && assignedByStaff?.documentId) {
+        // Reset interval เพื่อ poll ทันที
+        resetNotificationPoll();
       }
     };
 
-    // เรียก poll ทันที
-    pollNotificationStatus();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [customerDocumentId, assignedByStaff?.documentId, resetNotificationPoll]);
 
-    // ตั้ง interval เพื่อ poll ทุก 3 วินาที
-    const intervalId = setInterval(pollNotificationStatus, 3000);
+  // Listen for staff status update events from staff detail page
+  useEffect(() => {
+    const handleStaffStatusUpdate = (event) => {
+      const { customerDocumentId: updatedCustomerId, staffStatus } = event.detail;
+      
+      // Only update if this is the same customer
+      if (updatedCustomerId === customerDocumentId && staffStatus) {
+        setStaffWorkStatus(staffStatus);
+        toast.info('🔄 ข้อมูลสถานะจากพนักงานได้รับการอัพเดต');
+      }
+    };
 
-    return () => clearInterval(intervalId);
-  }, [customerDocumentId, assignedByStaff?.documentId]);
+    // Listen for custom events
+    window.addEventListener('staffStatusUpdated', handleStaffStatusUpdate);
+
+    // Listen for localStorage changes (cross-tab communication)
+    const handleStorageChange = (event) => {
+      if (event.key === `staffStatus_${customerDocumentId}` && event.newValue) {
+        try {
+          const { staffStatus } = JSON.parse(event.newValue);
+          if (staffStatus) {
+            setStaffWorkStatus(staffStatus);
+            toast.info('🔄 ข้อมูลสถานะจากพนักงานได้รับการอัพเดต');
+          }
+        } catch (error) {
+          console.error('Error parsing localStorage update:', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('staffStatusUpdated', handleStaffStatusUpdate);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [customerDocumentId]);
 
   const handleEdit = () => {
     navigate(`/form_customer?documentId=${customerDocumentId}&pharmacyId=${pharmacy?.documentId || pharmacyId}`);
@@ -307,7 +356,28 @@ function CustomerDetail() {
   // Helper: get pharmacist name from pharmacy object
   const getPharmacistName = (pharmacyObj) => {
     if (!pharmacyObj) return '';
-    // ปรับ field ตาม schema จริง ถ้าไม่ใช่ pharmacist_name ให้เปลี่ยน
+
+    // 1) If API populated staff_profiles, prefer staff with position 'pharmacist' (Thai/EN), else first staff
+    if (Array.isArray(pharmacyObj.staff_profiles) && pharmacyObj.staff_profiles.length > 0) {
+      const pharmacist = pharmacyObj.staff_profiles.find(s => {
+        const pos = (s.position || '').toString().toLowerCase();
+        return pos.includes('เภสัช') || pos.includes('pharmac');
+      }) || pharmacyObj.staff_profiles[0];
+
+      const userName = pharmacist?.users_permissions_user?.full_name || pharmacist?.users_permissions_user?.username;
+      if (userName) return userName;
+    }
+
+    // 2) If pharmacy has pharmacy_profiles that link to a user (owner/pharmacist), use it
+    if (Array.isArray(pharmacyObj.pharmacy_profiles) && pharmacyObj.pharmacy_profiles.length > 0) {
+      const p = pharmacyObj.pharmacy_profiles[0];
+      const userName = p?.users_permissions_user?.full_name || p?.users_permissions_user?.username;
+      if (userName) return userName;
+    }
+
+    // Fallback: direct fields
+    const userFullName = pharmacyObj.users_permissions_user?.full_name || pharmacyObj.attributes?.users_permissions_user?.full_name;
+    if (userFullName) return userFullName;
     return pharmacyObj.pharmacist_name || pharmacyObj.attributes?.pharmacist_name || '';
   };
 
@@ -1031,7 +1101,17 @@ function CustomerDetail() {
 
   return (
     <div className="staff-cust-detail-page">
-      <ToastContainer />
+      <ToastContainer 
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
       <HomeHeader 
         pharmacyName={pharmacy?.name_th || pharmacy?.attributes?.name_th || ''}
         pharmacistName={getPharmacistName(pharmacy)}
@@ -1084,8 +1164,48 @@ function CustomerDetail() {
         {assignedByStaff && assignedByStaff.documentId && latestNotification && latestNotification.id ? (
           <div className="staff-work-status-panel">
             <div className="status-panel-header">
-              <h3>📊 สถานะการดำเนินการ</h3>
-              <span className="status-panel-subtitle">ของ {assignedByStaff.users_permissions_user?.full_name || assignedByStaff.documentId || 'พนักงาน'}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div>
+                  <h3>📊 สถานะการดำเนินการ</h3>
+                  <span className="status-panel-subtitle">ของ {assignedByStaff.users_permissions_user?.full_name || assignedByStaff.documentId || 'พนักงาน'}</span>
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      const token = localStorage.getItem('jwt');
+                      const notificationRes = await fetch(
+                        API.notifications.getCustomerNotifications(customerDocumentId),
+                        { headers: { Authorization: token ? `Bearer ${token}` : "" } }
+                      );
+                      if (notificationRes.ok) {
+                        const notifData = await notificationRes.json();
+                        const notification = notifData.data?.[0];
+                        if (notification && notification.staff_work_status) {
+                          setStaffWorkStatus(notification.staff_work_status);
+                          setLatestNotification(notification);
+                          toast.success('✅ รีเฟรซข้อมูลสำเร็จ');
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Error refreshing status:', error);
+                      toast.error('ไม่สามารถรีเฟรซได้');
+                    }
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #52c41a, #73d13d)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  🔄 รีเฟรซ
+                </button>
+              </div>
             </div>
             
             <div className="status-buttons-group">

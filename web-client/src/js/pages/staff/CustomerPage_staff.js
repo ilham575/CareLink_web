@@ -175,7 +175,7 @@ function CustomerPageStaff() {
           <div className="customer-actions">
             <button 
               className="btn-back"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate(`/staffHome`)}
             >
               ← กลับ
             </button>
