@@ -15,6 +15,24 @@ function FormCustomerPage() {
   const [customerId, setCustomerId] = useState(null);
   const [customerDocumentId, setCustomerDocumentId] = useState(null);
   
+  // Helper: Convert string to JSON safely
+  const parseJsonField = (value) => {
+    if (!value) return null;
+    if (typeof value === 'object') return value;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      // Try to parse as JSON, if fails wrap as string
+      try {
+        return JSON.parse(trimmed);
+      } catch (e) {
+        // If not JSON, wrap in object with 'allergy' key
+        return { allergy: trimmed };
+      }
+    }
+    return null;
+  };
+  
   // Form data
   const [formData, setFormData] = useState({
     // User fields
@@ -66,6 +84,16 @@ function FormCustomerPage() {
       
       if (customer) {
         const user = customer.users_permissions_user?.data?.attributes || customer.users_permissions_user;
+        const allergic = customer.Allergic_drugs || customer.attributes?.Allergic_drugs;
+        // Convert JSON object back to display string
+        let allergyDisplay = "";
+        if (allergic) {
+          if (typeof allergic === 'string') {
+            allergyDisplay = allergic;
+          } else if (typeof allergic === 'object') {
+            allergyDisplay = allergic.allergy || allergic.drug || JSON.stringify(allergic);
+          }
+        }
         
         setCustomerId(customer.id || customer.attributes?.id);
         setCustomerDocumentId(customer.documentId || customer.attributes?.documentId);
@@ -76,7 +104,7 @@ function FormCustomerPage() {
           password: "", // Don't load password for security
           email: user?.email || "",
           congenital_disease: customer.congenital_disease || customer.attributes?.congenital_disease || "",
-          Allergic_drugs: customer.Allergic_drugs || customer.attributes?.Allergic_drugs || "",
+          Allergic_drugs: allergyDisplay,
           Customers_symptoms: customer.Customers_symptoms || customer.attributes?.Customers_symptoms || "",
           Follow_up_appointment_date: customer.Follow_up_appointment_date || customer.attributes?.Follow_up_appointment_date || ""
         });
@@ -275,7 +303,7 @@ function FormCustomerPage() {
         users_permissions_user: newUserData.user.documentId,
         drug_stores: [targetStore.documentId],
         congenital_disease: formData.congenital_disease,
-        Allergic_drugs: formData.Allergic_drugs,
+        Allergic_drugs: parseJsonField(formData.Allergic_drugs),
         Customers_symptoms: formData.Customers_symptoms,
         Follow_up_appointment_date: formData.Follow_up_appointment_date || null
       };
@@ -428,7 +456,7 @@ function FormCustomerPage() {
     const updateData = {
       data: {
         congenital_disease: formData.congenital_disease,
-        Allergic_drugs: formData.Allergic_drugs,
+        Allergic_drugs: parseJsonField(formData.Allergic_drugs),
         Customers_symptoms: formData.Customers_symptoms,
         Follow_up_appointment_date: formData.Follow_up_appointment_date || null
       }

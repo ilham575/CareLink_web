@@ -24,6 +24,26 @@ function formatThaiDate(dateStr) {
   return `${day} ${month} ${year}`;
 }
 
+// Helper: Format allergy data (could be string or JSON object)
+function formatAllergy(val) {
+  if (!val) return 'ไม่มีข้อมูล';
+  try {
+    if (typeof val === 'string') {
+      const parsed = JSON.parse(val);
+      if (parsed && typeof parsed === 'object') {
+        return parsed.allergy || parsed.drug || JSON.stringify(parsed);
+      }
+      return val;
+    }
+    if (typeof val === 'object') {
+      return val.allergy || val.drug || JSON.stringify(val);
+    }
+    return String(val);
+  } catch (err) {
+    return String(val);
+  }
+}
+
 function CustomerDetailCustomer() {
   const { customerDocumentId } = useParams();
   const navigate = useNavigate();
@@ -190,7 +210,12 @@ function CustomerDetailCustomer() {
               <span className="cust-stat-value">{customerData.prescribed_drugs?.length || 0}</span>
               <span className="cust-stat-label">รายการยา</span>
             </div>
-            {customerData.Allergic_drugs && (
+            {customerData.Allergic_drugs && (() => {
+              if (typeof customerData.Allergic_drugs === 'object') {
+                return customerData.Allergic_drugs.allergy || customerData.Allergic_drugs.drug;
+              }
+              return customerData.Allergic_drugs;
+            })() && (
               <div className="cust-stat-box warning">
                 <span className="cust-stat-icon">⚠️</span>
                 <span className="cust-stat-label">มียาที่แพ้</span>
@@ -239,7 +264,7 @@ function CustomerDetailCustomer() {
                   <div className="cust-info-card-content">
                     <div className="cust-info-row">
                       <label>ยาที่แพ้:</label>
-                      <span className="cust-text-warning">{customerData.Allergic_drugs || 'ไม่มีข้อมูล'}</span>
+                      <span className="cust-text-warning">{formatAllergy(customerData.Allergic_drugs)}</span>
                     </div>
                     <div className="cust-info-row">
                       <label>โรคประจำตัว:</label>
@@ -306,7 +331,7 @@ function CustomerDetailCustomer() {
                     <div className="cust-alert-icon">🚫</div>
                     <div className="cust-alert-content">
                       <h4>ยาที่แพ้</h4>
-                      <p>{customerData.Allergic_drugs || 'ไม่มีข้อมูล'}</p>
+                        <p>{formatAllergy(customerData.Allergic_drugs)}</p>
                     </div>
                   </div>
                   <div className="cust-alert-card disease">

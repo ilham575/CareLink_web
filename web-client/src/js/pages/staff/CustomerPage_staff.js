@@ -92,7 +92,7 @@ function CustomerPageStaff() {
               documentId: generatedId,
               users_permissions_user: userObj,
               Customers_symptoms: d.symptoms || '',
-              Allergic_drugs: d.allergy || '',
+              Allergic_drugs: d.allergy ? { allergy: d.allergy } : null,
               congenital_disease: d.disease || '',
               Follow_up_appointment_date: d.follow_up_date || d.appointment_date || null,
               notification: notif,

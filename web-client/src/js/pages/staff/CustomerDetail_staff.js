@@ -45,7 +45,8 @@ function CustomerDetailStaff() {
   const [statusModal, setStatusModal] = useState({
     open: false,
     type: '', // 'received' | 'prepared' | 'outOfStock'
-    note: ''
+    note: '',
+    selectedDrugs: []
   });
   const [addDrugModal, setAddDrugModal] = useState({ 
     open: false, 
@@ -88,8 +89,25 @@ function CustomerDetailStaff() {
         return pharmacyObj.pharmacist_name || pharmacyObj.attributes?.pharmacist_name || '';
   };
 
-  // Computed: Check if lots have been saved (from staffStatus.batches_selected)
-  const lotsSaved = !!(staffStatus?.batches_selected && Object.keys(staffStatus.batches_selected).length > 0);
+  // Computed: Check if lots have been selected by user (not saved yet, just current selection)
+  // Count how many drugs with batches have a batch selected in the current UI
+  const lotsSaved = (() => {
+    const drugsWithBatches = customer?.prescribed_drugs?.filter(drugItem => {
+      const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
+      const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
+      return drug && drug.drug_batches && drug.drug_batches.length > 0;
+    }) || [];
+    
+    if (drugsWithBatches.length === 0) return false;
+    
+    // Check if all drugs with batches have a selection
+    const allSelected = drugsWithBatches.every(drugItem => {
+      const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
+      return selectedBatches[drugId] && selectedBatches[drugId].trim() !== '';
+    });
+    
+    return allSelected;
+  })();
 
   useEffect(() => {
     const loadCustomerData = async () => {
@@ -147,7 +165,7 @@ function CustomerDetailStaff() {
             documentId: customerDocumentId,
             users_permissions_user: userObj,
             Customers_symptoms: d.symptoms || '',
-            Allergic_drugs: d.allergy || '',
+            Allergic_drugs: d.allergy ? { allergy: d.allergy } : null,
             congenital_disease: d.disease || '',
             Follow_up_appointment_date: d.follow_up_date || d.appointment_date || null,
             prescribed_drugs: d.prescribed_drugs || [],
@@ -926,7 +944,7 @@ function CustomerDetailStaff() {
                     <div className="alert-icon">🚫</div>
                     <div className="alert-content">
                       <h4>ยาที่แพ้</h4>
-                      <p>{customer.Allergic_drugs || 'ไม่มีข้อมูล'}</p>
+                      <p>{formatAllergy(customer.Allergic_drugs)}</p>
                     </div>
                   </div>
                   <div className="alert-card disease">
@@ -1082,8 +1100,42 @@ function CustomerDetailStaff() {
                               </select>
                               
                               {selectedBatches[drugId] && (
-                                <div style={{ marginTop: '8px', padding: '8px', background: '#f6ffed', borderRadius: '4px', fontSize: '12px', color: '#52c41a', border: staffStatus.prepared ? '2px solid #52c41a' : 'none', fontWeight: staffStatus.prepared ? 'bold' : 'normal' }}>
-                                  {staffStatus.prepared ? '🔒 ล็อกแล้ว - ' : '✅ '}เลือก Lot: <strong>{drug.drug_batches.find(b => b.documentId === selectedBatches[drugId] || b.id === selectedBatches[drugId])?.lot_number}</strong>
+                                <div style={{ marginTop: '8px', padding: '8px 12px', background: '#f6ffed', borderRadius: '4px', fontSize: '12px', color: '#52c41a', border: staffStatus.prepared ? '2px solid #52c41a' : 'none', fontWeight: staffStatus.prepared ? 'bold' : 'normal', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                  <span>
+                                    {staffStatus.prepared ? '🔒 ล็อกแล้ว - ' : '✅ '}เลือก Lot: <strong>{drug.drug_batches.find(b => b.documentId === selectedBatches[drugId] || b.id === selectedBatches[drugId])?.lot_number}</strong>
+                                  </span>
+                                  {!staffStatus.prepared && (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedBatches(prev => ({
+                                          ...prev,
+                                          [drugId]: ''
+                                        }));
+                                      }}
+                                      style={{
+                                        background: 'rgba(255, 77, 79, 0.1)',
+                                        border: '1px solid #ff4d4f',
+                                        color: '#ff4d4f',
+                                        padding: '4px 8px',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '12px',
+                                        fontWeight: 'bold',
+                                        transition: 'all 0.3s ease'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.target.style.background = '#ff4d4f';
+                                        e.target.style.color = 'white';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.target.style.background = 'rgba(255, 77, 79, 0.1)';
+                                        e.target.style.color = '#ff4d4f';
+                                      }}
+                                      title="ยกเลิกการเลือก Lot นี้"
+                                    >
+                                      ✕ ยกเลิก
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1192,11 +1244,167 @@ function CustomerDetailStaff() {
 
           <Tabs.TabPane tab={<span>📋 ดำเนินการ</span>} key="4">
             <div className="customer-actions-panel responsive">
-              <div className="actions-grid responsive">
-                <button className="action-btn green responsive" onClick={handleBack}>
-                  <span>← กลับ</span>
-                </button>
+              {/* Status Summary */}
+              <div style={{ marginBottom: '20px' }}>
+                <h3 style={{ marginBottom: '15px', fontSize: '16px', fontWeight: 'bold' }}>📊 สรุปสถานะการดำเนินการ</h3>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                  {/* Step 1: Received */}
+                  <div style={{
+                    padding: '15px',
+                    borderRadius: '8px',
+                    border: staffStatus.received ? '2px solid #52c41a' : '2px solid #d9d9d9',
+                    background: staffStatus.received ? '#f6ffed' : '#fafafa',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: staffStatus.received ? '#274e0a' : '#8c8c8c', marginBottom: '5px' }}>
+                      ขั้นตอนที่ 1
+                    </div>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: staffStatus.received ? '#52c41a' : '#262626', marginBottom: '5px' }}>
+                      {staffStatus.received ? '✅ ได้รับข้อมูล' : '⏳ รอยืนยัน'}
+                    </div>
+                    {staffStatus.received && staffStatus.received_at && (
+                      <div style={{ fontSize: '11px', color: '#666' }}>
+                        {new Date(staffStatus.received_at).toLocaleString('th-TH')}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Step 2: Lots Selected */}
+                  <div style={{
+                    padding: '15px',
+                    borderRadius: '8px',
+                    border: lotsSaved ? '2px solid #52c41a' : '2px solid #d9d9d9',
+                    background: lotsSaved ? '#f6ffed' : '#fafafa',
+                    opacity: !staffStatus.received ? 0.6 : 1,
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: lotsSaved ? '#274e0a' : '#8c8c8c', marginBottom: '5px' }}>
+                      ขั้นตอนที่ 2
+                    </div>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: lotsSaved ? '#52c41a' : '#262626', marginBottom: '5px' }}>
+                      {lotsSaved ? '✅ บันทึก Lot' : '⏳ รอบันทึก'}
+                    </div>
+                    {lotsSaved && (
+                      <div style={{ fontSize: '11px', color: '#666' }}>
+                        {Object.keys(selectedBatches).filter(k => selectedBatches[k]).length} รายการ
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Step 3: Prepared */}
+                  <div style={{
+                    padding: '15px',
+                    borderRadius: '8px',
+                    border: staffStatus.prepared ? '2px solid #52c41a' : '2px solid #d9d9d9',
+                    background: staffStatus.prepared ? '#f6ffed' : '#fafafa',
+                    opacity: !lotsSaved ? 0.6 : 1,
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: staffStatus.prepared ? '#274e0a' : '#8c8c8c', marginBottom: '5px' }}>
+                      ขั้นตอนที่ 3
+                    </div>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: staffStatus.prepared ? '#52c41a' : '#262626', marginBottom: '5px' }}>
+                      {staffStatus.prepared ? '✅ จัดส่งแล้ว' : '⏳ รอจัดส่ง'}
+                    </div>
+                    {staffStatus.prepared && staffStatus.prepared_at && (
+                      <div style={{ fontSize: '11px', color: '#666' }}>
+                        {new Date(staffStatus.prepared_at).toLocaleString('th-TH')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: '#666' }}>
+                    ความคืบหน้า
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: '#e8e8e8', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      width: staffStatus.prepared ? '100%' : lotsSaved ? '66%' : staffStatus.received ? '33%' : '0%',
+                      background: 'linear-gradient(90deg, #52c41a 0%, #73d13d 100%)',
+                      transition: 'width 0.3s ease'
+                    }}></div>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                    {staffStatus.prepared ? '100% เสร็จสิ้น' : lotsSaved ? '66% ระหว่างจัดส่ง' : staffStatus.received ? '33% รับข้อมูลแล้ว' : '0% ยังไม่เริ่ม'}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button 
+                    className="action-btn green responsive" 
+                    onClick={handleBack}
+                    style={{
+                      padding: '12px 20px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: '#1890ff',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = '#0050b3';
+                      e.target.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = '#1890ff';
+                      e.target.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    ← กลับไปยังรายการ
+                  </button>
+                </div>
               </div>
+
+              {/* Notes Display */}
+              {(staffStatus.prepared_note || notifData.note) && (
+                <div style={{ marginTop: '20px', padding: '15px', background: '#f0f5ff', border: '2px solid #1890ff', borderRadius: '8px' }}>
+                  <h4 style={{ marginBottom: '10px', color: '#0050b3', fontWeight: 'bold' }}>📝 หมายเหตุ</h4>
+                  {staffStatus.prepared_note && (
+                    <div style={{ marginBottom: '8px', padding: '8px', background: 'white', borderRadius: '4px', borderLeft: '3px solid #1890ff' }}>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>หมายเหตุการจัดส่ง:</div>
+                      <div style={{ fontSize: '14px', color: '#000' }}>{staffStatus.prepared_note}</div>
+                    </div>
+                  )}
+                  {notifData.note && (
+                    <div style={{ padding: '8px', background: 'white', borderRadius: '4px', borderLeft: '3px solid #faad14' }}>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>หมายเหตุจากเภสัชกร:</div>
+                      <div style={{ fontSize: '14px', color: '#000' }}>{notifData.note}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Out of Stock Info */}
+              {staffStatus.outOfStock && staffStatus.outOfStock.length > 0 && (
+                <div style={{ marginTop: '20px', padding: '15px', background: '#fff7e6', border: '2px solid #faad14', borderRadius: '8px' }}>
+                  <h4 style={{ marginBottom: '10px', color: '#ad6800', fontWeight: 'bold' }}>🚨 ยาที่หมดสต็อก</h4>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {staffStatus.outOfStock.map((drugId, idx) => {
+                      const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
+                      return (
+                        <div key={idx} style={{
+                          padding: '6px 12px',
+                          background: '#ffccc7',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          color: '#ad2102'
+                        }}>
+                          {drug ? drug.name_th : drugId}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </Tabs.TabPane>
         </Tabs>
@@ -1310,7 +1518,7 @@ function CustomerDetailStaff() {
                     const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
                     const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
                     const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
-                    const isSelected = statusModal.selectedDrugs.includes(drugId);
+                    const isSelected = (statusModal.selectedDrugs || []).includes(drugId);
                     
                     return (
                       <div 
@@ -1324,7 +1532,7 @@ function CustomerDetailStaff() {
                       >
                         <input
                           type="checkbox"
-                          checked={isSelected}
+                          checked={!!isSelected}
                           onChange={(e) => {
                             if (e.target.checked) {
                               setStatusModal(prev => ({

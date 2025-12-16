@@ -82,8 +82,20 @@ function EditSymptomsCustomer() {
         setSymptomsText(attrs?.Customers_symptoms || '');
         // set allergies
         if (attrs?.Allergic_drugs) {
-          // Allergic_drugs might be comma-separated string or array
-          const arr = Array.isArray(attrs.Allergic_drugs) ? attrs.Allergic_drugs : String(attrs.Allergic_drugs).split(',').map(s => s.trim()).filter(Boolean);
+          // Allergic_drugs might be:
+          // - JSON object: { allergy: 'ยา A, ยา B' } or { drug: 'ยา A' }
+          // - String: 'ยา A, ยา B'
+          // - Array: ['ยา A', 'ยา B']
+          let allergyStr = '';
+          if (typeof attrs.Allergic_drugs === 'object' && !Array.isArray(attrs.Allergic_drugs)) {
+            allergyStr = attrs.Allergic_drugs.allergy || attrs.Allergic_drugs.drug || '';
+          } else if (typeof attrs.Allergic_drugs === 'string') {
+            allergyStr = attrs.Allergic_drugs;
+          } else if (Array.isArray(attrs.Allergic_drugs)) {
+            allergyStr = attrs.Allergic_drugs.join(', ');
+          }
+          
+          const arr = allergyStr ? allergyStr.split(',').map(s => s.trim()).filter(Boolean) : [];
           if (arr.length > 0) {
             setAllergies(arr.map((name, i) => ({ id: `init-${i}`, name, symptom: '-', time: '-' })));
           }
@@ -133,11 +145,11 @@ function EditSymptomsCustomer() {
 
     setIsSaving(true);
     try {
-      // Build payload (backend expects text fields)
+      // Build payload (backend expects JSON object for Allergic_drugs)
       const payload = {
         data: {
           Customers_symptoms: symptomsText,
-          Allergic_drugs: allergies.map(a => a.name).join(', '),
+          Allergic_drugs: allergies.length > 0 ? { allergy: allergies.map(a => a.name).join(', ') } : null,
         }
       };
 

@@ -385,17 +385,27 @@ function CustomerPage({ id }) {
                         </div>
                       )}
 
-                      {(customer.Allergic_drugs || customer.attributes?.Allergic_drugs) && (
-                        <div className="info-item allergy">
-                          <div className="info-icon allergy">⚠️</div>
-                          <div className="info-text">
-                            <span className="info-label">ยาที่แพ้</span>
-                            <span className="info-value">
-                              {customer.Allergic_drugs || customer.attributes?.Allergic_drugs}
-                            </span>
+                      {(() => {
+                        const allergic = customer.Allergic_drugs || customer.attributes?.Allergic_drugs;
+                        if (!allergic) return null;
+                        
+                        let allergyText = '';
+                        if (typeof allergic === 'string') {
+                          allergyText = allergic;
+                        } else if (typeof allergic === 'object') {
+                          allergyText = allergic.allergy || allergic.drug || JSON.stringify(allergic);
+                        }
+                        
+                        return allergyText && (
+                          <div className="info-item allergy">
+                            <div className="info-icon allergy">⚠️</div>
+                            <div className="info-text">
+                              <span className="info-label">ยาที่แพ้</span>
+                              <span className="info-value">{allergyText}</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
 
                     {/* Appointment Section */}
