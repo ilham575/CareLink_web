@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
@@ -93,6 +93,14 @@ function CustomerDetail() {
   const [outOfStockIds, setOutOfStockIds] = useState([]);
   // Modal state for showing a drug's full details when user clicks 'รายละเอียด'
   const [drugDetailModal, setDrugDetailModal] = useState({ open: false, drug: null });
+  // State สำหรับ Modal แก้ไขยาที่แพ้ (Allergy) แบบมีรายละเอียด
+  const [allergyModal, setAllergyModal] = useState({
+    open: false,
+    drug: '',
+    symptoms: '',
+    date: '',
+    availableDrugs: []
+  });
   
   // Get pharmacyId from URL params
   const searchParams = new URLSearchParams(location.search);
@@ -249,43 +257,27 @@ function CustomerDetail() {
     }
   }, [customerDocumentId, pharmacyId]);
 
-  // Smart Polling: ใช้ exponential backoff + ETag caching + change detection
+  // Smart Polling: ใช้ exponential backoff + ETag caching + change detection (เลียนแบบ staff page)
   const { resetInterval: resetNotificationPoll } = useSmartPolling(
-    customerDocumentId && assignedByStaff?.documentId
-      ? API.notifications.getCustomerNotifications(customerDocumentId)
-      : null,
+    latestNotification?.documentId ? API.notifications.getByDocumentId(latestNotification.documentId) : null,
     {
       initialInterval: 2000, // เริ่มต้น 2 วินาที
       maxInterval: 30000, // สูงสุด 30 วินาที
-      backoffMultiplier: 1.3, // เพิ่มขึ้น 30% ทุกครั้ง
-      enabled: !!customerDocumentId && !!assignedByStaff?.documentId,
+      backoffMultiplier: 1.3,
+      enabled: !!latestNotification?.documentId,
       onDataChange: (newData) => {
-        // เมื่อมีข้อมูลใหม่
-        const notifData = newData.data?.[0];
-        if (notifData) {
-          const newStatus = notifData.staff_work_status || {
-            received: false,
-            prepared: false,
-            received_at: null,
-            prepared_at: null,
-            prepared_note: '',
-            outOfStock: [],
-            cancelled: false,
-            cancelled_at: null,
-            cancelled_note: ''
-          };
-
-          setStaffWorkStatus(newStatus);
-          setLatestNotification(notifData);
-
-          // แจ้งเตือนเมื่อมีการเปลี่ยนแปลงสำคัญ
-          if (newStatus.prepared) {
-            toast.info('🔄 ข้อมูลอัพเดตจากพนักงาน');
+        const updatedNotif = newData.data;
+        if (updatedNotif?.staff_work_status) {
+          const hasChanges = JSON.stringify(staffWorkStatus) !== JSON.stringify(updatedNotif.staff_work_status);
+          if (hasChanges) {
+            setStaffWorkStatus(updatedNotif.staff_work_status);
+            setLatestNotification(updatedNotif);
+            toast.info('🔄 เภสัชกรได้ส่งข้อมูลอัพเดต');
           }
         }
       },
       onError: (error) => {
-        console.error('Error in smart polling:', error);
+        console.error('Error in smart polling for notifications:', error);
       }
     }
   );
@@ -637,10 +629,105 @@ function CustomerDetail() {
       label = 'โรคประจำตัว';
       value = customer.congenital_disease || '';
     } else if (type === 'allergy') {
-      label = 'ยาที่แพ้';
-      value = customer.Allergic_drugs || '';
+      // เปิด modal allergy ใหม่แบบมีรายละเอียด
+      return openEditAllergyModal();
     }
     setEditMedicalModal({ open: true, type, label, value });
+  };
+
+  // ฟังก์ชันเปิด modal แก้ไขยาที่แพ้
+  const openEditAllergyModal = async () => {
+    let drugs = addDrugModal.availableDrugs.length > 0 ? addDrugModal.availableDrugs : [];
+    
+    // ถ้าไม่มีรายการยา ให้โหลดจาก API
+    if (drugs.length === 0) {
+      try {
+        const res = await fetch(
+          `${API.BASE_URL}/api/drugs?filters[pharmacy_profiles][documentId][$eq]=${pharmacy?.documentId || pharmacyId}&pagination[pageSize]=10000`,
+          {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const drugsData = Array.isArray(data.data) ? data.data : data;
+          drugs = drugsData.map(drug => ({
+            documentId: drug.documentId || drug.id,
+            name_th: drug.attributes?.name_th || drug.name_th || '',
+            name_en: drug.attributes?.name_en || drug.name_en || '',
+            id: drug.id,
+            ...drug.attributes
+          }));
+        }
+      } catch (err) {
+        console.error('Error loading drugs:', err);
+      }
+    }
+    
+    let allergyData = {
+      drug: '',
+      symptoms: '',
+      date: '',
+      availableDrugs: drugs
+    };
+    
+    if (customer.Allergic_drugs) {
+      try {
+        if (typeof customer.Allergic_drugs === 'object') {
+          allergyData = { ...customer.Allergic_drugs, availableDrugs: drugs };
+        } else if (typeof customer.Allergic_drugs === 'string' && customer.Allergic_drugs.startsWith('{')) {
+          const parsed = JSON.parse(customer.Allergic_drugs);
+          allergyData = { ...parsed, availableDrugs: drugs };
+        } else {
+          allergyData.drug = customer.Allergic_drugs;
+          allergyData.availableDrugs = drugs;
+        }
+      } catch (e) {
+        allergyData.drug = customer.Allergic_drugs || '';
+        allergyData.availableDrugs = drugs;
+      }
+    }
+    
+    setAllergyModal({ ...allergyData, open: true });
+  };
+
+  // ฟังก์ชันบันทึกข้อมูลยาที่แพ้
+  const handleSaveAllergy = async () => {
+    if (!allergyModal.drug) {
+      toast.error('กรุณาเลือกหรือระบุชื่อยา');
+      return;
+    }
+
+    try {
+      const updateData = {
+        Allergic_drugs: JSON.stringify({
+          drug: allergyModal.drug,
+          symptoms: allergyModal.symptoms,
+          date: allergyModal.date
+        })
+      };
+
+      const token = localStorage.getItem('jwt') || localStorage.getItem('token');
+      const res = await fetch(API.customerProfiles.update(customerDocumentId), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ data: updateData })
+      });
+
+      if (!res.ok) throw new Error('ไม่สามารถบันทึกข้อมูลได้');
+
+      const updatedCustomer = await res.json();
+      // normalize response (API returns { data: ... })
+      setCustomer(updatedCustomer.data || updatedCustomer);
+      setAllergyModal({ open: false, drug: '', symptoms: '', date: '', availableDrugs: [] });
+      toast.success('บันทึกข้อมูลยาที่แพ้สำเร็จ');
+    } catch (err) {
+      console.error('Error saving allergy:', err);
+      toast.error('เกิดข้อผิดพลาด: ' + err.message);
+    }
   };
 
   // เปิด modal แก้ไขอาการ
@@ -659,8 +746,8 @@ function CustomerDetail() {
       let updateData = {};
       if (editMedicalModal.type === 'disease') {
         updateData = { congenital_disease: editMedicalModal.value };
-      } else if (editMedicalModal.type === 'allergy') {
-        updateData = { Allergic_drugs: editMedicalModal.value };
+      } else {
+        return; // ถ้าไม่ใช่ disease ให้ออก (allergy ใช้ modal แยกแล้ว)
       }
       const res = await fetch(API.customerProfiles.update(customerDocumentId), { method: 'PUT',
         headers: {
@@ -1325,7 +1412,31 @@ function CustomerDetail() {
                   <div className="info-card-content">
                     <div className="info-row">
                       <label>ยาที่แพ้:</label>
-                      <span className="text-warning">{customer.Allergic_drugs || 'ไม่มีข้อมูล'}</span>
+                      <div style={{ flex: 1 }}>
+                        {customer.Allergic_drugs ? (
+                          (() => {
+                            let allergyInfo = {};
+                            try {
+                              if (typeof customer.Allergic_drugs === 'string') {
+                                allergyInfo = JSON.parse(customer.Allergic_drugs);
+                              } else {
+                                allergyInfo = customer.Allergic_drugs;
+                              }
+                            } catch (e) {
+                              allergyInfo = { drug: customer.Allergic_drugs };
+                            }
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <span className="text-warning">{allergyInfo.drug || 'ไม่ระบุชื่อยา'}</span>
+                                {allergyInfo.symptoms && <span style={{ fontSize: '11px', color: '#666', padding: '2px 6px', background: '#f0f0f0', borderRadius: '4px' }}>📋 {allergyInfo.symptoms.substring(0, 30)}{allergyInfo.symptoms.length > 30 ? '...' : ''}</span>}
+                                {allergyInfo.date && <span style={{ fontSize: '11px', color: '#666' }}>📅 {formatThaiDate(allergyInfo.date)}</span>}
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <span className="text-warning">ไม่มีข้อมูล</span>
+                        )}
+                      </div>
                       {userRole === 'pharmacy' && (
                         <button className="edit-btn-small" onClick={() => openEditMedicalModal('allergy')}>แก้ไข</button>
                       )}
@@ -1443,7 +1554,29 @@ function CustomerDetail() {
                     <div className="alert-icon">🚫</div>
                     <div className="alert-content">
                       <h4>ยาที่แพ้</h4>
-                      <p>{customer.Allergic_drugs || 'ไม่มีข้อมูล'}</p>
+                      {customer.Allergic_drugs ? (
+                        (() => {
+                          let allergyInfo = {};
+                          try {
+                            if (typeof customer.Allergic_drugs === 'string') {
+                              allergyInfo = JSON.parse(customer.Allergic_drugs);
+                            } else {
+                              allergyInfo = customer.Allergic_drugs;
+                            }
+                          } catch (e) {
+                            allergyInfo = { drug: customer.Allergic_drugs };
+                          }
+                          return (
+                            <div>
+                              <p style={{ margin: '4px 0', fontWeight: 'bold' }}>💊 {allergyInfo.drug || 'ไม่ระบุชื่อยา'}</p>
+                              {allergyInfo.symptoms && <p style={{ margin: '4px 0', fontSize: '13px', color: '#666' }}>🩺 อาการ: {allergyInfo.symptoms}</p>}
+                              {allergyInfo.date && <p style={{ margin: '4px 0', fontSize: '12px', color: '#999' }}>📅 {formatThaiDate(allergyInfo.date)}</p>}
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <p>ไม่มีข้อมูล</p>
+                      )}
                     </div>
                   </div>
                   <div className="alert-card disease">
@@ -1873,6 +2006,130 @@ function CustomerDetail() {
         >
           ปิด
         </button>
+      </Modal>
+
+      {/* Modal สำหรับแก้ไขยาที่แพ้ (Allergy) แบบมีรายละเอียด */}
+      <Modal
+        title={
+          <div className="modal-editmedical-title">
+            <span role="img" aria-label="warning">⚠️</span>แก้ไขยาที่แพ้
+          </div>
+        }
+        open={allergyModal.open}
+        onCancel={() => setAllergyModal({ ...allergyModal, open: false })}
+        onOk={handleSaveAllergy}
+        okText="บันทึก"
+        cancelText="ยกเลิก"
+        centered
+        className="modal-allergy"
+        width={600}
+      >
+        <div className="modal-allergy-content">
+          {/* ส่วนที่ 1: ตัวยา */}
+          <div className="allergy-section">
+            <div className="allergy-section-title">
+              <span className="section-number">1</span>
+              <span className="section-label">💊 ตัวยา</span>
+            </div>
+            <div className="allergy-input-group">
+              <div className="allergy-input-wrapper">
+                <label>เลือกจากรายการยาในร้าน หรือพิมพ์เข้าไป</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        const drug = allergyModal.availableDrugs.find(d => d.documentId === e.target.value);
+                        if (drug) {
+                          setAllergyModal(prev => ({ ...prev, drug: drug.name_th || drug.name_en }));
+                        }
+                        e.target.value = '';
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '4px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '14px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="">-- เลือกยาจากร้าน --</option>
+                    {allergyModal.availableDrugs.map(drug => (
+                      <option key={drug.documentId} value={drug.documentId}>
+                        {drug.name_th} ({drug.name_en})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={{ textAlign: 'center', color: '#999', fontSize: '12px', margin: '8px 0' }}>
+                หรือ
+              </div>
+              <input
+                type="text"
+                value={allergyModal.drug}
+                onChange={(e) => setAllergyModal(prev => ({ ...prev, drug: e.target.value }))}
+                placeholder="พิมพ์ชื่อยา"
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: '4px',
+                  border: '1px solid #d9d9d9',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* ส่วนที่ 2: อาการที่เกิดขึ้น */}
+          <div className="allergy-section">
+            <div className="allergy-section-title">
+              <span className="section-number">2</span>
+              <span className="section-label">🩺 อาการที่เกิดขึ้น</span>
+            </div>
+            <textarea
+              value={allergyModal.symptoms}
+              onChange={(e) => setAllergyModal(prev => ({ ...prev, symptoms: e.target.value }))}
+              placeholder="เช่น ผื่นแดง คัน หมาดๆ ไม่สามารถหายใจได้ เป็นต้น"
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '4px',
+                border: '1px solid #d9d9d9',
+                fontSize: '14px',
+                fontFamily: 'inherit'
+              }}
+            />
+          </div>
+
+          {/* ส่วนที่ 3: วันที่เข้ามาแจ้งอาการ */}
+          <div className="allergy-section">
+            <div className="allergy-section-title">
+              <span className="section-number">3</span>
+              <span className="section-label">📅 วันที่เข้ามาแจ้งอาการ</span>
+            </div>
+            <DatePicker
+              value={allergyModal.date ? dayjs(allergyModal.date) : null}
+              onChange={(date) => setAllergyModal(prev => ({ ...prev, date: date ? date.format('YYYY-MM-DD') : '' }))}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+              placeholder="เลือกวันที่"
+              format="YYYY-MM-DD"
+            />
+            {allergyModal.date && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+                วันที่เลือก: {formatThaiDate(allergyModal.date)}
+              </div>
+            )}
+          </div>
+        </div>
       </Modal>
 
       {/* Modal สำหรับแก้ไขข้อมูลทางการแพทย์ (pharmacy) */}
@@ -2730,11 +2987,79 @@ function CustomerDetail() {
             {drugDetailModal.drug.description && (
               <p style={{ color: '#444', marginBottom: '8px' }}>{drugDetailModal.drug.description}</p>
             )}
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
-              {drugDetailModal.drug.price && <div>ราคา: {drugDetailModal.drug.price} บาท</div>}
-              {drugDetailModal.drug.lot_number && <div>Lot: {drugDetailModal.drug.lot_number}</div>}
-              {drugDetailModal.drug.expiry_date && <div>หมดอายุ: {drugDetailModal.drug.expiry_date}</div>}
-            </div>
+            {(() => {
+              const d = drugDetailModal.drug || {};
+              const price = d.price || (d.attributes && d.attributes.price);
+              const lot = d.lot_number || d.lotNumber || (d.attributes && (d.attributes.lot_number || d.attributes.lotNumber));
+              const quantity = d.quantity || d.qty || (d.attributes && (d.attributes.quantity || d.attributes.qty));
+              const dateProduced = d.date_produced || d.dateProduced || (d.attributes && (d.attributes.date_produced || d.attributes.dateProduced));
+              const expiry = d.expiry_date || d.expiryDate || (d.attributes && (d.attributes.expiry_date || d.attributes.expiryDate));
+
+              // Prefer showing batch list when available to match the card view
+              const rawBatches = d.drug_batches || (d.attributes && d.attributes.drug_batches) || null;
+              const batches = Array.isArray(rawBatches) ? rawBatches.map(b => (b && b.attributes) ? { id: b.id, ...b.attributes } : b) : [];
+
+              if (batches.length > 0) {
+                return (
+                  <div className="drug-detail-batch-list">
+                    <div className="batch-list-header">
+                      <span className="batch-list-icon">📦</span>
+                      <span className="batch-list-title">รายการ Lot ({batches.length})</span>
+                    </div>
+                    <div className="batch-list-container">
+                      {batches.map((batch, i) => (
+                        <div key={batch.documentId || batch.id || i} className="drug-detail-batch-item">
+                          <div className="batch-item-row">
+                            <span className="batch-label">Lot:</span>
+                            <span className="batch-value batch-lot">{batch.lot_number || '-'}</span>
+                            <span className="batch-divider">•</span>
+                            <span className="batch-label">สต็อก:</span>
+                            <span className="batch-value">{batch.quantity || 0}</span>
+                            {batch.date_produced && (
+                              <>
+                                <span className="batch-divider">•</span>
+                                <span className="batch-label">ผลิต:</span>
+                                <span className="batch-value">{formatThaiDate(batch.date_produced)}</span>
+                              </>
+                            )}
+                          </div>
+                          {batch.expiry_date && (
+                            <div className="batch-item-expiry">
+                              <span className="expiry-label">หมดอายุ:</span>
+                              <span className="expiry-date">{formatThaiDate(batch.expiry_date)}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              const hasLotInfo = !!(lot || quantity || dateProduced || expiry || price);
+
+              if (!hasLotInfo) {
+                return (
+                  <div className="drug-detail-placeholder" style={{ marginBottom: 12 }}>
+                    <div className="placeholder-icon">📦</div>
+                    <div>
+                      <div style={{ fontWeight: 700, color: '#334155' }}>ไม่มีข้อมูล Lot</div>
+                      <div style={{ color: '#64748b', fontSize: 13 }}>ไม่มีรายละเอียด Lot, จำนวน หรือวันที่ผลิต/หมดอายุ สำหรับรายการยานี้</div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="drug-detail-meta">
+                  {price !== undefined && price !== null && <div className="meta-item">ราคา: <strong>{price} ฿</strong></div>}
+                  {lot ? <div className="meta-item">Lot: <strong>{lot}</strong></div> : null}
+                  {quantity !== undefined && quantity !== null ? <div className="meta-item">จำนวน: <strong>{quantity} แผง</strong></div> : null}
+                  {dateProduced ? <div className="meta-item">ผลิต: <strong>{formatThaiDate(dateProduced)}</strong></div> : null}
+                  {expiry ? <div className="meta-item">หมดอายุ: <strong>{formatThaiDate(expiry)}</strong></div> : null}
+                </div>
+              );
+            })()}
             <div style={{ marginTop: '8px', textAlign: 'right' }}>
               <button
                 onClick={() => setDrugDetailModal({ open: false, drug: null })}

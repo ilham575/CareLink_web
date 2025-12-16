@@ -149,6 +149,26 @@ function CustomerPageStaff() {
     return `${d.date()} ${months[d.month() + 1]} ${d.year() + 543}`;
   };
 
+  const formatAllergy = (val) => {
+    if (!val) return 'ไม่มีข้อมูล';
+    try {
+      if (typeof val === 'string') {
+        // try parse JSON string
+        const parsed = JSON.parse(val);
+        if (parsed && typeof parsed === 'object') {
+          return parsed.drug || parsed.allergy || JSON.stringify(parsed);
+        }
+        return val;
+      }
+      if (typeof val === 'object') {
+        return val.drug || val.allergy || JSON.stringify(val);
+      }
+      return String(val);
+    } catch (err) {
+      return String(val);
+    }
+  };
+
   if (loading) {
     return (
       <div className="customer-page">
@@ -268,7 +288,7 @@ function CustomerPageStaff() {
                           <div className="info-icon allergy">⚠️</div>
                           <div className="info-text">
                             <span className="info-label">ยาที่แพ้</span>
-                            <span className="info-value">{notifData.allergy || customer.Allergic_drugs || customer.attributes?.Allergic_drugs}</span>
+                            <span className="info-value">{formatAllergy(notifData.allergy || customer.Allergic_drugs || customer.attributes?.Allergic_drugs)}</span>
                           </div>
                         </div>
                       )}

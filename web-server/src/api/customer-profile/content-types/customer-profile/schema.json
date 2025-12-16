@@ -23,9 +23,6 @@
     "congenital_disease": {
       "type": "text"
     },
-    "Allergic_drugs": {
-      "type": "text"
-    },
     "Customers_symptoms": {
       "type": "text"
     },
@@ -61,6 +58,9 @@
       "relation": "manyToOne",
       "target": "api::pharmacy-profile.pharmacy-profile",
       "inversedBy": "customer_profiles"
+    },
+    "Allergic_drugs": {
+      "type": "json"
     }
   }
 }

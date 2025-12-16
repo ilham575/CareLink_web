@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
-import { API, fetchWithAuth } from '../../../utils/apiConfig';
+import { API } from '../../../utils/apiConfig';
 import '../../../css/pages/default/drugsPage.css';
 
 /* eslint-disable no-undef */
@@ -11,11 +11,145 @@ function formatDate(dateStr) {
   if (!dateStr) return '-';
   try {
     const d = new Date(dateStr);
-    return d.toLocaleDateString();
+    if (isNaN(d)) return dateStr;
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
   } catch (e) {
     return dateStr;
   }
 }
+
+// Return empty string when no date (for input fields)
+function formatDateForInput(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return '';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  } catch (e) {
+    return '';
+  }
+}
+
+// Parse user-entered date string. Accepts YYYY-MM-DD or DD/MM/YYYY (prefer latter for inputs).
+function parseDateInput(str) {
+  if (!str) return null;
+  const s = String(str).trim();
+  // ISO date (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(s);
+    return isNaN(d) ? null : d;
+  }
+  // DD/MM/YYYY
+  const m = /^([0-3]\d)\/([0-1]\d)\/(\d{4})$/.exec(s);
+  if (m) {
+    const day = parseInt(m[1], 10);
+    const month = parseInt(m[2], 10);
+    const year = parseInt(m[3], 10);
+    const d = new Date(year, month - 1, day);
+    return isNaN(d) ? null : d;
+  }
+  // Last resort: let Date parse it
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+// Format user input into dd/mm/yyyy while typing (auto-insert '/').
+function formatDateInputValue(val) {
+  if (val === null || val === undefined) return '';
+  const s = String(val);
+  // keep only digits and limit to 8 (DDMMYYYY)
+  const digits = s.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0,2)}/${digits.slice(2)}`;
+  return `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`;
+}
+
+// Centralized, idempotent toast helpers to avoid duplicate/stacking toasts
+// Disable ALL user interactions (closeOnClick, closeButton, draggable) to avoid 'removalReason' error
+const TOAST_DEFAULT_OPTIONS = { 
+  autoClose: 3000, 
+  closeOnClick: false, 
+  closeButton: false,  // ปิดปุ่ม X เพื่อป้องกัน error
+  pauseOnHover: true, 
+  draggable: false     // ปิด drag เพื่อป้องกัน click event
+};
+// Internal numeric id generator and key→id map to avoid React-Toastify internal mismatch bugs
+let TOAST_COUNTER = 1;
+const TOAST_KEY_MAP = new Map();
+
+// Remove stale entries from the map whose toast ids are no longer active
+function cleanupToastMap() {
+  try {
+    for (const [k, v] of Array.from(TOAST_KEY_MAP.entries())) {
+      if (!toast.isActive(v)) TOAST_KEY_MAP.delete(k);
+    }
+  } catch (e) {
+    // ignore
+    console.error('cleanupToastMap error', e);
+  }
+}
+
+const showToast = (type, message, opts = {}) => {
+  // Ensure message is a readable string (avoid [object Object] or undefined)
+  const messageStr = typeof message === 'string' ? message : (message && message.message ? String(message.message) : JSON.stringify(message || ''));
+
+  // Use a stable key for deduplication if provided (opts.toastKey) or fallback to type+message
+  const baseKey = opts.toastKey || opts.toastId || `${type}:${messageStr}`;
+
+  // Determine id to use (always numeric)
+  cleanupToastMap();
+  let id;
+  if (opts.allowMultiple) {
+    id = TOAST_COUNTER++;
+  } else {
+    // reuse existing id for the same logical message if still active
+    const existing = TOAST_KEY_MAP.get(baseKey);
+    if (existing && toast.isActive(existing)) return; // already shown
+    // if existing is stale, remove it and continue
+    if (existing && !toast.isActive(existing)) TOAST_KEY_MAP.delete(baseKey);
+    id = TOAST_COUNTER++;
+    TOAST_KEY_MAP.set(baseKey, id);
+  }
+
+  // onClose callback to clean up the map entry when toast truly closes
+  const handleClose = () => {
+    try {
+      if (!opts.allowMultiple) {
+        // only delete if the map still points to this toast id
+        const current = TOAST_KEY_MAP.get(baseKey);
+        if (current === id) TOAST_KEY_MAP.delete(baseKey);
+      }
+      if (opts.onClose) opts.onClose();
+    } catch (e) {
+      // Prevent onClose errors from breaking toast system
+      console.error('Toast onClose error:', e);
+    }
+  };
+
+  const finalOpts = { ...TOAST_DEFAULT_OPTIONS, ...opts, toastId: id, onClose: handleClose };
+
+  try {
+    if (type === 'success') return toast.success(messageStr, finalOpts);
+    if (type === 'error') return toast.error(messageStr, finalOpts);
+    if (type === 'info') return toast.info(messageStr, finalOpts);
+    if (type === 'warn' || type === 'warning') return toast.warn(messageStr, finalOpts);
+    return toast(messageStr, finalOpts);
+  } catch (e) {
+    // Guard against toast internal errors (avoid app crash from toast clicks)
+    console.error('Toast error:', e);
+    return null;
+  }
+};
+const showError = (msg, opts) => showToast('error', msg, opts);
+const showSuccess = (msg, opts) => showToast('success', msg, opts);
+const showInfo = (msg, opts) => showToast('info', msg, opts);
+const showWarn = (msg, opts) => showToast('warn', msg, opts);
 
 function matchesStore(item, storeDocumentId) {
   // Strapi relation for this content-type is `drug_store`
@@ -82,8 +216,10 @@ export default function DrugList() {
   };
   const [loading, setLoading] = useState(true);
   const [expiryFilterMonths, setExpiryFilterMonths] = useState(null);
+  const [activeTab, setActiveTab] = useState('expiry');
   const [showModal, setShowModal] = useState(false);
   const [editingDrug, setEditingDrug] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   // Batch management
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState(null);
@@ -94,10 +230,15 @@ export default function DrugList() {
     expiry_date: ''
   });
   const [expandedDrugId, setExpandedDrugId] = useState(null);
-  const [importFile, setImportFile] = useState(null);
+  // Batch details modal state
+  const [batchDetailsModalOpen, setBatchDetailsModalOpen] = useState(false);
+  const [batchDetailsModalDrug, setBatchDetailsModalDrug] = useState(null);
+  // removed unused importFile state
   // separate CSV and XLSX states
   const [csvFile, setCsvFile] = useState(null);
+  const [csvFileName, setCsvFileName] = useState('');
   const [xlsxRecords, setXlsxRecords] = useState(null);
+  const [xlsxFileName, setXlsxFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0, errors: [] });
   const [formData, setFormData] = useState({
@@ -109,69 +250,104 @@ export default function DrugList() {
 
   const token = localStorage.getItem('jwt');
 
-  useEffect(() => {
-    const timestamp = Date.now();
-    console.log('DEBUG: Starting to fetch data for store ID:', id);
-    // fetch store info for header (keep full data so we have numeric id)
-    fetch(API.drugStores.getById(id), {
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` })
-      }
-    })
-      .then(res => res.json())
-      .then(data => {
-        // store the full data object (contains .id and .attributes)
-        if (data && data.data) setStore(data.data);
-      })
-      .catch(() => {})
-      .finally(() => {});
+  // Helper to refetch the drugs list (used after bulk operations)
+  const refetchDrugsList = async () => {
+    try {
+      const listRes = await fetch(API.drugs.listWithBatches(), {
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) }
+      });
+      const listJson = await listRes.json();
+      const items = Array.isArray(listJson.data) ? listJson.data : (listJson.data ? [listJson.data] : []);
+      const normalized = items.map(i => i && i.attributes ? { id: i.id, ...i.attributes } : i);
+      const storeDocIdLocal = (store && store.attributes && store.attributes.documentId) ? store.attributes.documentId : id;
+      const filtered = normalized.filter(d => matchesStore(d, storeDocIdLocal));
+      setDrugs(filtered);
+      setSelectedIds([]);
+    } catch (e) {
+      console.error('Failed to refetch drugs list', e);
+    }
+  };
 
-    // fetch drugs list
-    fetch(API.drugs.listWithBatches(), {
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` })
+  // Strapi v5: ใช้ documentId (UUID) เท่านั้น ห้าม numeric id
+  // documentId เป็นตัวระบุที่เสถียรสำหรับ CRUD operations
+  const getBatchDocumentId = (batch) => batch?.documentId || batch?.id;
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchData = async () => {
+      if (!mounted) return;
+      setLoading(true);
+      try {
+        console.log('DEBUG: fetchData starting for store ID:', id);
+        // fetch store info for header (keep full data so we have numeric id)
+        const storeRes = await fetch(API.drugStores.getById(id), {
+          headers: { ...(token && { Authorization: `Bearer ${token}` }) }
+        });
+        const storeJson = await storeRes.json().catch(() => null);
+        const fetchedStore = storeJson && storeJson.data ? storeJson.data : null;
+        if (mounted) setStore(fetchedStore);
+
+        const storeDocIdLocal = (fetchedStore && fetchedStore.attributes && fetchedStore.attributes.documentId) ? fetchedStore.attributes.documentId : id;
+
+        // fetch drugs list
+        const listRes = await fetch(API.drugs.listWithBatches(), {
+          headers: { ...(token && { Authorization: `Bearer ${token}` }) }
+        });
+        const listJson = await listRes.json();
+        console.log('DEBUG: Raw API response for drugs:', listJson);
+        const items = Array.isArray(listJson.data) ? listJson.data : (listJson.data ? [listJson.data] : []);
+        const normalized = items.map(i => (i && i.attributes) ? { id: i.id, ...i.attributes } : i);
+        console.log('DEBUG: Normalized drugs (fetchData):', normalized.slice(0, 5));
+        const filtered = normalized.filter(d => matchesStore(d, storeDocIdLocal));
+        if (mounted) setDrugs(filtered);
+        console.log('DEBUG: Drugs state updated by fetchData:', filtered);
+      } catch (err) {
+        console.error('Error fetching drugs/store', err);
+        if (mounted) {
+          showError('ไม่สามารถโหลดรายการยาได้');
+          setDrugs([]);
+        }
+      } finally {
+        if (mounted) setLoading(false);
       }
-    })
-      .then(res => res.json())
-      .then(data => {
-        console.log('DEBUG: Raw API response for drugs:', data);
-        const items = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : []);
-        console.log('DEBUG: Items array length:', items.length);
-        items.forEach((it, idx) => {
-          try { console.log(`DEBUG: item[${idx}] keys:`, Object.keys(it)); } catch(e){}
-          try { console.log(`DEBUG: item[${idx}] attributes:`, it.attributes); } catch(e){}
-          try { console.log(`DEBUG: item[${idx}] full:`, JSON.stringify(it)); } catch(e){}
-        });
-        // normalize to merge id with attributes when present.
-        // Some responses already return flattened objects (no `attributes`),
-        // so keep the object as-is in that case to preserve `drug_store`.
-        const normalized = items.map(i => {
-          if (i && i.attributes) return { id: i.id, ...i.attributes };
-          // sometimes the API already returns flattened object under i (no attributes)
-          // log keys for debugging
-          return i;
-        });
-        console.log('DEBUG: After normalize - sample:', normalized.slice(0,3));
-        console.log('DEBUG: Normalized drugs:', normalized);
-        // filter by relation `drug_store` matching route param `id`
-        const filtered = normalized.filter(d => matchesStore(d, storeDocumentId));
-        console.log('DEBUG: Filtered drugs for store', id, ':', filtered);
-        setDrugs(filtered);
-        console.log('DEBUG: Drugs set to state:', filtered);
-      })
-      .catch((err) => {
-        console.error('Error fetching drugs', err);
-        toast.error('ไม่สามารถโหลดรายการยาได้');
-        setDrugs([]);
-      })
-      .finally(() => setLoading(false));
+    };
+
+    // initial fetch
+    fetchData();
+
+    // refetch when window/tab regains focus (covers navigating back from edit page)
+    const handleFocus = () => fetchData();
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchData(); };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [id, token]);
 
+  // Clear toast key map on unmount (toasts will auto-dismiss after 3s)
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      try {
+        TOAST_KEY_MAP.clear();
+        toast.dismiss();
+      } catch (e) { /* ignore */ }
+    };
+
+    window.addEventListener('beforeunload', onBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      TOAST_KEY_MAP.clear();
+    };
+  }, []);
+
   // --- CSV import helpers ---
-  const downloadTemplate = () => {
-    // default: download CSV template
-    return downloadTemplateAs('csv');
-  };
+  // downloadTemplate removed (use downloadTemplateAs directly)
 
   // Unified template downloader supporting 'csv' and 'xlsx'
   const downloadTemplateAs = async (type = 'csv') => {
@@ -217,19 +393,21 @@ export default function DrugList() {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error('Failed to generate xlsx template', e);
-      toast.error('ไม่สามารถสร้างไฟล์ Excel ได้ — ตรวจสอบว่าได้ติดตั้งไลบรารี xlsx');
+      showError('ไม่สามารถสร้างไฟล์ Excel ได้ — ตรวจสอบว่าได้ติดตั้งไลบรารี xlsx');
     }
   };
 
   const handleFileChange = (e) => {
     const f = e.target.files && e.target.files[0];
     setCsvFile(f || null);
+    setCsvFileName(f ? f.name : '');
+    if (f) showInfo(`เลือกไฟล์: ${f.name}`);
   };
 
   // handle .xlsx files using SheetJS if selected
   const handleFileChangeAdvanced = async (e) => {
     const f = e.target.files && e.target.files[0];
-    if (!f) { setImportFile(null); return; }
+    if (!f) { setCsvFile(null); return; }
     const name = f.name.toLowerCase();
     if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
       try {
@@ -246,7 +424,7 @@ export default function DrugList() {
         // parse CSV into records immediately (separate XLSX flow)
         const rows = parseCSV(csv);
         if (rows.length < 2) {
-          toast.error('ไฟล์ Excel ไม่มีข้อมูลที่อ่านได้');
+          showError('ไฟล์ Excel ไม่มีข้อมูลที่อ่านได้');
           setXlsxRecords(null);
           return;
         }
@@ -259,15 +437,19 @@ export default function DrugList() {
           return obj;
         }).filter(rec => Object.values(rec).some(v => v !== ''));
         setXlsxRecords(records);
-        toast.info(`อ่านไฟล์ Excel เรียบร้อย พบ ${records.length} แถว`);
+        setXlsxFileName(f.name);
+        showInfo(`อ่านไฟล์ Excel เรียบร้อย พบ ${records.length} แถว`);
       } catch (err) {
         console.error('Failed to parse xlsx', err);
-        toast.error('ไม่สามารถอ่านไฟล์ Excel ได้ — ดู Console สำหรับรายละเอียด');
+        showError('ไม่สามารถอ่านไฟล์ Excel ได้ — ดู Console สำหรับรายละเอียด');
         setXlsxRecords(null);
+        setXlsxFileName('');
       }
     } else {
       // when a non-xlsx file is selected here, fall back to csvFile
       setCsvFile(f || null);
+      setCsvFileName(f ? f.name : '');
+      if (f) showInfo(`เลือกไฟล์: ${f.name}`);
     }
   };
 
@@ -334,7 +516,7 @@ export default function DrugList() {
 
   // Generic import: accepts array of record objects (already mapped by header)
   const importRecords = async (records) => {
-    if (!records || records.length === 0) return toast.info('ไม่มีข้อมูลที่จะนำเข้า');
+    if (!records || records.length === 0) return showInfo('ไม่มีข้อมูลที่จะนำเข้า');
     setImporting(true);
     setImportProgress({ done: 0, total: records.length, errors: [] });
     const storeRelationId = (store && store.attributes && store.attributes.documentId) ? store.attributes.documentId : id;
@@ -379,14 +561,15 @@ export default function DrugList() {
         errors.push({ rec, error: e.message || String(e) });
       }
       done += 1;
-      setImportProgress(prev => ({ ...prev, done }));
+      // avoid declaring a function inside the loop (eslint:no-loop-func)
+      setImportProgress({ done, total: records.length, errors });
     }
 
     setImportProgress(prev => ({ ...prev, errors }));
     if (errors.length === 0) {
-      toast.success(`นำเข้าเรียบร้อย ${done} รายการ`);
+      showSuccess(`นำเข้าเรียบร้อย ${done} รายการ`);
     } else {
-      toast.warn(`นำเข้าเสร็จ แต่มีข้อผิดพลาด ${errors.length} รายการ`);
+      showWarn(`นำเข้าเสร็จ แต่มีข้อผิดพลาด ${errors.length} รายการ`);
       console.error('Import errors:', errors);
       try {
         const header = Object.keys(records[0] || {}).join(',');
@@ -411,7 +594,6 @@ export default function DrugList() {
 
       // refetch list after import to ensure we have server's canonical state
     try {
-      const timestamp = Date.now();
       const listRes = await fetch(API.drugs.listWithBatches(), {
         headers: { ...(token && { Authorization: `Bearer ${token}` }) }
       });
@@ -429,11 +611,11 @@ export default function DrugList() {
     }
   };  // triggers CSV import from selected csvFile
   const handleImportCSV = async () => {
-    if (!csvFile) return toast.info('กรุณาเลือกไฟล์ CSV ก่อน');
+    if (!csvFile) return showInfo('กรุณาเลือกไฟล์ CSV ก่อน');
     try {
       const text = await csvFile.text();
       const rows = parseCSV(text);
-      if (rows.length < 2) return toast.error('ไฟล์ว่างหรือไม่มีข้อมูล');
+      if (rows.length < 2) return showError('ไฟล์ว่างหรือไม่มีข้อมูล');
       const header = rows[0].map(h => h.trim());
       const records = rows.slice(1).map(r => {
         const obj = {};
@@ -441,30 +623,80 @@ export default function DrugList() {
         return obj;
       }).filter(rec => Object.values(rec).some(v => v !== ''));
       await importRecords(records);
+      // Clear selected file and input so future selects always fire change
+      try { setCsvFile(null); const el = document.getElementById('csvFileInput'); if (el) el.value = ''; } catch (e) { /* ignore */ }
+      try { setCsvFileName(''); } catch (e) { /* ignore */ }
     } catch (e) {
       console.error('CSV import failed', e);
-      toast.error('นำเข้า CSV ล้มเหลว');
+      showError('นำเข้า CSV ล้มเหลว');
       setImporting(false);
     }
   };
 
   // triggers import for previously parsed xlsxRecords
   const handleImportXLSX = async () => {
-    if (!xlsxRecords || xlsxRecords.length === 0) return toast.info('กรุณาเลือกไฟล์ Excel ก่อนและตรวจสอบข้อมูล');
-    await importRecords(xlsxRecords);
+    if (!xlsxRecords || xlsxRecords.length === 0) return showInfo('กรุณาเลือกไฟล์ Excel ก่อนและตรวจสอบข้อมูล');
+    try {
+      await importRecords(xlsxRecords);
+    } finally {
+      // Clear parsed xlsx records and reset file input so new selection always triggers
+      try { setXlsxRecords(null); setXlsxFileName(''); const el = document.getElementById('xlsxFileInput'); if (el) el.value = ''; } catch (e) { /* ignore */ }
+    }
   };
 
   const filteredDrugs = drugs.filter(d => {
     if (!expiryFilterMonths) return true;
-    const expiry = d.expiry_date;
-    if (!expiry) return false;
-    const expireDate = new Date(expiry);
+
+    // Filter based on batch (lot) expiry dates, not drug expiry date
+    const batches = d.drug_batches || [];
+    if (batches.length === 0) return false; // Hide drugs with no batches when filter is active
+
     const now = new Date();
-    const limit = new Date();
-    limit.setMonth(limit.getMonth() + expiryFilterMonths);
-    const inRange = expireDate <= limit && expireDate >= now;
-    console.log('DEBUG: Drug', d.id, 'expiry check:', { expiry, expireDate, now, limit, inRange });
-    return inRange;
+    const limit3 = new Date(now);
+    limit3.setMonth(limit3.getMonth() + 3);
+    const limit6 = new Date(now);
+    limit6.setMonth(limit6.getMonth() + 6);
+
+    let hasExpiringBatch = false;
+
+    if (expiryFilterMonths === 3) {
+      // 0 .. 3 months (inclusive)
+      hasExpiringBatch = batches.some(b => {
+        const batchData = b.attributes ? { id: b.id, ...b.attributes } : b;
+        const expiry = batchData.expiry_date;
+        if (!expiry) return false;
+        const expireDate = new Date(expiry);
+        const inRange = expireDate <= limit3 && expireDate >= now;
+        console.log('DEBUG(3m): Batch', batchData.lot_number, 'expiry check:', { expiry, expireDate, now, limit3, inRange });
+        return inRange;
+      });
+    } else if (expiryFilterMonths === 6) {
+      // 3 .. 6 months (exclude 0..3 so those appear under 3-month bucket)
+      hasExpiringBatch = batches.some(b => {
+        const batchData = b.attributes ? { id: b.id, ...b.attributes } : b;
+        const expiry = batchData.expiry_date;
+        if (!expiry) return false;
+        const expireDate = new Date(expiry);
+        const inRange = expireDate <= limit6 && expireDate > limit3;
+        console.log('DEBUG(6m): Batch', batchData.lot_number, 'expiry check:', { expiry, expireDate, limit3, limit6, inRange });
+        return inRange;
+      });
+    } else {
+      // fallback: same behaviour as before (0 .. expiryFilterMonths)
+      const limit = new Date(now);
+      limit.setMonth(limit.getMonth() + expiryFilterMonths);
+      hasExpiringBatch = batches.some(b => {
+        const batchData = b.attributes ? { id: b.id, ...b.attributes } : b;
+        const expiry = batchData.expiry_date;
+        if (!expiry) return false;
+        const expireDate = new Date(expiry);
+        const inRange = expireDate <= limit && expireDate >= now;
+        console.log('DEBUG(fallback): Batch', batchData.lot_number, 'expiry check:', { expiry, expireDate, now, limit, inRange });
+        return inRange;
+      });
+    }
+
+    return hasExpiringBatch;
   });
 
   console.log('DEBUG: Final filtered drugs (after expiry filter):', filteredDrugs);
@@ -489,6 +721,48 @@ export default function DrugList() {
     }
     setShowModalClosing(false);
     setShowModal(true);
+  };
+
+  // Selection helpers for bulk actions
+  const toggleSelection = (key) => {
+    if (!key) return;
+    setSelectedIds(prev => (prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]));
+  };
+
+  const toggleSelectAll = () => {
+    const allKeys = filteredDrugs.map(d => getDrugKey(d)).filter(Boolean);
+    const allSelected = allKeys.length > 0 && allKeys.every(k => selectedIds.includes(k));
+    if (allSelected) setSelectedIds([]);
+    else setSelectedIds(allKeys);
+  };
+
+  const handleDeleteSelected = () => {
+    if (!selectedIds || selectedIds.length === 0) return showInfo('กรุณาเลือกอย่างน้อย 1 รายการเพื่อจะลบ');
+    openConfirm('ยืนยันการลบหลายรายการ', `คุณต้องการลบ ${selectedIds.length} รายการที่เลือกหรือไม่?`, async () => {
+      const results = { ok: 0, failed: 0, errors: [] };
+      for (const key of selectedIds) {
+        try {
+          const res = await fetch(API.drugs.delete(key), {
+            method: 'DELETE',
+            headers: { ...(token && { Authorization: `Bearer ${token}` }) }
+          });
+          if (res.ok) results.ok += 1; else {
+            results.failed += 1;
+            let body = null;
+            try { body = await res.json(); } catch (_) { body = await res.text().catch(() => null); }
+            results.errors.push({ key, body });
+          }
+        } catch (e) {
+          results.failed += 1;
+          results.errors.push({ key, error: e.message || String(e) });
+        }
+      }
+
+      // Refresh list and show summary toast
+      await refetchDrugsList();
+      if (results.failed === 0) showSuccess(`ลบสำเร็จ ${results.ok} รายการ`);
+      else showWarn(`ลบสำเร็จ ${results.ok} รายการ แต่ล้มเหลว ${results.failed} รายการ`);
+    });
   };
 
   const handleCloseModal = () => {
@@ -532,14 +806,32 @@ export default function DrugList() {
         if (response.ok) {
           const result = await response.json();
           console.log('DEBUG: Update drug response:', result);
-          const keyBefore = editingKey;
-          const updated = result && result.data ? { id: result.data.id, ...result.data.attributes } : result;
-          setDrugs(current => {
-            const next = current.map(d => (getDrugKey(d) === keyBefore ? updated : d));
-            console.log('DEBUG: Drugs state after update:', next);
-            return next;
-          });
-          toast.success('แก้ไขรายการยาสำเร็จ');
+          showSuccess('แก้ไขรายการยาสำเร็จ');
+          
+          // 🔄 refetch รายการยาทั้งหมดใหม่เพื่อให้แน่ใจว่าเห็นรายการยาที่แก้ไขแล้ว
+          try {
+            const listRes = await fetch(API.drugs.listWithBatches(), {
+              headers: { ...(token && { Authorization: `Bearer ${token}` }) }
+            });
+            const listJson = await listRes.json();
+            const items = Array.isArray(listJson.data) ? listJson.data : (listJson.data ? [listJson.data] : []);
+            console.log('DEBUG: Raw list after update drug:', listJson);
+            const normalized = items.map(i => i && i.attributes ? { id: i.id, ...i.attributes } : i);
+            console.log('DEBUG: Normalized after update sample:', normalized.slice(0, 3));
+            const filtered = normalized.filter(d => matchesStore(d, storeDocumentId));
+            console.log('DEBUG: Filtered drugs after update:', filtered);
+            setDrugs(filtered);
+          } catch (refetchErr) {
+            console.error('Failed to refetch after updating drug', refetchErr);
+            // ถ้า refetch ล้มเหลว ให้อัปเดต state ตามปกติ
+            const keyBefore = editingKey;
+            const updated = result && result.data ? { id: result.data.id, ...result.data.attributes } : result;
+            setDrugs(current => {
+              const next = current.map(d => (getDrugKey(d) === keyBefore ? updated : d));
+              console.log('DEBUG: Drugs state after update (fallback):', next);
+              return next;
+            });
+          }
         } else {
           throw new Error('Failed to update drug');
         }
@@ -557,13 +849,27 @@ export default function DrugList() {
         if (response.ok) {
           const result = await response.json();
           console.log('DEBUG: Add drug response:', result);
-          const created = { id: result.data.id, ...result.data.attributes };
-          setDrugs(current => {
-            const next = [...current, created];
-            console.log('DEBUG: Drugs state after add:', next);
-            return next;
-          });
-          toast.success('เพิ่มรายการยาสำเร็จ');
+          showSuccess('เพิ่มรายการยาสำเร็จ');
+          
+            // 🔄 refetch รายการยาทั้งหมดใหม่เพื่อให้แน่ใจว่าเห็นรายการยาที่เพิ่มใหม่
+          try {
+            const listRes = await fetch(API.drugs.listWithBatches(), {
+              headers: { ...(token && { Authorization: `Bearer ${token}` }) }
+            });
+            const listJson = await listRes.json();
+            const items = Array.isArray(listJson.data) ? listJson.data : (listJson.data ? [listJson.data] : []);
+            console.log('DEBUG: Raw list after add drug:', listJson);
+            const normalized = items.map(i => i && i.attributes ? { id: i.id, ...i.attributes } : i);
+            console.log('DEBUG: Normalized after add sample:', normalized.slice(0, 3));
+            const filtered = normalized.filter(d => matchesStore(d, storeDocumentId));
+            console.log('DEBUG: Filtered drugs after add:', filtered);
+            setDrugs(filtered);
+            } catch (refetchErr) {
+            console.error('Failed to refetch after adding drug', refetchErr);
+            // ถ้า refetch ล้มเหลว ให้เพิ่มเข้า state ตามปกติ
+            const created = { id: result.data.id, ...result.data.attributes };
+            setDrugs(current => [...current, created]);
+          }
         } else {
           throw new Error('Failed to add drug');
         }
@@ -572,7 +878,7 @@ export default function DrugList() {
       handleCloseModal();
     } catch (error) {
       console.error('Error saving drug:', error);
-      toast.error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      showError('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
     }
   };
 
@@ -594,13 +900,13 @@ export default function DrugList() {
             console.log('DEBUG: Drugs state after delete:', next);
             return next;
           });
-          toast.success('ลบรายการยาสำเร็จ');
+          showSuccess('ลบรายการยาสำเร็จ');
         } else {
           throw new Error('Failed to delete drug');
         }
-      } catch (error) {
+        } catch (error) {
         console.error('Error deleting drug:', error);
-        toast.error('เกิดข้อผิดพลาดในการลบข้อมูล');
+        showError('เกิดข้อผิดพลาดในการลบข้อมูล');
       }
     });
   };
@@ -620,21 +926,36 @@ export default function DrugList() {
   // Batch handlers
   const handleSaveBatch = async (e) => {
     e.preventDefault();
-    if (!editingDrug) return toast.error('ไม่พบข้อมูลยา');
+    if (!editingDrug) return showError('ไม่พบข้อมูลยา');
     try {
+      // Validate dates: if both provided, date_produced must be <= expiry_date
+      const prodStr = (batchFormData.date_produced || '').trim();
+      const expStr = (batchFormData.expiry_date || '').trim();
+      const prodDate = prodStr ? parseDateInput(prodStr) : null;
+      const expDate = expStr ? parseDateInput(expStr) : null;
+      if (prodDate && expDate) {
+        if (isNaN(prodDate.valueOf()) || isNaN(expDate.valueOf())) {
+          return showError('วันที่ไม่ถูกต้อง กรุณาตรวจสอบ');
+        }
+        if (prodDate > expDate) {
+          return showError('วันที่ผลิตต้องอยู่ก่อนหรือเท่ากับวันหมดอายุ');
+        }
+      }
+
       const batchPayload = {
         lot_number: batchFormData.lot_number,
-        quantity: parseInt(batchFormData.quantity) || 0,
-        date_produced: batchFormData.date_produced || null,
-        expiry_date: batchFormData.expiry_date || null,
+        quantity: parseInt(batchFormData.quantity, 10) || 0,
+        date_produced: prodDate ? prodDate.toISOString() : null,
+        expiry_date: expDate ? expDate.toISOString() : null,
         drug: getDrugKey(editingDrug)
       };
 
       let response;
       if (editingBatch) {
-        // Update batch
-        const batchId = editingBatch.id || editingBatch.documentId;
-        response = await fetch(API.drugBatches.update(batchId), {
+        // Update batch — ใช้ documentId เท่านั้น
+        const docId = getBatchDocumentId(editingBatch);
+        if (!docId) throw new Error('ไม่พบ documentId ของ Lot');
+        response = await fetch(API.drugBatches.update(docId), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -656,11 +977,10 @@ export default function DrugList() {
 
       if (!response.ok) throw new Error('ไม่สามารถบันทึก Batch ได้');
       
-      toast.success(editingBatch ? 'แก้ไข Lot สำเร็จ' : 'เพิ่ม Lot สำเร็จ');
+      showSuccess(editingBatch ? 'แก้ไข Lot สำเร็จ' : 'เพิ่ม Lot สำเร็จ');
       setBatchModalOpen(false);
       
       // Refetch drugs to get updated batches
-      const timestamp = Date.now();
       const listRes = await fetch(API.drugs.listWithBatches(), {
         headers: { ...(token && { Authorization: `Bearer ${token}` }) }
       });
@@ -671,23 +991,24 @@ export default function DrugList() {
       setDrugs(filtered);
     } catch (error) {
       console.error('Error saving batch:', error);
-      toast.error('เกิดข้อผิดพลาดในการบันทึก Lot');
+      showError('เกิดข้อผิดพลาดในการบันทึก Lot');
     }
   };
 
   const handleDeleteBatch = (batchId, drugId) => {
     openConfirm('ยืนยันการลบ Lot', 'คุณต้องการลบ Lot นี้หรือไม่?', async () => {
       try {
+        // ต้องมี documentId เท่านั้น
+        if (!batchId) throw new Error('ไม่พบ documentId ของ Lot');
+
         const response = await fetch(API.drugBatches.delete(batchId), {
           method: 'DELETE',
           headers: { ...(token && { Authorization: `Bearer ${token}` }) }
         });
+
         if (!response.ok) throw new Error('ไม่สามารถลบ Lot ได้');
-        
-        toast.success('ลบ Lot สำเร็จ');
-        
-        // Refetch drugs
-        const timestamp = Date.now();
+
+        // Refetch and confirm deletion before showing success to avoid "ghost" toasts
         const listRes = await fetch(API.drugs.listWithBatches(), {
           headers: { ...(token && { Authorization: `Bearer ${token}` }) }
         });
@@ -695,43 +1016,94 @@ export default function DrugList() {
         const items = Array.isArray(listJson.data) ? listJson.data : (listJson.data ? [listJson.data] : []);
         const normalized = items.map(i => i && i.attributes ? { id: i.id, ...i.attributes } : i);
         const filtered = normalized.filter(d => matchesStore(d, storeDocumentId));
-        setDrugs(filtered);
+
+        // Find the drug and check if the batch still exists
+        const targetDrug = filtered.find(d => getDrugKey(d) === drugId);
+        const batchStillExists = targetDrug && targetDrug.drug_batches && targetDrug.drug_batches.some(b => {
+          const bData = b.attributes ? { id: b.id, ...b.attributes } : b;
+          return `${bData.documentId || bData.id}` === `${batchId}`;
+        });
+
+        if (batchStillExists) {
+          console.warn('Batch still exists after delete:', batchId);
+          showError('การลบ Lot ไม่สำเร็จ — กรุณาลองใหม่');
+        } else {
+          // use toastKey instead of raw toastId (showToast will map to numeric id)
+          showSuccess('ลบ Lot สำเร็จ', { toastKey: `batch-delete-success:${batchId}` });
+          setDrugs(filtered);
+        }
       } catch (error) {
         console.error('Error deleting batch:', error);
-        toast.error('เกิดข้อผิดพลาดในการลบ Lot');
+        showError('เกิดข้อผิดพลาดในการลบ Lot');
       }
     });
   };
 
   return (
     <div className="app-container drugs-page">
-      <ToastContainer />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick={false}
+        closeButton={false}
+        pauseOnHover
+        draggable={false}
+        pauseOnFocusLoss={true}
+        limit={3}
+      />
       <HomeHeader pharmacyName={store?.attributes?.name_th || store?.name_th} onSearch={() => {}} isLoggedIn={true} />
       <main className="main-content drugs-main">
         <div className="drugs-header">
           <h2 className="store-title">{store?.attributes?.name_th || 'รายการยา'}</h2>
           <div className="drugs-actions">
             <button className="btn small primary" onClick={() => navigate(-1)}>กลับ</button>
-            <button className="btn small primary" onClick={() => handleOpenModal()}>เพิ่มรายการยาใหม่</button>
+            <button className="btn small" onClick={handleDeleteSelected} disabled={selectedIds.length===0} style={{ marginLeft: 8 }}>{selectedIds.length>0?`ลบที่เลือก (${selectedIds.length})`:'ลบที่เลือก'}</button>
+            <button className="btn small primary" onClick={() => handleOpenModal()} style={{ marginLeft: 8 }}>เพิ่มรายการยาใหม่</button>
           </div>
         </div>
 
         <div className="drugs-controls">
-          <span className="label">ยาหมดอายุ</span>
-          <button className={`pill ${expiryFilterMonths===3? 'active':''}`} onClick={() => setExpiryFilterMonths(expiryFilterMonths===3? null:3)}>3 เดือน</button>
-          <button className={`pill ${expiryFilterMonths===6? 'active':''}`} onClick={() => setExpiryFilterMonths(expiryFilterMonths===6? null:6)}>6 เดือน</button>
-          <div className="import-controls" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input id="csvFileInput" type="file" accept=".csv,text/csv" onChange={handleFileChange} style={{ display: 'none' }} />
-            <label htmlFor="csvFileInput" className="btn small">เลือกไฟล์ CSV</label>
-            <button className="btn small" onClick={handleImportCSV} disabled={!csvFile || importing}>{importing ? `กำลังนำเข้า (${importProgress.done}/${importProgress.total || '?'})` : 'นำเข้า CSV'}</button>
-
-            <input id="xlsxFileInput" type="file" accept=".xlsx,.xls" onChange={handleFileChangeAdvanced} style={{ display: 'none' }} />
-            <label htmlFor="xlsxFileInput" className="btn small">เลือกไฟล์ Excel</label>
-            <button className="btn small" onClick={handleImportXLSX} disabled={!xlsxRecords || importing}>{importing ? `กำลังนำเข้า (${importProgress.done}/${importProgress.total || '?'})` : 'นำเข้า Excel'}</button>
-
-            <button className="btn small" onClick={() => downloadTemplateAs('csv')}>ดาวน์โหลดเทมเพลต (CSV)</button>
-            <button className="btn small" onClick={() => downloadTemplateAs('xlsx')}>ดาวน์โหลดเทมเพลต (Excel)</button>
+          <div className="tabs" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              className={`pill ${activeTab === 'expiry' ? 'active' : ''}`}
+              onClick={() => setActiveTab('expiry')}
+            >
+              ยาหมดอายุ
+            </button>
+            <button
+              className={`pill ${activeTab === 'import' ? 'active' : ''}`}
+              onClick={() => setActiveTab('import')}
+            >
+              นำเข้า / เทมเพลต
+            </button>
           </div>
+
+          {activeTab === 'expiry' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 12 }}>
+              <span className="label">กรอง</span>
+              <button className={`pill ${expiryFilterMonths===3? 'active':''}`} onClick={() => setExpiryFilterMonths(expiryFilterMonths===3? null:3)}>3 เดือน</button>
+              <button className={`pill ${expiryFilterMonths===6? 'active':''}`} onClick={() => setExpiryFilterMonths(expiryFilterMonths===6? null:6)}>6 เดือน</button>
+            </div>
+          )}
+
+          {activeTab === 'import' && (
+            <div className="import-controls" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input id="csvFileInput" type="file" accept=".csv,text/csv" onChange={handleFileChange} style={{ display: 'none' }} />
+              <label htmlFor="csvFileInput" className="btn small">เลือกไฟล์ CSV</label>
+              {csvFileName ? <span style={{ marginLeft: 8, color: '#444', fontSize: 13, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{csvFileName}</span> : null}
+              <button className="btn small" onClick={handleImportCSV} disabled={!csvFile || importing} style={{ marginLeft: 8 }}>{importing ? `กำลังนำเข้า (${importProgress.done}/${importProgress.total || '?'})` : 'นำเข้า CSV'}</button>
+
+              <input id="xlsxFileInput" type="file" accept=".xlsx,.xls" onChange={handleFileChangeAdvanced} style={{ display: 'none' }} />
+              <label htmlFor="xlsxFileInput" className="btn small">เลือกไฟล์ Excel</label>
+              {xlsxFileName ? <span style={{ marginLeft: 8, color: '#444', fontSize: 13, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{xlsxFileName}</span> : null}
+              <button className="btn small" onClick={handleImportXLSX} disabled={!xlsxRecords || importing} style={{ marginLeft: 8 }}>{importing ? `กำลังนำเข้า (${importProgress.done}/${importProgress.total || '?'})` : 'นำเข้า Excel'}</button>
+
+              <button className="btn small" onClick={() => downloadTemplateAs('csv')}>ดาวน์โหลดเทมเพลต (CSV)</button>
+              <button className="btn small" onClick={() => downloadTemplateAs('xlsx')}>ดาวน์โหลดเทมเพลต (Excel)</button>
+            </div>
+          )}
         </div>
 
         <div className="drugs-table-wrap">
@@ -743,6 +1115,9 @@ export default function DrugList() {
             <table className="drugs-table">
               <thead>
                 <tr>
+                  <th style={{ width: 40 }}>
+                    <input type="checkbox" onChange={toggleSelectAll} checked={filteredDrugs.length>0 && selectedIds.length===filteredDrugs.map(d=>getDrugKey(d)).filter(Boolean).length} />
+                  </th>
                   <th>ชื่อยา</th>
                   <th>ข้อบ่งใช้</th>
                   <th>ราคา</th>
@@ -754,19 +1129,19 @@ export default function DrugList() {
                         {filteredDrugs.map((drug, idx) => (
                           <React.Fragment key={getDrugKey(drug) || idx}>
                             <tr>
+                              <td>
+                                <input type="checkbox" checked={selectedIds.includes(getDrugKey(drug))} onChange={() => toggleSelection(getDrugKey(drug))} />
+                              </td>
                               <td data-label="ชื่อยา" className="drug-name">{drug.name_th || drug.name_en || '-'}</td>
                               <td data-label="ข้อบ่งใช้" className="drug-use">{drug.description || '-'}</td>
                               <td data-label="ราคา">{drug.price ? `${drug.price} ฿` : '-'}</td>
                               <td data-label="Lot & สต็อก">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span>{drug.drug_batches?.length || 0} lot</span>
-                                  <button 
-                                    onClick={() => setExpandedDrugId(expandedDrugId === getDrugKey(drug) ? null : getDrugKey(drug))}
-                                    style={{ padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}
-                                  >
-                                    {expandedDrugId === getDrugKey(drug) ? '▼' : '▶'}
-                                  </button>
-                                </div>
+                                <button 
+                                  className="btn-batch-details"
+                                  onClick={() => { setBatchDetailsModalDrug(drug); setBatchDetailsModalOpen(true); }}
+                                >
+                                  📦 {drug.drug_batches?.length || 0} lot
+                                </button>
                               </td>
                               <td data-label="การดำเนินการ">
                                 <div className="action-buttons">
@@ -775,86 +1150,6 @@ export default function DrugList() {
                                 </div>
                               </td>
                             </tr>
-                            {expandedDrugId === getDrugKey(drug) && (
-                              <tr style={{ background: '#f9f9f9' }}>
-                                <td colSpan="5">
-                                  <div style={{ padding: '15px' }}>
-                                    <div style={{ marginBottom: '10px', fontWeight: 'bold' }}>📦 รายละเอียด Lot</div>
-                                    {drug.drug_batches && drug.drug_batches.length > 0 ? (
-                                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                        <thead>
-                                          <tr style={{ borderBottom: '1px solid #ddd' }}>
-                                            <th style={{ textAlign: 'left', padding: '8px' }}>Lot</th>
-                                            <th style={{ textAlign: 'left', padding: '8px' }}>จำนวน</th>
-                                            <th style={{ textAlign: 'left', padding: '8px' }}>ผลิต</th>
-                                            <th style={{ textAlign: 'left', padding: '8px' }}>หมดอายุ</th>
-                                            <th style={{ textAlign: 'left', padding: '8px' }}>การดำเนินการ</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {drug.drug_batches.map(batch => {
-                                            const batchData = batch.attributes ? { id: batch.id, ...batch.attributes } : batch;
-                                            return (
-                                              <tr key={batchData.id || batchData.documentId} style={{ borderBottom: '1px solid #eee' }}>
-                                                <td style={{ padding: '8px' }}>{batchData.lot_number || '-'}</td>
-                                                <td style={{ padding: '8px' }}>{batchData.quantity || 0} แผง</td>
-                                                <td style={{ padding: '8px' }}>{formatDate(batchData.date_produced)}</td>
-                                                <td style={{ padding: '8px' }}>{formatDate(batchData.expiry_date)}</td>
-                                                <td style={{ padding: '8px' }}>
-                                                  <button 
-                                                    className="btn-action edit"
-                                                    style={{ marginRight: '5px', padding: '4px 8px', fontSize: '11px' }}
-                                                    onClick={() => {
-                                                      setEditingBatch(batchData);
-                                                      setBatchFormData({
-                                                        lot_number: batchData.lot_number || '',
-                                                        quantity: String(batchData.quantity || ''),
-                                                        date_produced: batchData.date_produced ? batchData.date_produced.split('T')[0] : '',
-                                                        expiry_date: batchData.expiry_date ? batchData.expiry_date.split('T')[0] : ''
-                                                      });
-                                                      setBatchModalOpen(true);
-                                                    }}
-                                                  >
-                                                    แก้ไข
-                                                  </button>
-                                                  <button 
-                                                    className="btn-action delete"
-                                                    style={{ padding: '4px 8px', fontSize: '11px' }}
-                                                    onClick={() => handleDeleteBatch(batchData.id || batchData.documentId, getDrugKey(drug))}
-                                                  >
-                                                    ลบ
-                                                  </button>
-                                                </td>
-                                              </tr>
-                                            );
-                                          })}
-                                        </tbody>
-                                      </table>
-                                    ) : (
-                                      <p style={{ color: '#999' }}>ไม่มี Lot</p>
-                                    )}
-                                    <button 
-                                      className="btn small primary" 
-                                      style={{ marginTop: '10px' }}
-                                      onClick={() => {
-                                        setEditingBatch(null);
-                                        setBatchFormData({
-                                          lot_number: '',
-                                          quantity: '',
-                                          date_produced: '',
-                                          expiry_date: ''
-                                        });
-                                        // Store which drug we're adding a batch to
-                                        setEditingDrug(drug);
-                                        setBatchModalOpen(true);
-                                      }}
-                                    >
-                                      + เพิ่ม Lot ใหม่
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
                           </React.Fragment>
                         ))}
               </tbody>
@@ -943,7 +1238,115 @@ export default function DrugList() {
           </div>
         )}
 
-        {/* Batch Modal */}
+        {/* Batch Details Modal - Beautiful Display */}
+        {(batchDetailsModalOpen && batchDetailsModalDrug) && (
+          <div className={`modal-overlay batch-details-overlay show`} onClick={() => setBatchDetailsModalOpen(false)}>
+            <div className={`batch-details-modal show`} onClick={(e) => e.stopPropagation()}>
+              <div className="batch-details-header">
+                <div className="batch-details-title-section">
+                  <h2>📦 รายละเอียด Lot</h2>
+                  <p className="batch-drug-name">{batchDetailsModalDrug.name_th || batchDetailsModalDrug.name_en}</p>
+                </div>
+                <button className="batch-details-close" onClick={() => setBatchDetailsModalOpen(false)}>×</button>
+              </div>
+
+              <div className="batch-details-content">
+                {batchDetailsModalDrug.drug_batches && batchDetailsModalDrug.drug_batches.length > 0 ? (
+                  <div className="batch-list">
+                    {batchDetailsModalDrug.drug_batches.map((batch, idx) => {
+                      const batchData = batch.attributes ? { id: batch.id, ...batch.attributes } : batch;
+                      return (
+                        <div key={batchData.id || batchData.documentId || idx} className="batch-card">
+                          <div className="batch-card-header">
+                            <div className="batch-lot-info">
+                              <span className="batch-lot-number">{batchData.lot_number}</span>
+                              <span className="batch-quantity">📦 {batchData.quantity || 0} แผง</span>
+                            </div>
+                            <div className="batch-card-actions">
+                              <button 
+                                className="batch-btn-edit"
+                                onClick={() => {
+                                  setEditingDrug(batchDetailsModalDrug);
+                                  setEditingBatch(batchData);
+                                  setBatchFormData({
+                                    lot_number: batchData.lot_number || '',
+                                    quantity: String(batchData.quantity || ''),
+                                    date_produced: formatDateForInput(batchData.date_produced),
+                                    expiry_date: formatDateForInput(batchData.expiry_date)
+                                  });
+                                  setBatchDetailsModalOpen(false);
+                                  setBatchModalOpen(true);
+                                }}
+                                title="แก้ไข Lot นี้"
+                              >
+                                ✏️
+                              </button>
+                              <button 
+                                className="batch-btn-delete"
+                                onClick={() => {
+                                  setBatchDetailsModalOpen(false);
+                                  handleDeleteBatch(getBatchDocumentId(batchData), getDrugKey(batchDetailsModalDrug));
+                                }}
+                                title="ลบ Lot นี้"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="batch-card-dates">
+                            <div className="batch-date-item">
+                              <label>📅 วันที่ผลิต</label>
+                              <span>{formatDate(batchData.date_produced) || '-'}</span>
+                            </div>
+                            <div className="batch-date-item">
+                              <label>⏰ วันหมดอายุ</label>
+                              <span className={`expiry-date ${batchData.expiry_date && new Date(batchData.expiry_date) < new Date() ? 'expired' : batchData.expiry_date && new Date(batchData.expiry_date) < new Date(Date.now() + 90*24*60*60*1000) ? 'expiring-soon' : ''}`}>
+                                {formatDate(batchData.expiry_date) || '-'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="batch-empty-state">
+                    <p>📭 ไม่มี Lot สำหรับรายการยานี้</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="batch-details-footer">
+                <button 
+                  className="btn-add-batch"
+                  onClick={() => {
+                    setEditingBatch(null);
+                    setBatchFormData({
+                      lot_number: '',
+                      quantity: '',
+                      date_produced: '',
+                      expiry_date: ''
+                    });
+                    setEditingDrug(batchDetailsModalDrug);
+                    setBatchDetailsModalOpen(false);
+                    setBatchModalOpen(true);
+                  }}
+                >
+                  ➕ เพิ่ม Lot ใหม่
+                </button>
+                <button 
+                  className="btn-close-modal"
+                  onClick={() => setBatchDetailsModalOpen(false)}
+                >
+                  ปิด
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Batch Add/Edit Modal */}
         {(batchModalOpen) && (
           <div className={`modal-overlay show`} onClick={() => setBatchModalOpen(false)}>
             <div className={`modal-content show`} onClick={(e) => e.stopPropagation()}>
@@ -975,17 +1378,19 @@ export default function DrugList() {
                   <div className="form-group">
                     <label>วันที่ผลิต</label>
                     <input
-                      type="date"
+                      type="text"
+                      placeholder="dd/mm/yyyy"
                       value={batchFormData.date_produced}
-                      onChange={(e) => setBatchFormData({ ...batchFormData, date_produced: e.target.value })}
+                      onChange={(e) => setBatchFormData({ ...batchFormData, date_produced: formatDateInputValue(e.target.value) })}
                     />
                   </div>
                   <div className="form-group">
                     <label>วันหมดอายุ</label>
                     <input
-                      type="date"
+                      type="text"
+                      placeholder="dd/mm/yyyy"
                       value={batchFormData.expiry_date}
-                      onChange={(e) => setBatchFormData({ ...batchFormData, expiry_date: e.target.value })}
+                      onChange={(e) => setBatchFormData({ ...batchFormData, expiry_date: formatDateInputValue(e.target.value) })}
                       required
                     />
                   </div>

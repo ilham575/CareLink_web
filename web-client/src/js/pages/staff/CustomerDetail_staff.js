@@ -648,6 +648,25 @@ function CustomerDetailStaff() {
   const user = customer.users_permissions_user;
   const notifData = notification?.data || {};
 
+  const formatAllergy = (val) => {
+    if (!val) return 'ไม่มีข้อมูล';
+    try {
+      if (typeof val === 'string') {
+        const parsed = JSON.parse(val);
+        if (parsed && typeof parsed === 'object') {
+          return parsed.drug || parsed.allergy || JSON.stringify(parsed);
+        }
+        return val;
+      }
+      if (typeof val === 'object') {
+        return val.drug || val.allergy || JSON.stringify(val);
+      }
+      return String(val);
+    } catch (err) {
+      return String(val);
+    }
+  };
+
   return (
     <div className="customer-detail-page">
       <ToastContainer 
@@ -825,9 +844,9 @@ function CustomerDetailStaff() {
                   </div>
                   <div className="info-card-content">
                     <div className="info-row">
-                      <label>ยาที่แพ้:</label>
-                      <span className="text-warning">{customer.Allergic_drugs || 'ไม่มีข้อมูล'}</span>
-                    </div>
+                          <label>ยาที่แพ้:</label>
+                          <span className="text-warning">{formatAllergy(customer.Allergic_drugs)}</span>
+                        </div>
                     <div className="info-row">
                       <label>โรคประจำตัว:</label>
                       <span>{customer.congenital_disease || 'ไม่มีข้อมูล'}</span>
