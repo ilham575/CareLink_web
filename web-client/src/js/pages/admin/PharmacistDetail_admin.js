@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
 import Footer from "../../components/footer";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { API } from "../../../utils/apiConfig";
 

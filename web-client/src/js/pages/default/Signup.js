@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import '../../../css/pages/default/signup.css';
 import HomeHeader from '../../components/HomeHeader';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { API, fetchWithAuth } from '../../../utils/apiConfig';
@@ -354,7 +354,6 @@ function Signup() {
   return (
     <div className="signup-page-container">
       <HomeHeader />
-      <ToastContainer />
       <div className="signup-content">
         <div className="signup-note">
           {isEditMode ? (

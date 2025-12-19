@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import '../../../css/pages/default/home.css';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
@@ -312,7 +312,6 @@ function PharmacyHome() {
 	if (!userProfiles.length) {
 		return (
 			<div className="app-container">
-				<ToastContainer />
 				<HomeHeader onSearch={setSearchText} isLoggedIn={true} />
 				<main className="main-content">
 					<AnimationWrapper>
@@ -343,7 +342,6 @@ function PharmacyHome() {
 
 	return (
 		<div className="app-container">
-			<ToastContainer />
 			<HomeHeader onSearch={setSearchText} isLoggedIn={true} />
 			<main className="main-content">
 				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>

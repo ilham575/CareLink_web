@@ -29,6 +29,29 @@ function formatShortThaiDate(dateStr) {
   return `${d.date()} ${months[d.month() + 1]} ${d.year() + 543}`;
 }
 
+// ฟังก์ชันแปลงยาที่แพ้เป็น array
+function parseAllergies(val) {
+  if (!val) return [];
+  if (typeof val === 'string') {
+    // ถ้าเป็น string ให้แยกด้วย comma หรือ newline
+    return val
+      .split(/[,\n]/)
+      .map(item => item.trim())
+      .filter(item => item && item !== '-' && item.toLowerCase() !== 'ไม่มี');
+  }
+  if (Array.isArray(val)) {
+    return val.map(item => {
+      if (typeof item === 'string') return item.trim();
+      if (typeof item === 'object') return item.allergy || item.drug || item.name_th || JSON.stringify(item);
+      return String(item);
+    }).filter(item => item && item !== '-' && item.toLowerCase() !== 'ไม่มี');
+  }
+  if (typeof val === 'object') {
+    return [val.allergy || val.drug || val.name_th || JSON.stringify(val)].filter(item => item && item !== '-');
+  }
+  return [];
+}
+
 function PrintAllergyCard() {
   const { customerDocumentId } = useParams();
   const navigate = useNavigate();
@@ -97,10 +120,10 @@ function PrintAllergyCard() {
 
   const user = customer.users_permissions_user;
   const today = new Date();
-  const allergicDrugs = customer.Allergic_drugs || '';
+  const allergicDrugsArray = parseAllergies(customer.Allergic_drugs);
 
   // ตรวจสอบว่ามียาที่แพ้หรือไม่
-  if (!allergicDrugs || allergicDrugs === '-' || allergicDrugs.toLowerCase() === 'ไม่มี') {
+  if (allergicDrugsArray.length === 0) {
     return (
       <div className="allergy-card-container">
         <div className="allergy-controls no-print">
@@ -180,7 +203,15 @@ function PrintAllergyCard() {
           </div>
           <div className="allergy-drugs-box">
             <div className="allergy-drugs-content">
-              {allergicDrugs}
+              {allergicDrugsArray.length === 1 ? (
+                <div>{allergicDrugsArray[0]}</div>
+              ) : (
+                <ul className="allergy-drugs-list">
+                  {allergicDrugsArray.map((drug, index) => (
+                    <li key={index} className="allergy-drugs-item">{drug}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>

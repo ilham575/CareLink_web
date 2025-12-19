@@ -42,5 +42,8 @@ module.exports = [
   },
   'strapi::session',
   'strapi::favicon',
+  {
+    resolve: './src/middlewares/error-handler',
+  },
   'strapi::public',
 ];

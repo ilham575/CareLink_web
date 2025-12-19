@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import Footer from "../footer";
 import HomeHeader from "../HomeHeader";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import "../../../css/theme.css";
@@ -943,7 +943,6 @@ function FormStaffPage() {
   return (
     <div className="signup-page-container">
       <HomeHeader />
-      <ToastContainer />
       <div className="signup-content">
         <div className="signup-note">
           <b>{documentId ? "แก้ไขข้อมูลพนักงานร้านยา" : "เพิ่มข้อมูลพนักงานร้านยา"}</b>

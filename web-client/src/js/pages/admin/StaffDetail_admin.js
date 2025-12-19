@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
 import '../../../css/pages/default/home.css';

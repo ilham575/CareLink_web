@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import Footer from "../../components/footer";
 import HomeHeader from "../../components/HomeHeader";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 import '../../../css/pages/staff/editStaffProfile.css';
@@ -391,7 +391,6 @@ function EditStaffProfile() {
   return (
     <div className="edit-profile-page-container">
       <HomeHeader />
-      <ToastContainer />
       <div className="edit-profile-content">
         <div className="edit-profile-note">
           <b>แก้ไขข้อมูลส่วนตัว</b>

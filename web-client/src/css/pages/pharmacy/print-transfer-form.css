@@ -181,6 +181,16 @@
   color: #333;
 }
 
+.print-field-value ul {
+  margin: 5px 0;
+  padding-left: 20px;
+}
+
+.print-field-value li {
+  margin: 5px 0;
+  list-style-type: disc;
+}
+
 /* Checkbox group สำหรับเลือกประเภทสถานพยาบาล */
 .print-checkbox-group {
   display: flex;

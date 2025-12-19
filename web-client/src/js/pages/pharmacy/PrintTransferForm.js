@@ -20,6 +20,28 @@ function formatThaiDate(dateStr) {
   return `${day} ${month} ${year}`;
 }
 
+// ฟังก์ชันแปลงยาที่แพ้เป็น array
+function parseAllergies(val) {
+  if (!val) return [];
+  if (typeof val === 'string') {
+    return val
+      .split(/[,\n]/)
+      .map(item => item.trim())
+      .filter(item => item && item !== '-' && item.toLowerCase() !== 'ไม่มี');
+  }
+  if (Array.isArray(val)) {
+    return val.map(item => {
+      if (typeof item === 'string') return item.trim();
+      if (typeof item === 'object') return item.allergy || item.drug || item.name_th || JSON.stringify(item);
+      return String(item);
+    }).filter(item => item && item !== '-' && item.toLowerCase() !== 'ไม่มี');
+  }
+  if (typeof val === 'object') {
+    return [val.allergy || val.drug || val.name_th || JSON.stringify(val)].filter(item => item && item !== '-');
+  }
+  return [];
+}
+
 function PrintTransferForm() {
   const { customerDocumentId } = useParams();
   const navigate = useNavigate();
@@ -100,7 +122,20 @@ function PrintTransferForm() {
 
   const user = customer.users_permissions_user;
   const prescribedDrugs = customer.prescribed_drugs || [];
+  const allergicDrugsArray = parseAllergies(customer.Allergic_drugs);
   const today = new Date();
+
+  // Helper: normalize values to safe display strings
+  const normalizeDisplay = (val) => {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'string') return val;
+    if (Array.isArray(val)) return val.join(', ');
+    if (typeof val === 'object') {
+      // common shapes: { allergy }, { drug }, { date, drug, symptoms }
+      return val.allergy || val.drug || val.symptoms || JSON.stringify(val);
+    }
+    return String(val);
+  };
 
   return (
     <div className="print-transfer-form-container">
@@ -187,20 +222,26 @@ function PrintTransferForm() {
             <div className="print-form-field print-full-width">
               <label>ยาที่แพ้:</label>
               <div className="print-field-value">
-                {customer.Allergic_drugs || '(ไม่มี)'}
+                {allergicDrugsArray.length === 0 ? '(ไม่มี)' : allergicDrugsArray.length === 1 ? allergicDrugsArray[0] : (
+                  <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                    {allergicDrugsArray.map((drug, index) => (
+                      <li key={index}>{drug}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
             <div className="print-form-field print-full-width">
               <label>โรคประจำตัว:</label>
               <div className="print-field-value">
-                {customer.congenital_disease || '(ไม่มี)'}
-              </div>
+                  {normalizeDisplay(customer.congenital_disease) || '(ไม่มี)'}
+                </div>
             </div>
             <div className="print-form-field print-full-width">
               <label>อาการปัจจุบัน:</label>
               <div className="print-field-value">
-                {customer.Customers_symptoms || '(ไม่ระบุ)'}
-              </div>
+                  {normalizeDisplay(customer.Customers_symptoms) || '(ไม่ระบุ)'}
+                </div>
             </div>
           </div>
         </section>
@@ -225,9 +266,11 @@ function PrintTransferForm() {
                 </thead>
                 <tbody>
                   {prescribedDrugs.map((drugItem, index) => {
-                    const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
+                    const drugId = typeof drugItem === 'string'
+                      ? drugItem
+                      : (drugItem.drugId || drugItem.drug || (drugItem?.drug?.documentId));
                     const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
-                    const drug = drugs.find(d => d.documentId === drugId);
+                    const drug = drugs.find(d => d.documentId === drugId) || drugs.find(d => d.documentId === (drugItem?.drug?.documentId));
 
                     return (
                       <tr key={drugId || index}>

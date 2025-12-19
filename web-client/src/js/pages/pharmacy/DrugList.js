@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { API } from '../../../utils/apiConfig';
 import '../../../css/pages/default/drugsPage.css';
@@ -1041,18 +1041,6 @@ export default function DrugList() {
 
   return (
     <div className="app-container drugs-page">
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={true}
-        closeOnClick={false}
-        closeButton={false}
-        pauseOnHover
-        draggable={false}
-        pauseOnFocusLoss={true}
-        limit={3}
-      />
       <HomeHeader pharmacyName={store?.attributes?.name_th || store?.name_th} onSearch={() => {}} isLoggedIn={true} />
       <main className="main-content drugs-main">
         <div className="drugs-header">

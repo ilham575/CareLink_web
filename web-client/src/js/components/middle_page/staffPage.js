@@ -6,7 +6,7 @@ import "../../../css/component/StaffCard.css";
 import { formatTime } from "../../utils/time";
 import React, { useEffect, useState } from "react";
 import { Modal } from "antd";   // <<-- import Modal จาก antd
-import { toast, ToastContainer } from "react-toastify"; // <<-- Add ToastContainer import
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css"; // <<-- Add this import for toast styles
 import { API } from "../../../utils/apiConfig";
 
@@ -170,7 +170,6 @@ function StaffPage({ id }) {
 
   return (
     <div className="staffpage-bg">
-      <ToastContainer />
       <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
       <main className="staffpage-main">
         <div className="staffpage-container">

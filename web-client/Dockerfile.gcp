@@ -54,8 +54,8 @@ COPY --from=builder /app/build /usr/share/nginx/html
 # ============================================
 FROM nginx:1.27-alpine
 
-# Install wget for health checks
-RUN apk add --no-cache wget
+# Install curl for health checks (curl is commonly available in Alpine mirrors)
+RUN apk add --no-cache curl
 
 # Set working directory
 WORKDIR /app

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
 import '../../../css/component/CustomerCard.css';
@@ -149,24 +149,37 @@ function CustomerPageStaff() {
     return `${d.date()} ${months[d.month() + 1]} ${d.year() + 543}`;
   };
 
-  const formatAllergy = (val) => {
-    if (!val) return 'ไม่มีข้อมูล';
+  // Helper: Parse allergies to support both single and multiple allergies
+  const parseAllergies = (val) => {
+    if (!val) return [];
     try {
-      if (typeof val === 'string') {
-        // try parse JSON string
-        const parsed = JSON.parse(val);
-        if (parsed && typeof parsed === 'object') {
-          return parsed.drug || parsed.allergy || JSON.stringify(parsed);
-        }
+      if (Array.isArray(val)) {
         return val;
       }
-      if (typeof val === 'object') {
-        return val.drug || val.allergy || JSON.stringify(val);
+      if (typeof val === 'string') {
+        const s = val.trim();
+        if (s.startsWith('[')) {
+          return JSON.parse(s);
+        } else if (s.startsWith('{')) {
+          const parsed = JSON.parse(s);
+          return [parsed];
+        } else {
+          return [{ drug: s, symptoms: '', date: '' }];
+        }
       }
-      return String(val);
+      if (typeof val === 'object') {
+        return [val];
+      }
+      return [{ drug: String(val), symptoms: '', date: '' }];
     } catch (err) {
-      return String(val);
+      return [{ drug: String(val), symptoms: '', date: '' }];
     }
+  };
+
+  const formatAllergy = (val) => {
+    const allergies = parseAllergies(val);
+    if (allergies.length === 0) return 'ไม่มีข้อมูล';
+    return allergies.map(a => a.drug || a.allergy || 'ไม่ระบุชื่อยา').join(', ');
   };
 
   if (loading) {
@@ -186,7 +199,6 @@ function CustomerPageStaff() {
 
   return (
     <div className="customer-page">
-      <ToastContainer />
       <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
       
       <main className="customer-main">
@@ -283,15 +295,20 @@ function CustomerPageStaff() {
                         </div>
                       )}
 
-                      {(customer.Allergic_drugs || customer.attributes?.Allergic_drugs || notifData.allergy) && (
-                        <div className="info-item allergy">
-                          <div className="info-icon allergy">⚠️</div>
-                          <div className="info-text">
-                            <span className="info-label">ยาที่แพ้</span>
-                            <span className="info-value">{formatAllergy(notifData.allergy || customer.Allergic_drugs || customer.attributes?.Allergic_drugs)}</span>
+                      {(() => {
+                        const allergyData = notifData.allergy || customer.Allergic_drugs || customer.attributes?.Allergic_drugs;
+                        if (!allergyData) return null;
+                        const allergyText = formatAllergy(allergyData);
+                        return allergyText && allergyText !== 'ไม่มีข้อมูล' && (
+                          <div className="info-item allergy">
+                            <div className="info-icon allergy">⚠️</div>
+                            <div className="info-text">
+                              <span className="info-label">ยาที่แพ้</span>
+                              <span className="info-value">{allergyText}</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
 
                     {followUpDate && (

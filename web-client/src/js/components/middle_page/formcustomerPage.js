@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Footer from "../footer";
 import HomeHeader from "../HomeHeader";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "../../../css/pages/formcustomerPage.css";
 import { API, fetchWithAuth } from "../../../utils/apiConfig";
@@ -505,7 +505,6 @@ function FormCustomerPage() {
 
   return (
     <div className="customer-form-page">
-      <ToastContainer />
       <HomeHeader />
       <div className="customer-form-main">
         <div className="customer-form-container">

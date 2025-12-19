@@ -222,8 +222,20 @@
   font-size: 20px;
   font-weight: 700;
   color: #dc3545;
-  text-align: center;
-  line-height: 1.4;
+  text-align: left;
+  line-height: 1.6;
+}
+
+.allergy-drugs-list {
+  margin: 0;
+  padding-left: 30px;
+  list-style-type: disc;
+}
+
+.allergy-drugs-item {
+  margin: 8px 0;
+  font-size: 18px;
+  color: #dc3545;
 }
 
 /* Symptoms Box */
@@ -524,7 +536,21 @@
     font-size: 18pt !important;
     font-weight: bold !important;
     color: #000 !important;
-    line-height: 1.3 !important;
+    line-height: 1.5 !important;
+    text-align: left !important;
+  }
+
+  .allergy-drugs-list {
+    margin: 0 !important;
+    padding-left: 15mm !important;
+    list-style-type: disc !important;
+  }
+
+  .allergy-drugs-item {
+    margin: 3mm 0 !important;
+    font-size: 16pt !important;
+    color: #000 !important;
+    page-break-inside: avoid !important;
   }
 
   /* Symptoms/Disease - พิมพ์ */

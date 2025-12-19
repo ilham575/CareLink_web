@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
 import '../../../css/pages/pharmacy/detail_customer.css';
@@ -51,6 +51,10 @@ function CustomerDetailStaff() {
   const [addDrugModal, setAddDrugModal] = useState({ 
     open: false, 
     availableDrugs: []
+  });
+  const [allergyDetailModal, setAllergyDetailModal] = useState({ 
+    open: false, 
+    allergies: [] 
   });
   const [activeTab, setActiveTab] = useState('1');
   // Track selected batch (lot) for each drug: { drugId: batchDocumentId }
@@ -666,41 +670,41 @@ function CustomerDetailStaff() {
   const user = customer.users_permissions_user;
   const notifData = notification?.data || {};
 
-  const formatAllergy = (val) => {
-    if (!val) return 'ไม่มีข้อมูล';
+  // Parse allergies to support both single and multiple allergies
+  const parseAllergies = (val) => {
+    if (!val) return [];
     try {
-      if (typeof val === 'string') {
-        const parsed = JSON.parse(val);
-        if (parsed && typeof parsed === 'object') {
-          return parsed.drug || parsed.allergy || JSON.stringify(parsed);
-        }
+      if (Array.isArray(val)) {
         return val;
       }
-      if (typeof val === 'object') {
-        return val.drug || val.allergy || JSON.stringify(val);
+      if (typeof val === 'string') {
+        const s = val.trim();
+        if (s.startsWith('[')) {
+          return JSON.parse(s);
+        } else if (s.startsWith('{')) {
+          const parsed = JSON.parse(s);
+          return [parsed];
+        } else {
+          return [{ drug: s, symptoms: '', date: '' }];
+        }
       }
-      return String(val);
+      if (typeof val === 'object') {
+        return [val];
+      }
+      return [{ drug: String(val), symptoms: '', date: '' }];
     } catch (err) {
-      return String(val);
+      return [{ drug: String(val), symptoms: '', date: '' }];
     }
+  };
+
+  const formatAllergy = (val) => {
+    const allergies = parseAllergies(val);
+    if (allergies.length === 0) return 'ไม่มีข้อมูล';
+    return allergies.map(a => a.drug || a.allergy || 'ไม่ระบุชื่อยา').join(', ');
   };
 
   return (
     <div className="customer-detail-page">
-      <ToastContainer 
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={true}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
-      <HomeHeader 
-        pharmacyName={pharmacy?.name_th || pharmacy?.attributes?.name_th || ''}
-        pharmacistName={getPharmacistName(pharmacy)}
       />
       
       <main className="customer-detail-main">
@@ -861,10 +865,71 @@ function CustomerDetailStaff() {
                     <h3>ข้อมูลสำคัญ</h3>
                   </div>
                   <div className="info-card-content">
-                    <div className="info-row">
-                          <label>ยาที่แพ้:</label>
-                          <span className="text-warning">{formatAllergy(customer.Allergic_drugs)}</span>
-                        </div>
+                    <div className="allergy-info-section">
+                      <div className="allergy-label">⚠️ ยาที่แพ้</div>
+                      {customer.Allergic_drugs ? (
+                        (() => {
+                          const allergies = parseAllergies(customer.Allergic_drugs);
+                          return (
+                            <button
+                              onClick={() => {
+                                setAllergyDetailModal({
+                                  open: true,
+                                  allergies: allergies
+                                });
+                              }}
+                              style={{
+                                padding: '12px 16px',
+                                backgroundColor: allergies.length > 0 ? '#ff7875' : '#f5f5f5',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                color: allergies.length > 0 ? 'white' : '#666',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                width: '100%',
+                                transition: 'all 0.3s ease',
+                                boxShadow: allergies.length > 0 ? '0 4px 12px rgba(255, 120, 117, 0.3)' : 'none'
+                              }}
+                              onMouseEnter={e => {
+                                if (allergies.length > 0) {
+                                  e.target.style.boxShadow = '0 6px 16px rgba(255, 120, 117, 0.4)';
+                                  e.target.style.transform = 'translateY(-2px)';
+                                }
+                              }}
+                              onMouseLeave={e => {
+                                if (allergies.length > 0) {
+                                  e.target.style.boxShadow = '0 4px 12px rgba(255, 120, 117, 0.3)';
+                                  e.target.style.transform = 'translateY(0)';
+                                }
+                              }}
+                            >
+                              {allergies.length > 0 
+                                ? `👀 ดูรายละเอียด (${allergies.length} รายการ)` 
+                                : '✓ ไม่มี'
+                              }
+                            </button>
+                          );
+                        })()
+                      ) : (
+                        <button
+                          disabled
+                          style={{
+                            padding: '12px 16px',
+                            backgroundColor: '#f5f5f5',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: 'not-allowed',
+                            color: '#666',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            width: '100%'
+                          }}
+                        >
+                          ✓ ไม่มี
+                        </button>
+                      )}
+                    </div>
                     <div className="info-row">
                       <label>โรคประจำตัว:</label>
                       <span>{customer.congenital_disease || 'ไม่มีข้อมูล'}</span>
@@ -944,7 +1009,20 @@ function CustomerDetailStaff() {
                     <div className="alert-icon">🚫</div>
                     <div className="alert-content">
                       <h4>ยาที่แพ้</h4>
-                      <p>{formatAllergy(customer.Allergic_drugs)}</p>
+                      {customer.Allergic_drugs ? (
+                        (() => {
+                          const allergies = parseAllergies(customer.Allergic_drugs);
+                          return (
+                            <div>
+                              {allergies.map((allergy, idx) => (
+                                <p key={idx} style={{ margin: '4px 0', fontWeight: 'bold' }}>💊 {allergy.drug || allergy.allergy || 'ไม่ระบุชื่อยา'}</p>
+                              ))}
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <p>ไม่มีข้อมูล</p>
+                      )}
                     </div>
                   </div>
                   <div className="alert-card disease">
@@ -1594,6 +1672,98 @@ function CustomerDetailStaff() {
             }}
           />
         </div>
+      </Modal>
+
+      {/* Allergy Detail Modal */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '18px', fontWeight: 'bold' }}>
+            <span>💊</span>
+            <span>รายละเอียดยาที่แพ้</span>
+          </div>
+        }
+        open={allergyDetailModal.open}
+        onCancel={() => setAllergyDetailModal({ open: false, allergies: [] })}
+        footer={[
+          <button
+            key="close"
+            onClick={() => setAllergyDetailModal({ open: false, allergies: [] })}
+            style={{
+              padding: '8px 24px',
+              backgroundColor: '#f5f5f5',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={e => {
+              e.target.style.backgroundColor = '#e6e6e6';
+              e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+            }}
+            onMouseLeave={e => {
+              e.target.style.backgroundColor = '#f5f5f5';
+              e.target.style.boxShadow = 'none';
+            }}
+          >
+            ปิด
+          </button>
+        ]}
+        centered
+        width={600}
+        bodyStyle={{ maxHeight: '70vh', overflowY: 'auto', padding: '24px' }}
+      >
+        {allergyDetailModal.allergies && allergyDetailModal.allergies.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {allergyDetailModal.allergies.map((allergy, idx) => (
+              <div
+                key={idx}
+                style={{
+                  background: 'linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%)',
+                  border: '1px solid #ffb3b3',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  boxShadow: '0 4px 12px rgba(255, 120, 117, 0.15)',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 120, 117, 0.25)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 120, 117, 0.15)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                  <span style={{ fontSize: '24px', lineHeight: '1.4' }}>⚠️</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#d32f2f', marginBottom: '6px' }}>
+                      💊 {allergy.drug || 'ยาไม่ระบุชื่อ'}
+                    </div>
+                    {allergy.symptoms && (
+                      <div style={{ fontSize: '13px', color: '#666', marginBottom: '6px' }}>
+                        <strong>อาการแพ้:</strong> {allergy.symptoms}
+                      </div>
+                    )}
+                    {allergy.date && (
+                      <div style={{ fontSize: '12px', color: '#999' }}>
+                        <strong>วันที่บันทึก:</strong> {formatThaiDate(allergy.date)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#999' }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>✓</div>
+            <div>ไม่มีข้อมูลยาที่แพ้</div>
+          </div>
+        )}
       </Modal>
     </div>
   );

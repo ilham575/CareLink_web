@@ -207,13 +207,13 @@ body {
   font-family: var(--font-main);
   cursor: pointer;
   margin-top: 10px;
-  transition: background 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
   letter-spacing: 1px;
   box-shadow: var(--shadow-sm);
   min-height: 48px; /* Better touch target */
 }
 
-.login-button:hover {
+.login-button:hover:not(:disabled) {
   background: linear-gradient(90deg, var(--color-primary-dark) 60%, var(--color-primary) 100%);
   box-shadow: var(--shadow-md);
   color: #fff;
@@ -222,6 +222,13 @@ body {
 .login-button:focus {
   outline: none;
   box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: linear-gradient(90deg, #9e9e9e 60%, #757575 100%);
+  box-shadow: none;
 }
 
 /* Tablet Landscape (1024px and below) */

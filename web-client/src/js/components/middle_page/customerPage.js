@@ -6,7 +6,7 @@ import "../../../css/component/CustomerCard.css";
 import "../../../css/component/ModernCustomerCard.css";
 import React, { useEffect, useState } from "react";
 import { Modal } from "antd";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import dayjs from "dayjs"; // เพิ่มบรรทัดนี้
 import { API, fetchWithAuth } from "../../../utils/apiConfig";
@@ -24,6 +24,39 @@ function formatThaiDate(dateStr) {
   const month = months[d.month() + 1];
   const year = d.year() + 543;
   return `${day} ${month} ${year}`;
+}
+
+// Helper: Parse allergies to support both single and multiple allergies
+function parseAllergies(val) {
+  if (!val) return [];
+  try {
+    if (Array.isArray(val)) {
+      return val;
+    }
+    if (typeof val === 'string') {
+      const s = val.trim();
+      if (s.startsWith('[')) {
+        return JSON.parse(s);
+      } else if (s.startsWith('{')) {
+        const parsed = JSON.parse(s);
+        return [parsed];
+      } else {
+        return [{ drug: s, symptoms: '', date: '' }];
+      }
+    }
+    if (typeof val === 'object') {
+      return [val];
+    }
+    return [{ drug: String(val), symptoms: '', date: '' }];
+  } catch (err) {
+    return [{ drug: String(val), symptoms: '', date: '' }];
+  }
+}
+
+function formatAllergy(val) {
+  const allergies = parseAllergies(val);
+  if (allergies.length === 0) return 'ไม่มีข้อมูล';
+  return allergies.map(a => a.drug || a.allergy || 'ไม่ระบุชื่อยา').join(', ');
 }
 
 function CustomerPage({ id }) {
@@ -300,7 +333,6 @@ function CustomerPage({ id }) {
 
   return (
     <div className="customerpage-bg">
-      <ToastContainer />
       <HomeHeader pharmacyName={pharmacy?.name_th || pharmacy?.name_en || ''} />
       <main className="customerpage-main">
         <div className="customerpage-container">
@@ -389,14 +421,9 @@ function CustomerPage({ id }) {
                         const allergic = customer.Allergic_drugs || customer.attributes?.Allergic_drugs;
                         if (!allergic) return null;
                         
-                        let allergyText = '';
-                        if (typeof allergic === 'string') {
-                          allergyText = allergic;
-                        } else if (typeof allergic === 'object') {
-                          allergyText = allergic.allergy || allergic.drug || JSON.stringify(allergic);
-                        }
+                        const allergyText = formatAllergy(allergic);
                         
-                        return allergyText && (
+                        return allergyText && allergyText !== 'ไม่มีข้อมูล' && (
                           <div className="info-item allergy">
                             <div className="info-icon allergy">⚠️</div>
                             <div className="info-text">

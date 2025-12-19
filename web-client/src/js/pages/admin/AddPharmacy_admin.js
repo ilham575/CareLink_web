@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../../components/HomeHeader";
 import Footer from "../../components/footer";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { API } from "../../../utils/apiConfig";
 
@@ -1189,7 +1189,6 @@ function AddPharmacist_admin() {
       </div>
 
       <Footer />
-      <ToastContainer />
     </>
   );
 }

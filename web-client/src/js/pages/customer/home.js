@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/home.css';
@@ -217,7 +217,6 @@ function CustomerHome() {
 
   return (
     <div className="app-container">
-      <ToastContainer />
       <HomeHeader isLoggedIn={true} onSearch={setSearchText} />
       <main className="main-content">
         <h2 style={{ margin: '20px 0', color: '#333' }}>ร้านยาที่กำลังติดตามคุณ:</h2>

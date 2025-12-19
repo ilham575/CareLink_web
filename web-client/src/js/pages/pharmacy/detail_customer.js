@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
 import '../../../css/pages/pharmacy/detail_customer.css';
@@ -93,13 +93,16 @@ function CustomerDetail() {
   const [outOfStockIds, setOutOfStockIds] = useState([]);
   // Modal state for showing a drug's full details when user clicks 'รายละเอียด'
   const [drugDetailModal, setDrugDetailModal] = useState({ open: false, drug: null });
-  // State สำหรับ Modal แก้ไขยาที่แพ้ (Allergy) แบบมีรายละเอียด
+  // State สำหรับ Modal แก้ไขยาที่แพ้ (Allergy) แบบมีรายละเอียด - รองรับหลายรายการ
   const [allergyModal, setAllergyModal] = useState({
     open: false,
-    drug: '',
-    symptoms: '',
-    date: '',
+    allergies: [], // Array of { drug, symptoms, date }
     availableDrugs: []
+  });
+  // State สำหรับ Modal แสดงรายละเอียดยาแพ้ (view only)
+  const [allergyDetailModal, setAllergyDetailModal] = useState({
+    open: false,
+    allergies: []
   });
   
   // Get pharmacyId from URL params
@@ -664,47 +667,52 @@ function CustomerDetail() {
       }
     }
     
-    let allergyData = {
-      drug: '',
-      symptoms: '',
-      date: '',
-      availableDrugs: drugs
-    };
+    let allergies = [];
     
+    // Parse existing allergies (handle old single-allergy format and new multi-allergy array format)
     if (customer.Allergic_drugs) {
       try {
-        if (typeof customer.Allergic_drugs === 'object') {
-          allergyData = { ...customer.Allergic_drugs, availableDrugs: drugs };
-        } else if (typeof customer.Allergic_drugs === 'string' && customer.Allergic_drugs.startsWith('{')) {
-          const parsed = JSON.parse(customer.Allergic_drugs);
-          allergyData = { ...parsed, availableDrugs: drugs };
-        } else {
-          allergyData.drug = customer.Allergic_drugs;
-          allergyData.availableDrugs = drugs;
+        if (Array.isArray(customer.Allergic_drugs)) {
+          // New format: already array
+          allergies = customer.Allergic_drugs;
+        } else if (typeof customer.Allergic_drugs === 'object') {
+          // Old format: single object -> convert to array
+          allergies = [customer.Allergic_drugs];
+        } else if (typeof customer.Allergic_drugs === 'string') {
+          const s = customer.Allergic_drugs.trim();
+          if (s.startsWith('[')) {
+            // JSON array
+            allergies = JSON.parse(s);
+          } else if (s.startsWith('{')) {
+            // Single JSON object
+            const parsed = JSON.parse(s);
+            allergies = [parsed];
+          } else {
+            // Plain string -> treat as single drug name
+            allergies = [{ drug: s, symptoms: '', date: '' }];
+          }
         }
       } catch (e) {
-        allergyData.drug = customer.Allergic_drugs || '';
-        allergyData.availableDrugs = drugs;
+        console.error('Error parsing allergies:', e);
       }
     }
     
-    setAllergyModal({ ...allergyData, open: true });
+    setAllergyModal({ open: true, allergies, availableDrugs: drugs });
   };
 
-  // ฟังก์ชันบันทึกข้อมูลยาที่แพ้
+  // ฟังก์ชันบันทึกข้อมูลยาที่แพ้ (รองรับหลายรายการ)
   const handleSaveAllergy = async () => {
-    if (!allergyModal.drug) {
-      toast.error('กรุณาเลือกหรือระบุชื่อยา');
+    // Filter out empty allergies
+    const validAllergies = allergyModal.allergies.filter(a => a.drug && a.drug.trim());
+    
+    if (validAllergies.length === 0) {
+      toast.error('กรุณาเลือกหรือระบุชื่อยาอย่างน้อย 1 รายการ');
       return;
     }
 
     try {
       const updateData = {
-        Allergic_drugs: JSON.stringify({
-          drug: allergyModal.drug,
-          symptoms: allergyModal.symptoms,
-          date: allergyModal.date
-        })
+        Allergic_drugs: JSON.stringify(validAllergies)
       };
 
       const token = localStorage.getItem('jwt') || localStorage.getItem('token');
@@ -722,7 +730,7 @@ function CustomerDetail() {
       const updatedCustomer = await res.json();
       // normalize response (API returns { data: ... })
       setCustomer(updatedCustomer.data || updatedCustomer);
-      setAllergyModal({ open: false, drug: '', symptoms: '', date: '', availableDrugs: [] });
+      setAllergyModal({ open: false, allergies: [], availableDrugs: [] });
       toast.success('บันทึกข้อมูลยาที่แพ้สำเร็จ');
     } catch (err) {
       console.error('Error saving allergy:', err);
@@ -1188,21 +1196,6 @@ function CustomerDetail() {
 
   return (
     <div className="staff-cust-detail-page">
-      <ToastContainer 
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={true}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
-      <HomeHeader 
-        pharmacyName={pharmacy?.name_th || pharmacy?.attributes?.name_th || ''}
-        pharmacistName={getPharmacistName(pharmacy)}
-      />
       
       <main className="staff-cust-detail-main">
         {/* Modern Header Section */}
@@ -1410,35 +1403,76 @@ function CustomerDetail() {
                     <h3>ข้อมูลสำคัญ</h3>
                   </div>
                   <div className="info-card-content">
-                    <div className="info-row">
-                      <label>ยาที่แพ้:</label>
-                      <div style={{ flex: 1 }}>
-                        {customer.Allergic_drugs ? (
-                          (() => {
-                            let allergyInfo = {};
+                    <div className="allergy-info-section">
+                      <div className="allergy-label">⚠️ ยาที่แพ้</div>
+                      <button
+                        onClick={() => {
+                          const allergies = (() => {
+                            let allrgData = [];
                             try {
-                              if (typeof customer.Allergic_drugs === 'string') {
-                                allergyInfo = JSON.parse(customer.Allergic_drugs);
-                              } else {
-                                allergyInfo = customer.Allergic_drugs;
+                              if (Array.isArray(customer.Allergic_drugs)) {
+                                allrgData = customer.Allergic_drugs;
+                              } else if (typeof customer.Allergic_drugs === 'string') {
+                                const s = customer.Allergic_drugs.trim();
+                                if (s.startsWith('[')) {
+                                  allrgData = JSON.parse(s);
+                                } else if (s.startsWith('{')) {
+                                  const parsed = JSON.parse(s);
+                                  allrgData = [parsed];
+                                } else {
+                                  allrgData = [{ drug: s, symptoms: '', date: '' }];
+                                }
+                              } else if (typeof customer.Allergic_drugs === 'object') {
+                                allrgData = [customer.Allergic_drugs];
                               }
                             } catch (e) {
-                              allergyInfo = { drug: customer.Allergic_drugs };
+                              allrgData = [{ drug: String(customer.Allergic_drugs), symptoms: '', date: '' }];
                             }
-                            return (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                <span className="text-warning">{allergyInfo.drug || 'ไม่ระบุชื่อยา'}</span>
-                                {allergyInfo.symptoms && <span style={{ fontSize: '11px', color: '#666', padding: '2px 6px', background: '#f0f0f0', borderRadius: '4px' }}>📋 {allergyInfo.symptoms.substring(0, 30)}{allergyInfo.symptoms.length > 30 ? '...' : ''}</span>}
-                                {allergyInfo.date && <span style={{ fontSize: '11px', color: '#666' }}>📅 {formatThaiDate(allergyInfo.date)}</span>}
-                              </div>
-                            );
+                            return allrgData;
+                          })();
+                          setAllergyDetailModal({ open: true, allergies });
+                        }}
+                        style={{
+                          display: 'inline-block',
+                          padding: '8px 16px',
+                          background: customer.Allergic_drugs ? '#ff7875' : '#f5f5f5',
+                          color: customer.Allergic_drugs ? 'white' : '#666',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: customer.Allergic_drugs ? 'pointer' : 'not-allowed',
+                          fontSize: '13px',
+                          fontWeight: '500',
+                          transition: 'all 0.3s ease',
+                          boxShadow: customer.Allergic_drugs ? '0 2px 8px rgba(255, 120, 117, 0.3)' : 'none'
+                        }}
+                      >
+                        {customer.Allergic_drugs ? (
+                          (() => {
+                            let count = 0;
+                            try {
+                              if (Array.isArray(customer.Allergic_drugs)) {
+                                count = customer.Allergic_drugs.length;
+                              } else if (typeof customer.Allergic_drugs === 'string') {
+                                const s = customer.Allergic_drugs.trim();
+                                if (s.startsWith('[')) {
+                                  count = JSON.parse(s).length;
+                                } else {
+                                  count = 1;
+                                }
+                              } else {
+                                count = 1;
+                              }
+                            } catch (e) {
+                              count = 1;
+                            }
+                            return `👀 ดูรายละเอียด (${count} รายการ)`;
                           })()
                         ) : (
-                          <span className="text-warning">ไม่มีข้อมูล</span>
+                          '✓ ไม่มี'
                         )}
-                      </div>
+                      </button>
                       {userRole === 'pharmacy' && (
-                        <button className="edit-btn-small" onClick={() => openEditMedicalModal('allergy')}>แก้ไข</button>
+                        <button className="edit-btn-allergy" onClick={() => openEditMedicalModal('allergy')}>✏️ แก้ไข</button>
                       )}
                     </div>
                     <div className="info-row">
@@ -1556,21 +1590,35 @@ function CustomerDetail() {
                       <h4>ยาที่แพ้</h4>
                       {customer.Allergic_drugs ? (
                         (() => {
-                          let allergyInfo = {};
+                          let allergies = [];
                           try {
-                            if (typeof customer.Allergic_drugs === 'string') {
-                              allergyInfo = JSON.parse(customer.Allergic_drugs);
-                            } else {
-                              allergyInfo = customer.Allergic_drugs;
+                            if (Array.isArray(customer.Allergic_drugs)) {
+                              allergies = customer.Allergic_drugs;
+                            } else if (typeof customer.Allergic_drugs === 'string') {
+                              const s = customer.Allergic_drugs.trim();
+                              if (s.startsWith('[')) {
+                                allergies = JSON.parse(s);
+                              } else if (s.startsWith('{')) {
+                                const parsed = JSON.parse(s);
+                                allergies = [parsed];
+                              } else {
+                                allergies = [{ drug: s, symptoms: '', date: '' }];
+                              }
+                            } else if (typeof customer.Allergic_drugs === 'object') {
+                              allergies = [customer.Allergic_drugs];
                             }
                           } catch (e) {
-                            allergyInfo = { drug: customer.Allergic_drugs };
+                            allergies = [{ drug: String(customer.Allergic_drugs), symptoms: '', date: '' }];
                           }
                           return (
                             <div>
-                              <p style={{ margin: '4px 0', fontWeight: 'bold' }}>💊 {allergyInfo.drug || 'ไม่ระบุชื่อยา'}</p>
-                              {allergyInfo.symptoms && <p style={{ margin: '4px 0', fontSize: '13px', color: '#666' }}>🩺 อาการ: {allergyInfo.symptoms}</p>}
-                              {allergyInfo.date && <p style={{ margin: '4px 0', fontSize: '12px', color: '#999' }}>📅 {formatThaiDate(allergyInfo.date)}</p>}
+                              {allergies.map((allergy, idx) => (
+                                <div key={idx}>
+                                  <p style={{ margin: '4px 0', fontWeight: 'bold' }}>💊 {allergy.drug || 'ไม่ระบุชื่อยา'}</p>
+                                  {allergy.symptoms && <p style={{ margin: '4px 0', fontSize: '13px', color: '#666' }}>🩺 อาการ: {allergy.symptoms}</p>}
+                                  {allergy.date && <p style={{ margin: '4px 0', fontSize: '12px', color: '#999' }}>📅 {formatThaiDate(allergy.date)}</p>}
+                                </div>
+                              ))}
                             </div>
                           );
                         })()
@@ -1956,6 +2004,98 @@ function CustomerDetail() {
         )}
       </Modal>
 
+      {/* Allergy Detail Modal */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '18px', fontWeight: 'bold' }}>
+            <span>💊</span>
+            <span>รายละเอียดยาที่แพ้</span>
+          </div>
+        }
+        open={allergyDetailModal.open}
+        onCancel={() => setAllergyDetailModal({ open: false, allergies: [] })}
+        footer={[
+          <button
+            key="close"
+            onClick={() => setAllergyDetailModal({ open: false, allergies: [] })}
+            style={{
+              padding: '8px 24px',
+              backgroundColor: '#f5f5f5',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={e => {
+              e.target.style.backgroundColor = '#e6e6e6';
+              e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+            }}
+            onMouseLeave={e => {
+              e.target.style.backgroundColor = '#f5f5f5';
+              e.target.style.boxShadow = 'none';
+            }}
+          >
+            ปิด
+          </button>
+        ]}
+        centered
+        width={600}
+        bodyStyle={{ maxHeight: '70vh', overflowY: 'auto', padding: '24px' }}
+      >
+        {allergyDetailModal.allergies && allergyDetailModal.allergies.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {allergyDetailModal.allergies.map((allergy, idx) => (
+              <div
+                key={idx}
+                style={{
+                  background: 'linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%)',
+                  border: '1px solid #ffb3b3',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  boxShadow: '0 4px 12px rgba(255, 120, 117, 0.15)',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 120, 117, 0.25)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 120, 117, 0.15)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                  <span style={{ fontSize: '24px', lineHeight: '1.4' }}>⚠️</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#d32f2f', marginBottom: '6px' }}>
+                      💊 {allergy.drug || 'ยาไม่ระบุชื่อ'}
+                    </div>
+                    {allergy.symptoms && (
+                      <div style={{ fontSize: '13px', color: '#666', marginBottom: '6px' }}>
+                        <strong>อาการแพ้:</strong> {allergy.symptoms}
+                      </div>
+                    )}
+                    {allergy.date && (
+                      <div style={{ fontSize: '12px', color: '#999' }}>
+                        <strong>วันที่บันทึก:</strong> {formatThaiDate(allergy.date)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#999' }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>✓</div>
+            <div>ไม่มีข้อมูลยาที่แพ้</div>
+          </div>
+        )}
+      </Modal>
+
       {/* Modal สำหรับดูรายละเอียดข้อมูลทางการแพทย์ */}
       <Modal
         title={
@@ -2008,127 +2148,211 @@ function CustomerDetail() {
         </button>
       </Modal>
 
-      {/* Modal สำหรับแก้ไขยาที่แพ้ (Allergy) แบบมีรายละเอียด */}
+      {/* Modal สำหรับแก้ไขยาที่แพ้ (Allergy) - รองรับหลายรายการ */}
       <Modal
         title={
           <div className="modal-editmedical-title">
-            <span role="img" aria-label="warning">⚠️</span>แก้ไขยาที่แพ้
+            <span role="img" aria-label="warning">⚠️</span>แก้ไขยาที่แพ้ ({allergyModal.allergies.length} รายการ)
           </div>
         }
         open={allergyModal.open}
-        onCancel={() => setAllergyModal({ ...allergyModal, open: false })}
+        onCancel={() => setAllergyModal({ open: false, allergies: [], availableDrugs: [] })}
         onOk={handleSaveAllergy}
         okText="บันทึก"
         cancelText="ยกเลิก"
         centered
         className="modal-allergy"
-        width={600}
+        width={700}
       >
-        <div className="modal-allergy-content">
-          {/* ส่วนที่ 1: ตัวยา */}
-          <div className="allergy-section">
-            <div className="allergy-section-title">
-              <span className="section-number">1</span>
-              <span className="section-label">💊 ตัวยา</span>
+        <div className="modal-allergy-content" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          {/* ปุ่มเพิ่มรายการแพ้ใหม่ */}
+          <div style={{ marginBottom: '16px' }}>
+            <button
+              onClick={() => {
+                setAllergyModal(prev => ({
+                  ...prev,
+                  allergies: [...prev.allergies, { drug: '', symptoms: '', date: '' }]
+                }));
+              }}
+              style={{
+                background: '#1890ff',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              + เพิ่มรายการแพ้ใหม่
+            </button>
+          </div>
+
+          {/* รายการแพ้แต่ละตัว */}
+          {allergyModal.allergies.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+              ยังไม่มีรายการแพ้ ให้คลิก "เพิ่มรายการแพ้ใหม่" เพื่อเริ่มเพิ่มข้อมูล
             </div>
-            <div className="allergy-input-group">
-              <div className="allergy-input-wrapper">
-                <label>เลือกจากรายการยาในร้าน หรือพิมพ์เข้าไป</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        const drug = allergyModal.availableDrugs.find(d => d.documentId === e.target.value);
-                        if (drug) {
-                          setAllergyModal(prev => ({ ...prev, drug: drug.name_th || drug.name_en }));
-                        }
-                        e.target.value = '';
-                      }
+          ) : (
+            allergyModal.allergies.map((allergy, idx) => (
+              <div
+                key={idx}
+                style={{
+                  border: '2px solid #f0f0f0',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '12px',
+                  background: '#fafafa'
+                }}
+              >
+                {/* ลำดับและปุ่มลบ */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span style={{ fontWeight: 'bold', color: '#1890ff' }}>รายการที่ {idx + 1}</span>
+                  <button
+                    onClick={() => {
+                      setAllergyModal(prev => ({
+                        ...prev,
+                        allergies: prev.allergies.filter((_, i) => i !== idx)
+                      }));
                     }}
                     style={{
-                      flex: 1,
-                      padding: '10px',
+                      background: '#ff4d4f',
+                      color: 'white',
+                      border: 'none',
+                      padding: '4px 12px',
                       borderRadius: '4px',
-                      border: '1px solid #d9d9d9',
-                      fontSize: '14px',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      fontSize: '12px'
                     }}
                   >
-                    <option value="">-- เลือกยาจากร้าน --</option>
-                    {allergyModal.availableDrugs.map(drug => (
-                      <option key={drug.documentId} value={drug.documentId}>
-                        {drug.name_th} ({drug.name_en})
-                      </option>
-                    ))}
-                  </select>
+                    ลบ
+                  </button>
+                </div>
+
+                {/* ส่วนที่ 1: ตัวยา */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', fontSize: '13px' }}>
+                    💊 ตัวยา
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          const drug = allergyModal.availableDrugs.find(d => d.documentId === e.target.value);
+                          if (drug) {
+                            setAllergyModal(prev => ({
+                              ...prev,
+                              allergies: prev.allergies.map((a, i) =>
+                                i === idx ? { ...a, drug: drug.name_th || drug.name_en } : a
+                              )
+                            }));
+                          }
+                          e.target.value = '';
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: '1px solid #d9d9d9',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="">-- เลือกยาจากร้าน --</option>
+                      {allergyModal.availableDrugs.map(drug => (
+                        <option key={drug.documentId} value={drug.documentId}>
+                          {drug.name_th} ({drug.name_en})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <input
+                    type="text"
+                    value={allergy.drug}
+                    onChange={(e) => {
+                      setAllergyModal(prev => ({
+                        ...prev,
+                        allergies: prev.allergies.map((a, i) =>
+                          i === idx ? { ...a, drug: e.target.value } : a
+                        )
+                      }));
+                    }}
+                    placeholder="พิมพ์ชื่อยา"
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '13px',
+                      marginTop: '4px'
+                    }}
+                  />
+                </div>
+
+                {/* ส่วนที่ 2: อาการที่เกิดขึ้น */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', fontSize: '13px' }}>
+                    🩺 อาการที่เกิดขึ้น
+                  </label>
+                  <textarea
+                    value={allergy.symptoms}
+                    onChange={(e) => {
+                      setAllergyModal(prev => ({
+                        ...prev,
+                        allergies: prev.allergies.map((a, i) =>
+                          i === idx ? { ...a, symptoms: e.target.value } : a
+                        )
+                      }));
+                    }}
+                    placeholder="เช่น ผื่นแดง คัน หมาดๆ ไม่สามารถหายใจได้ เป็นต้น"
+                    rows={2}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '13px',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+                {/* ส่วนที่ 3: วันที่เข้ามาแจ้งอาการ */}
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', fontSize: '13px' }}>
+                    📅 วันที่เข้ามาแจ้งอาการ
+                  </label>
+                  <DatePicker
+                    value={allergy.date ? dayjs(allergy.date) : null}
+                    onChange={(date) => {
+                      setAllergyModal(prev => ({
+                        ...prev,
+                        allergies: prev.allergies.map((a, i) =>
+                          i === idx ? { ...a, date: date ? date.format('YYYY-MM-DD') : '' } : a
+                        )
+                      }));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      fontSize: '13px'
+                    }}
+                    placeholder="เลือกวันที่"
+                    format="YYYY-MM-DD"
+                  />
+                  {allergy.date && (
+                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#666' }}>
+                      วันที่เลือก: {formatThaiDate(allergy.date)}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div style={{ textAlign: 'center', color: '#999', fontSize: '12px', margin: '8px 0' }}>
-                หรือ
-              </div>
-              <input
-                type="text"
-                value={allergyModal.drug}
-                onChange={(e) => setAllergyModal(prev => ({ ...prev, drug: e.target.value }))}
-                placeholder="พิมพ์ชื่อยา"
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '4px',
-                  border: '1px solid #d9d9d9',
-                  fontSize: '14px'
-                }}
-              />
-            </div>
-          </div>
-
-          {/* ส่วนที่ 2: อาการที่เกิดขึ้น */}
-          <div className="allergy-section">
-            <div className="allergy-section-title">
-              <span className="section-number">2</span>
-              <span className="section-label">🩺 อาการที่เกิดขึ้น</span>
-            </div>
-            <textarea
-              value={allergyModal.symptoms}
-              onChange={(e) => setAllergyModal(prev => ({ ...prev, symptoms: e.target.value }))}
-              placeholder="เช่น ผื่นแดง คัน หมาดๆ ไม่สามารถหายใจได้ เป็นต้น"
-              rows={3}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '4px',
-                border: '1px solid #d9d9d9',
-                fontSize: '14px',
-                fontFamily: 'inherit'
-              }}
-            />
-          </div>
-
-          {/* ส่วนที่ 3: วันที่เข้ามาแจ้งอาการ */}
-          <div className="allergy-section">
-            <div className="allergy-section-title">
-              <span className="section-number">3</span>
-              <span className="section-label">📅 วันที่เข้ามาแจ้งอาการ</span>
-            </div>
-            <DatePicker
-              value={allergyModal.date ? dayjs(allergyModal.date) : null}
-              onChange={(date) => setAllergyModal(prev => ({ ...prev, date: date ? date.format('YYYY-MM-DD') : '' }))}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '4px',
-                fontSize: '14px'
-              }}
-              placeholder="เลือกวันที่"
-              format="YYYY-MM-DD"
-            />
-            {allergyModal.date && (
-              <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
-                วันที่เลือก: {formatThaiDate(allergyModal.date)}
-              </div>
-            )}
-          </div>
+            ))
+          )}
         </div>
       </Modal>
 
@@ -2392,6 +2616,48 @@ function CustomerDetail() {
               </div>
             ) : (
               (() => {
+                // Prepare normalized allergy list from customer data (handles array of allergies)
+                const allergyNames = (() => {
+                  const raw = customer?.Allergic_drugs;
+                  if (!raw) return [];
+                  try {
+                    if (Array.isArray(raw)) {
+                      // New format: array of { drug, symptoms, date } or just strings
+                      return raw.map(item => {
+                        const drug = typeof item === 'string' ? item : (item?.drug || '');
+                        return String(drug).toLowerCase();
+                      }).filter(Boolean);
+                    }
+                    if (typeof raw === 'object') {
+                      // Old format: single object with `drug` field
+                      if (raw.drug) return [String(raw.drug).toLowerCase()];
+                      // Fallback: collect string values
+                      return Object.values(raw).flat().map(v => String(v).toLowerCase()).filter(Boolean);
+                    }
+                    if (typeof raw === 'string') {
+                      const s = raw.trim();
+                      if (s.startsWith('[')) {
+                        // JSON array
+                        const parsed = JSON.parse(s);
+                        return parsed.map(item => {
+                          const drug = typeof item === 'string' ? item : (item?.drug || '');
+                          return String(drug).toLowerCase();
+                        }).filter(Boolean);
+                      }
+                      if (s.startsWith('{')) {
+                        // Single JSON object
+                        const parsed = JSON.parse(s);
+                        if (parsed && parsed.drug) return [String(parsed.drug).toLowerCase()];
+                      }
+                      // Plain string
+                      return s.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+                    }
+                  } catch (e) {
+                    return [];
+                  }
+                  return [];
+                })();
+
                 const filteredDrugs = addDrugModal.availableDrugs
                   .filter(drug => {
                     const matchesSearch = searchTerm === '' || 
@@ -2425,6 +2691,14 @@ function CustomerDetail() {
                         const itemDrugId = typeof item === 'string' ? item : item.drugId;
                         return itemDrugId === drug.documentId;
                       });
+                      // Determine if this drug matches any allergy entry (by name or id)
+                      const dNameTh = (drug.name_th || '').toString().toLowerCase();
+                      const dNameEn = (drug.name_en || '').toString().toLowerCase();
+                      const dId = (drug.documentId || drug.id || '').toString().toLowerCase();
+                      const isAllergic = allergyNames.length > 0 && (
+                        allergyNames.includes(dId) ||
+                        allergyNames.some(a => (dNameTh && dNameTh.includes(a)) || (dNameEn && dNameEn.includes(a)) || a === dNameTh || a === dNameEn)
+                      );
                       return (
                         <div 
                           key={drug.documentId} 
@@ -2434,12 +2708,18 @@ function CustomerDetail() {
                             padding: '16px', 
                             borderRadius: '12px',
                             background: isSelected ? 'linear-gradient(90deg, #f6ffed, #f0f9ff)' : '#fff',
-                            cursor: 'pointer',
+                            cursor: isAllergic ? 'not-allowed' : 'pointer',
                             transition: 'all 0.3s ease',
                             position: 'relative',
-                            boxShadow: isSelected ? '0 4px 12px rgba(82, 196, 26, 0.15)' : '0 2px 8px rgba(0,0,0,0.06)'
+                            boxShadow: isSelected ? '0 4px 12px rgba(82, 196, 26, 0.15)' : '0 2px 8px rgba(0,0,0,0.06)',
+                            opacity: isAllergic ? 0.55 : 1
                           }}
                           onClick={() => {
+                            if (isAllergic) {
+                              // Optionally show a quick toast to explain why disabled
+                              toast.warn('ไม่สามารถเลือกยานี้ได้ เนื่องจากลูกค้าแพ้ยา');
+                              return;
+                            }
                             if (isSelected) {
                               // ลบออกจาก selectedDrugs
                               setAddDrugModal(prev => ({
@@ -2509,6 +2789,19 @@ function CustomerDetail() {
                               }}>
                                 {drug.name_th}
                               </h4>
+                                {isAllergic && (
+                                  <span style={{
+                                    marginLeft: '8px',
+                                    background: '#ff4d4f',
+                                    color: 'white',
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    fontSize: '12px',
+                                    fontWeight: '600'
+                                  }}>
+                                    แพ้
+                                  </span>
+                                )}
                             </div>
                             
                             <div style={{ marginBottom: '8px' }}>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
 import { formatTime } from '../../utils/time';
@@ -56,7 +56,6 @@ function StaffHome() {
 
   return (
     <div className="app-container">
-      <ToastContainer />
       <HomeHeader isLoggedIn={true} />
       <main className="main-content">
         <h2>ร้านยาที่คุณทำงานอยู่:</h2>
