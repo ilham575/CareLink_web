@@ -40,7 +40,3 @@ Web Application CareLink
 - **Migrations**: ก่อนรัน production ให้สำรองฐานข้อมูลและตรวจสอบ migration files ใน `web-server/database/migrations`
 - **Environment**: ตั้งค่า environment variables ให้ครบ (DB URL, credentials, JWT secret ฯลฯ) โดยใช้ไฟล์ตัวอย่าง `.env.example`
 
-**Next steps / Helpful pointers**
-- ถ้าต้องการให้ผมเพิ่มส่วนตัวอย่างการตั้งค่า `.env` สำหรับ development/production ให้บอกได้เลย
-- ต้องการให้ผมรันคำสั่งติดตั้ง/ทดสอบในเครื่องหรือสร้างไฟล์ `README` ย่อยใน `web-client` และ `web-server` เพิ่มเติมไหม?
-
