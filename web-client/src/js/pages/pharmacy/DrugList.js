@@ -217,6 +217,7 @@ export default function DrugList() {
   const [loading, setLoading] = useState(true);
   const [expiryFilterMonths, setExpiryFilterMonths] = useState(null);
   const [activeTab, setActiveTab] = useState('expiry');
+  const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingDrug, setEditingDrug] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -241,12 +242,20 @@ export default function DrugList() {
   const [xlsxFileName, setXlsxFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0, errors: [] });
+  // Drug mode selection: 'existing' or 'new'
+  const [drugMode, setDrugMode] = useState('new');
+  const [selectedExistingDrugId, setSelectedExistingDrugId] = useState(null);
   const [formData, setFormData] = useState({
     name_th: '',
     name_en: '',
     description: '',
+    manufacturer: '',
     price: ''
   });
+  // Import Tour modal state
+  const [importTourOpen, setImportTourOpen] = useState(false);
+  const [importTourStep, setImportTourStep] = useState(0);
+  const [importTourClosing, setImportTourClosing] = useState(false);
 
   const token = localStorage.getItem('jwt');
 
@@ -352,15 +361,17 @@ export default function DrugList() {
   // Unified template downloader supporting 'csv' and 'xlsx'
   const downloadTemplateAs = async (type = 'csv') => {
     const header = [
-      'name_th',
-      'name_en',
-      'description',
-      'price'
+      'ชื่อยา (ไทย)',
+      'ชื่อยา (อังกฤษ)',
+      'ข้อบ่งใช้',
+      'ชื่อยี่ห้อ',
+      'ราคา'
     ];
-    const sample = ['ตัวอย่างชื่อไทย','sample name','คำอธิบายตัวอย่าง','100'];
+    const sample1 = ['พาราเซตามอล','Paracetamol','แก้ปวด ลดไข้','ยา ดี','150.50'];
+    const sample2 = ['พาราเซตามอล','Paracetamol','แก้ปวด ลดไข้','ยา สุข','145.00'];
 
     if (type === 'csv') {
-      const csv = [header.join(','), sample.map(s => `"${String(s).replace(/"/g,'""')}"`).join(',')].join('\n');
+      const csv = [header.join(','), sample1.map(s => `"${String(s).replace(/"/g,'""')}"`).join(','), sample2.map(s => `"${String(s).replace(/"/g,'""')}"`).join(',')].join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -377,7 +388,7 @@ export default function DrugList() {
     try {
       const mod = await import('xlsx');
       const XLSX = mod.default || mod;
-      const aoa = [header, sample];
+      const aoa = [header, sample1, sample2];
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'template');
@@ -522,14 +533,41 @@ export default function DrugList() {
     const storeRelationId = (store && store.attributes && store.attributes.documentId) ? store.attributes.documentId : id;
     const errors = [];
     let done = 0;
+    
+    // ดีบัก: แสดง header ของแรกสุด เพื่อเช็คการ parse
+    if (records.length > 0) {
+      console.log('DEBUG importRecords: First record keys:', Object.keys(records[0]));
+      console.log('DEBUG importRecords: First record keys (JSON):', JSON.stringify(Object.keys(records[0])));
+      console.log('DEBUG importRecords: First record data:', records[0]);
+      console.log('DEBUG importRecords: ชื่อยี่ห้อ value:', records[0]['ชื่อยี่ห้อ']);
+      console.log('DEBUG importRecords: ราคา value:', records[0]['ราคา']);
+    }
+    
     for (const rec of records) {
+      // รองรับทุก header variants (ชื่อยี่ห้อ, ชื่อยี่ห้อ, ราคา, ราคา (บาท), ฯลฯ)
+      const getFieldValue = (r, ...keys) => {
+        for (const k of keys) {
+          if (r[k] !== undefined && r[k] !== '' && r[k] !== null) return r[k];
+        }
+        return '';
+      };
+      
       const payload = {
-        name_th: rec.name_th || '',
-        name_en: rec.name_en || '',
-        description: rec.description || '',
-        price: (rec.price !== undefined && rec.price !== null && String(rec.price).trim() !== '') ? String(rec.price) : null,
+        name_th: getFieldValue(rec, 'name_th', 'ชื่อยา (ไทย)'),
+        name_en: getFieldValue(rec, 'name_en', 'ชื่อยา (อังกฤษ)'),
+        description: getFieldValue(rec, 'description', 'ข้อบ่งใช้'),
+        manufacturer: getFieldValue(rec, 'manufacturer', 'ชื่อยี่ห้อ'),
+        price: (() => {
+          const p = getFieldValue(rec, 'price', 'ราคา', 'ราคา (บาท)');
+          return p ? (isNaN(parseFloat(p)) ? null : parseFloat(p)) : null;
+        })(),
         drug_store: storeRelationId
       };
+      
+      // ดีบัก: แสดง payload ว่าจริง ๆ มีค่า manufacturer กับ price ไหม
+      if (done === 0) {
+        console.log('DEBUG importRecords: First payload to send:', payload);
+      }
       try {
         const res = await fetch(API.drugs.create(), {
           method: 'POST',
@@ -645,6 +683,13 @@ export default function DrugList() {
   };
 
   const filteredDrugs = drugs.filter(d => {
+    // Search filter: by thai/english name or manufacturer (case-insensitive)
+    const q = (searchTerm || '').trim().toLowerCase();
+    if (q) {
+      const name = ((d.name_th || d.name_en) || '').toString().toLowerCase();
+      const manu = (d.manufacturer || '').toString().toLowerCase();
+      if (!(name.includes(q) || manu.includes(q))) return false;
+    }
     if (!expiryFilterMonths) return true;
 
     // Filter based on batch (lot) expiry dates, not drug expiry date
@@ -703,21 +748,29 @@ export default function DrugList() {
 
   const handleOpenModal = (drug = null) => {
     if (drug) {
+      // เมื่อแก้ไขยาเดิม ให้ตั้ง drugMode เป็น 'edit'
       setEditingDrug(drug);
       setFormData({
         name_th: drug.name_th || '',
         name_en: drug.name_en || '',
         description: drug.description || '',
+        manufacturer: drug.manufacturer || '',
         price: drug.price ? String(drug.price) : ''
       });
+      setDrugMode('edit');
+      setSelectedExistingDrugId(null);
     } else {
+      // เมื่อเพิ่มยาใหม่ ให้ตั้ง drugMode เป็น 'new' (default)
       setEditingDrug(null);
       setFormData({
         name_th: '',
         name_en: '',
         description: '',
+        manufacturer: '',
         price: ''
       });
+      setDrugMode('new');
+      setSelectedExistingDrugId(null);
     }
     setShowModalClosing(false);
     setShowModal(true);
@@ -783,12 +836,26 @@ export default function DrugList() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // ✅ Validation: ตรวจสอบเงื่อนไข drugMode
+      if (drugMode === 'existing' && !selectedExistingDrugId) {
+        return showError('กรุณาเลือกรายการยา');
+      }
+      if (drugMode === 'new' && !formData.name_th.trim()) {
+        return showError('กรุณากรอกชื่อยา (ไทย)');
+      }
+      if (!formData.manufacturer.trim()) {
+        return showError('กรุณากรอกชื่อยี่ห้อ');
+      }
+      if (!formData.price || parseFloat(formData.price) <= 0) {
+        return showError('กรุณากรอกราคา (ต้องมากกว่า 0)');
+      }
+
       // prefer documentId for relation (use documentId only)
       const storeRelationId = (store && store.attributes && store.attributes.documentId) ? store.attributes.documentId : id;
       const drugData = {
         ...formData,
-        drug_store: storeRelationId, // set the store relation by numeric id when possible
-        price: formData.price || null
+        price: parseFloat(formData.price),  // ✅ ต้องแปลงเป็น number
+        drug_store: storeRelationId  // ✅ ต้องส่ง drug_store ในทุก mode!
       };
 
       if (editingDrug) {
@@ -836,7 +903,7 @@ export default function DrugList() {
           throw new Error('Failed to update drug');
         }
       } else {
-        // Add new drug
+        // Add new drug (both 'new' and 'existing' mode)
         const response = await fetch(API.drugs.create(), {
           method: 'POST',
           headers: {
@@ -849,7 +916,8 @@ export default function DrugList() {
         if (response.ok) {
           const result = await response.json();
           console.log('DEBUG: Add drug response:', result);
-          showSuccess('เพิ่มรายการยาสำเร็จ');
+          console.log('DEBUG: drugMode:', drugMode, 'selectedExistingDrugId:', selectedExistingDrugId);
+          showSuccess(drugMode === 'existing' ? 'เพิ่มยี่ห้อใหม่สำเร็จ' : 'เพิ่มรายการยาสำเร็จ');
           
             // 🔄 refetch รายการยาทั้งหมดใหม่เพื่อให้แน่ใจว่าเห็นรายการยาที่เพิ่มใหม่
           try {
@@ -1045,6 +1113,9 @@ export default function DrugList() {
       <main className="main-content drugs-main">
         <div className="drugs-header">
           <h2 className="store-title">{store?.attributes?.name_th || 'รายการยา'}</h2>
+          <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>
+            💡 <strong>วิธีใช้:</strong> เพิ่มชื่อยา (พร้อมชื่อยี่ห้อ ราคา) → เพิ่ม Lot (จำนวน วันผลิต วันหมดอายุ)
+          </div>
           <div className="drugs-actions">
             <button className="btn small primary" onClick={() => navigate(-1)}>กลับ</button>
             <button className="btn small" onClick={handleDeleteSelected} disabled={selectedIds.length===0} style={{ marginLeft: 8 }}>{selectedIds.length>0?`ลบที่เลือก (${selectedIds.length})`:'ลบที่เลือก'}</button>
@@ -1067,6 +1138,98 @@ export default function DrugList() {
               นำเข้า / เทมเพลต
             </button>
           </div>
+          <div style={{ marginLeft: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className={`pill ${activeTab === 'search' ? 'active' : ''}`}
+              onClick={() => setActiveTab('search')}
+            >
+              ค้นหา
+            </button>
+          </div>
+
+          {activeTab === 'search' && (
+            <div style={{ marginLeft: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ position: 'relative', flex: 1, maxWidth: 400 }}>
+                <input
+                  type="search"
+                  placeholder="ค้นหา ชื่อยา หรือ ชื่อยี่ห้อ"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setSearchTerm('');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.6rem 1rem 0.6rem 2.8rem',
+                    borderRadius: 12,
+                    border: '2px solid #e0e0e0',
+                    backgroundColor: '#f5f5f5',
+                    fontSize: '14px',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'none',
+                    appearance: 'none'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#4CAF50';
+                    e.target.style.backgroundColor = '#fff';
+                    e.target.style.boxShadow = '0 4px 12px rgba(76,175,80,0.15)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e0e0e0';
+                    e.target.style.backgroundColor = '#f5f5f5';
+                    e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.04)';
+                  }}
+                />
+                <div style={{ 
+                  position: 'absolute', 
+                  left: 10, 
+                  top: '50%', 
+                  transform: 'translateY(-50%)', 
+                  pointerEvents: 'none', 
+                  fontSize: '18px',
+                  opacity: 0.7
+                }}>🔎</div>
+                {searchTerm && (
+                  <div style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: '12px',
+                    color: '#999',
+                    pointerEvents: 'none'
+                  }}>
+                    Esc ล้าง
+                  </div>
+                )}
+              </div>
+              <button 
+                className="btn small" 
+                onClick={() => setSearchTerm('')}
+                style={{
+                  padding: '0.6rem 1.2rem',
+                  backgroundColor: searchTerm ? '#ff6b6b' : '#e0e0e0',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontWeight: 'bold',
+                  cursor: searchTerm ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.3s ease',
+                  opacity: searchTerm ? 1 : 0.6,
+                  fontSize: '13px',
+                  boxShadow: searchTerm ? '0 2px 6px rgba(255,107,107,0.3)' : 'none'
+                }}
+                disabled={!searchTerm}
+                title="ล้างการค้นหา"
+              >
+                ✕ ล้าง
+              </button>
+            </div>
+          )}
 
           {activeTab === 'expiry' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 12 }}>
@@ -1078,7 +1241,19 @@ export default function DrugList() {
 
           {activeTab === 'import' && (
             <div className="import-controls" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input id="csvFileInput" type="file" accept=".csv,text/csv" onChange={handleFileChange} style={{ display: 'none' }} />
+              <button 
+                className="btn small" 
+                onClick={() => { setImportTourStep(0); setImportTourClosing(false); setImportTourOpen(true); }}
+                style={{ 
+                  backgroundColor: '#4CAF50', 
+                  color: '#fff', 
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 4px rgba(76,175,80,0.3)',
+                  marginRight: 8
+                }}
+              >
+                📝 คำแนะนำการนำเข้า
+              </button>
               <label htmlFor="csvFileInput" className="btn small">เลือกไฟล์ CSV</label>
               {csvFileName ? <span style={{ marginLeft: 8, color: '#444', fontSize: 13, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{csvFileName}</span> : null}
               <button className="btn small" onClick={handleImportCSV} disabled={!csvFile || importing} style={{ marginLeft: 8 }}>{importing ? `กำลังนำเข้า (${importProgress.done}/${importProgress.total || '?'})` : 'นำเข้า CSV'}</button>
@@ -1106,6 +1281,7 @@ export default function DrugList() {
                   <th style={{ width: 40 }}>
                     <input type="checkbox" onChange={toggleSelectAll} checked={filteredDrugs.length>0 && selectedIds.length===filteredDrugs.map(d=>getDrugKey(d)).filter(Boolean).length} />
                   </th>
+                  <th>ชื่อยี่ห้อ</th>
                   <th>ชื่อยา</th>
                   <th>ข้อบ่งใช้</th>
                   <th>ราคา</th>
@@ -1120,13 +1296,28 @@ export default function DrugList() {
                               <td>
                                 <input type="checkbox" checked={selectedIds.includes(getDrugKey(drug))} onChange={() => toggleSelection(getDrugKey(drug))} />
                               </td>
+                              <td data-label="ชื่อยี่ห้อ" style={{ fontWeight: 'bold', color: '#2c3e50' }}>
+                                {drug.manufacturer || '(ไม่ระบุ)'}
+                              </td>
                               <td data-label="ชื่อยา" className="drug-name">{drug.name_th || drug.name_en || '-'}</td>
                               <td data-label="ข้อบ่งใช้" className="drug-use">{drug.description || '-'}</td>
-                              <td data-label="ราคา">{drug.price ? `${drug.price} ฿` : '-'}</td>
+                              <td data-label="ราคา" style={{ fontWeight: 'bold', color: '#d9534f' }}>
+                                {drug.price ? `${drug.price} ฿` : '(ไม่ระบุ)'}
+                              </td>
                               <td data-label="Lot & สต็อก">
                                 <button 
                                   className="btn-batch-details"
                                   onClick={() => { setBatchDetailsModalDrug(drug); setBatchDetailsModalOpen(true); }}
+                                  title={
+                                    drug.drug_batches && drug.drug_batches.length > 0
+                                      ? drug.drug_batches
+                                          .map(b => {
+                                            const bData = b.attributes ? { id: b.id, ...b.attributes } : b;
+                                            return `${bData.lot_number}`;
+                                          })
+                                          .join('\n')
+                                      : 'ไม่มี Lot'
+                                  }
                                 >
                                   📦 {drug.drug_batches?.length || 0} lot
                                 </button>
@@ -1153,36 +1344,179 @@ export default function DrugList() {
                 <button className="modal-close" onClick={handleCloseModal}>×</button>
               </div>
               <form onSubmit={handleSubmit} className="drug-form">
+                <div style={{ padding: '0.75rem', backgroundColor: '#e3f2fd', borderRadius: 4, marginBottom: '1rem', fontSize: 12, color: '#1565c0', borderLeft: '3px solid #1976d2' }}>
+                  <strong>💡 หมายเหตุ:</strong> ยาที่มีชื่อเดียวกันแต่ยี่ห้อต่างกันจะถูกบันทึกเป็นรายการยาแยกต่างหาก (เช่น พาราเซตามอล ยา ดี VS พาราเซตามอล ยา สุข = รายการยาต่างกัน)
+                </div>
+
+                {!editingDrug && (
+                  <div className="form-group" style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: 4 }}>
+                    <label style={{ marginBottom: '0.5rem', display: 'block', fontWeight: 'bold' }}>🔍 เลือกประเภทการเพิ่มยา</label>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="drug-mode"
+                          value="existing"
+                          checked={drugMode === 'existing'}
+                          onChange={(e) => {
+                            setDrugMode(e.target.value);
+                            setFormData({ name_th: '', name_en: '', description: '', manufacturer: '', price: '' });
+                            setSelectedExistingDrugId(null);
+                          }}
+                        />
+                        <span>เลือกยาจากรายการที่มี</span>
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="drug-mode"
+                          value="new"
+                          checked={drugMode === 'new'}
+                          onChange={(e) => {
+                            setDrugMode(e.target.value);
+                            setFormData({ name_th: '', name_en: '', description: '', manufacturer: '', price: '' });
+                            setSelectedExistingDrugId(null);
+                          }}
+                        />
+                        <span>เพิ่มยาใหม่</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {drugMode === 'existing' && !editingDrug && (
+                  <div className="form-group">
+                    <label>เลือกรายการยา <span style={{ color: '#d32f2f' }}>*</span></label>
+                    <select
+                      value={selectedExistingDrugId || ''}
+                      onChange={(e) => {
+                        const drugKey = e.target.value;
+                        setSelectedExistingDrugId(drugKey);
+                        if (drugKey) {
+                          const selected = drugs.find(d => getDrugKey(d) === drugKey);
+                          if (selected) {
+                            setFormData({
+                              name_th: selected.name_th || '',
+                              name_en: selected.name_en || '',
+                              description: selected.description || '',
+                              manufacturer: '',
+                              price: ''
+                            });
+                          }
+                        }
+                      }}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        borderRadius: 4,
+                        border: '1px solid #ddd',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <option value="">-- เลือกยา --</option>
+                      {drugs
+                        .sort((a, b) => (a.name_th || '').localeCompare(b.name_th || '', 'th'))
+                        .map(drug => (
+                          <option key={getDrugKey(drug)} value={getDrugKey(drug)}>
+                            {drug.name_th} {drug.name_en ? `(${drug.name_en})` : ''}
+                          </option>
+                        ))}
+                    </select>
+                    <small style={{ fontSize: '11px', color: '#666', marginTop: '4px', display: 'block' }}>
+                      💬 เลือกยาจากรายการที่มีอยู่แล้ว จากนั้นเพิ่มยี่ห้อและราคาใหม่
+                    </small>
+                  </div>
+                )}
+
+                {drugMode === 'new' && !editingDrug && (
+                  <>
+                    <div className="form-group">
+                      <label>ชื่อยา (ไทย) <span style={{ color: '#d32f2f' }}>*</span></label>
+                      <input
+                        type="text"
+                        name="name_th"
+                        value={formData.name_th}
+                        onChange={handleInputChange}
+                        placeholder="เช่น พาราเซตามอล"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>ชื่อยา (อังกฤษ)</label>
+                      <input
+                        type="text"
+                        name="name_en"
+                        value={formData.name_en}
+                        onChange={handleInputChange}
+                        placeholder="เช่น Paracetamol"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>ข้อบ่งใช้</label>
+                      <textarea
+                        name="description"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        rows="3"
+                        placeholder="เช่น แก้ปวด ลดไข้"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {editingDrug && drugMode === 'edit' && (
+                  <>
+                    <div className="form-group">
+                      <label>ชื่อยา (ไทย) <span style={{ color: '#d32f2f' }}>*</span></label>
+                      <input
+                        type="text"
+                        name="name_th"
+                        value={formData.name_th}
+                        onChange={handleInputChange}
+                        placeholder="เช่น พาราเซตามอล"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>ชื่อยา (อังกฤษ)</label>
+                      <input
+                        type="text"
+                        name="name_en"
+                        value={formData.name_en}
+                        onChange={handleInputChange}
+                        placeholder="เช่น Paracetamol"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>ข้อบ่งใช้</label>
+                      <textarea
+                        name="description"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        rows="3"
+                        placeholder="เช่น แก้ปวด ลดไข้"
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div className="form-group">
-                  <label>ชื่อยา (ไทย)</label>
+                  <label>ชื่อยี่ห้อ <span style={{ color: '#d32f2f' }}>*</span></label>
                   <input
                     type="text"
-                    name="name_th"
-                    value={formData.name_th}
+                    name="manufacturer"
+                    value={formData.manufacturer}
                     onChange={handleInputChange}
+                    placeholder="เช่น ยา ดี, ยา สุข ฯลฯ (ทำให้ยาชื่อเดียวกันแต่คนละยี่ห้าแตกต่างกัน)"
                     required
                   />
+                  <small style={{ fontSize: '11px', color: '#666', marginTop: '4px', display: 'block' }}>
+                    💬 ยี่ห้อนี้ช่วยแยกความแตกต่างของยาที่มีชื่อเดียวกัน
+                  </small>
                 </div>
                 <div className="form-group">
-                  <label>ชื่อยา (อังกฤษ)</label>
-                  <input
-                    type="text"
-                    name="name_en"
-                    value={formData.name_en}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>ข้อบ่งใช้</label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows="3"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>ราคา (฿)</label>
+                  <label>ราคา (฿) <span style={{ color: '#d32f2f' }}>*</span></label>
                   <input
                     type="number"
                     name="price"
@@ -1190,6 +1524,8 @@ export default function DrugList() {
                     onChange={handleInputChange}
                     step="0.01"
                     min="0"
+                    placeholder="เช่น 150.50"
+                    required
                   />
                 </div>
                 <div className="form-actions">
@@ -1343,12 +1679,16 @@ export default function DrugList() {
                 <button className="modal-close" onClick={() => setBatchModalOpen(false)}>×</button>
               </div>
               <form onSubmit={handleSaveBatch} className="drug-form">
+                <div style={{ padding: '0.75rem', backgroundColor: '#e8f4f8', borderRadius: 4, marginBottom: '1rem', fontSize: 12, color: '#2c3e50', borderLeft: '3px solid #17a2b8' }}>
+                  <strong>📋 เพิ่มรายละเอียด Lot:</strong> กรุณากรอก Lot Number, จำนวน, และวันหมดอายุ (ชื่อยี่ห้อ & ราคาอยู่ในหน้าเพิ่มยาแล้ว)
+                </div>
                 <div className="form-group">
                   <label>Lot Number</label>
                   <input
                     type="text"
                     value={batchFormData.lot_number}
                     onChange={(e) => setBatchFormData({ ...batchFormData, lot_number: e.target.value })}
+                    placeholder="เช่น LOT2025-001"
                     required
                   />
                 </div>
@@ -1359,6 +1699,7 @@ export default function DrugList() {
                     value={batchFormData.quantity}
                     onChange={(e) => setBatchFormData({ ...batchFormData, quantity: e.target.value })}
                     min="0"
+                    placeholder="เช่น 100"
                     required
                   />
                 </div>
@@ -1392,6 +1733,325 @@ export default function DrugList() {
           </div>
         )}
 
+          {importTourOpen && (
+            <div 
+              className={`modal-overlay ${importTourClosing ? 'closing' : 'show'}`} 
+              style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(0,0,0,0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 9999,
+                padding: '2rem'
+              }}
+              onClick={() => { setImportTourClosing(true); setTimeout(() => { setImportTourOpen(false); setImportTourClosing(false); }, 300); }}
+            >
+              <div 
+                className={`modal-content ${importTourClosing ? 'closing' : 'show'}`}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 16,
+                  maxWidth: 800,
+                  width: '100%',
+                  maxHeight: '90vh',
+                  overflow: 'auto',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                  position: 'relative'
+                }}
+              >
+                {/* Header */}
+                <div style={{
+                  padding: '1.5rem 2rem',
+                  borderBottom: '2px solid #4CAF50',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  backgroundColor: '#f8fff9'
+                }}>
+                  <h2 style={{ margin: 0, color: '#2c3e50', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                    📚 คู่มือการนำเข้ายา
+                  </h2>
+                  <button 
+                    onClick={() => { setImportTourClosing(true); setTimeout(() => { setImportTourOpen(false); setImportTourClosing(false); }, 300); }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '2rem',
+                      cursor: 'pointer',
+                      color: '#666',
+                      lineHeight: 1,
+                      padding: 0,
+                      width: 32,
+                      height: 32,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >×</button>
+                </div>
+
+                {/* Content */}
+                <div style={{ padding: '2rem' }}>
+                  {/* Step 0: Welcome */}
+                  {importTourStep === 0 && (
+                    <div style={{ textAlign: 'center', animation: 'fadeIn 0.4s ease-in' }}>
+                      <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
+                      <h3 style={{ fontSize: '1.8rem', color: '#2c3e50', marginBottom: '1rem' }}>ยินดีต้อนรับสู่ระบบนำเข้ายา</h3>
+                      <p style={{ fontSize: '1.1rem', color: '#555', lineHeight: 1.8, marginBottom: '2rem' }}>
+                        คุณสามารถนำเข้ารายการยาจาก <strong>CSV</strong> หรือ <strong>Excel (.xlsx)</strong> ได้อย่างง่ายดาย
+                      </p>
+                      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginTop: '2rem' }}>
+                        <div style={{
+                          padding: '1.5rem',
+                          backgroundColor: '#e8f5e9',
+                          borderRadius: 12,
+                          flex: 1,
+                          maxWidth: 200,
+                          boxShadow: '0 4px 12px rgba(76,175,80,0.2)'
+                        }}>
+                          <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>📄</div>
+                          <div style={{ fontWeight: 'bold', color: '#2c3e50' }}>CSV</div>
+                          <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '0.5rem' }}>ไฟล์ข้อมูลแบบตาราง</div>
+                        </div>
+                        <div style={{
+                          padding: '1.5rem',
+                          backgroundColor: '#e8f5e9',
+                          borderRadius: 12,
+                          flex: 1,
+                          maxWidth: 200,
+                          boxShadow: '0 4px 12px rgba(76,175,80,0.2)'
+                        }}>
+                          <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>📊</div>
+                          <div style={{ fontWeight: 'bold', color: '#2c3e50' }}>Excel</div>
+                          <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '0.5rem' }}>ไฟล์ .xlsx หรือ .xls</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 1: Columns */}
+                  {importTourStep === 1 && (
+                    <div style={{ animation: 'fadeIn 0.4s ease-in' }}>
+                      <div style={{ fontSize: '3rem', textAlign: 'center', marginBottom: '1rem' }}>📋</div>
+                      <h3 style={{ fontSize: '1.6rem', color: '#2c3e50', marginBottom: '1.5rem', textAlign: 'center' }}>
+                        คอลัมน์ที่ต้องมี (ลำดับไม่บังคับ)
+                      </h3>
+                      <div style={{ display: 'grid', gap: '1rem' }}>
+                        {[
+                          { icon: '🏷️', title: 'ชื่อยา (ไทย)', example: 'เช่น: พาราเซตามอล' },
+                          { icon: '🔤', title: 'ชื่อยา (อังกฤษ)', example: 'เช่น: Paracetamol' },
+                          { icon: '💊', title: 'ข้อบ่งใช้', example: 'เช่น: แก้ปวด ลดไข้' },
+                          { icon: '🏢', title: 'ชื่อยี่ห้อ (manufacturer)', example: 'เช่น: ยา ดี' },
+                          { icon: '💰', title: 'ราคา', example: 'เช่น: 150.50' }
+                        ].map((col, i) => (
+                          <div key={i} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '1rem 1.5rem',
+                            backgroundColor: '#f8fff9',
+                            borderRadius: 10,
+                            border: '2px solid #4CAF50',
+                            gap: '1rem'
+                          }}>
+                            <div style={{
+                              backgroundColor: '#4CAF50',
+                              color: '#fff',
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 'bold',
+                              flexShrink: 0
+                            }}>{i + 1}</div>
+                            <div style={{ fontSize: '1.5rem', flexShrink: 0 }}>{col.icon}</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 'bold', color: '#2c3e50', marginBottom: '0.25rem' }}>{col.title}</div>
+                              <div style={{ fontSize: '0.9rem', color: '#666' }}>{col.example}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 2: Brand Differentiation */}
+                  {importTourStep === 2 && (
+                    <div style={{ animation: 'fadeIn 0.4s ease-in' }}>
+                      <div style={{ fontSize: '3rem', textAlign: 'center', marginBottom: '1rem' }}>🏷️</div>
+                      <h3 style={{ fontSize: '1.6rem', color: '#2c3e50', marginBottom: '1.5rem', textAlign: 'center' }}>
+                        ยาชื่อเดียวกัน ยี่ห้อต่างกัน = รายการต่างกัน
+                      </h3>
+                      <p style={{ textAlign: 'center', color: '#666', marginBottom: '2rem', lineHeight: 1.8 }}>
+                        ระบบจะแยกยาตามยี่ห้อ ทำให้คุณสามารถจัดการสต็อกของแต่ละยี่ห้อได้อย่างชัดเจน
+                      </p>
+                      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        {[
+                          { brand: 'ยา ดี', price: '120 ฿', bg: '#fff3e0' },
+                          { brand: 'ยา สุข', price: '150 ฿', bg: '#e3f2fd' }
+                        ].map((item, i) => (
+                          <div key={i} style={{
+                            padding: '1.5rem',
+                            backgroundColor: item.bg,
+                            borderRadius: 12,
+                            border: '2px solid #4CAF50',
+                            flex: 1,
+                            minWidth: 250,
+                            maxWidth: 300,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                          }}>
+                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💊</div>
+                            <div style={{ fontWeight: 'bold', fontSize: '1.2rem', color: '#2c3e50', marginBottom: '0.5rem' }}>
+                              พาราเซตามอล
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+                              <div>
+                                <div style={{ fontSize: '0.9rem', color: '#666' }}>ยี่ห้อ</div>
+                                <div style={{ fontWeight: 'bold', color: '#4CAF50' }}>{item.brand}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.9rem', color: '#666' }}>ราคา</div>
+                                <div style={{ fontWeight: 'bold', color: '#d9534f' }}>{item.price}</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 3: Lot Reminder */}
+                  {importTourStep === 3 && (
+                    <div style={{ animation: 'fadeIn 0.4s ease-in' }}>
+                      <div style={{ fontSize: '3rem', textAlign: 'center', marginBottom: '1rem' }}>✅</div>
+                      <h3 style={{ fontSize: '1.6rem', color: '#2c3e50', marginBottom: '1.5rem', textAlign: 'center' }}>
+                        อย่าลืม! เพิ่ม Lot หลังนำเข้า
+                      </h3>
+                      <div style={{
+                        backgroundColor: '#fff9e6',
+                        border: '2px solid #ffc107',
+                        borderRadius: 12,
+                        padding: '1.5rem',
+                        marginBottom: '1.5rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                          <div style={{ fontSize: '2rem' }}>⚠️</div>
+                          <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#2c3e50' }}>
+                            สิ่งที่ต้องทำหลังนำเข้า
+                          </div>
+                        </div>
+                        <p style={{ color: '#666', lineHeight: 1.8 }}>
+                          การนำเข้าไฟล์จะสร้างรายการยาเท่านั้น คุณต้องเพิ่ม <strong>Lot</strong> สำหรับแต่ละรายการยาเพื่อระบุ:
+                        </p>
+                      </div>
+                      <div style={{ display: 'grid', gap: '1rem' }}>
+                        {[
+                          { icon: '📦', title: 'จำนวน', desc: 'จำนวนยาที่มีในสต็อก' },
+                          { icon: '📅', title: 'วันผลิต', desc: 'วันที่ผลิตยา (MFG)' },
+                          { icon: '⏰', title: 'วันหมดอายุ', desc: 'วันที่ยาหมดอายุ (EXP)' }
+                        ].map((item, i) => (
+                          <div key={i} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '1rem 1.5rem',
+                            backgroundColor: '#f8fff9',
+                            borderRadius: 10,
+                            border: '2px solid #4CAF50',
+                            gap: '1rem'
+                          }}>
+                            <div style={{ fontSize: '2rem' }}>{item.icon}</div>
+                            <div>
+                              <div style={{ fontWeight: 'bold', color: '#2c3e50', marginBottom: '0.25rem' }}>{item.title}</div>
+                              <div style={{ fontSize: '0.9rem', color: '#666' }}>{item.desc}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer: Navigation */}
+                <div style={{
+                  padding: '1.5rem 2rem',
+                  borderTop: '1px solid #e0e0e0',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  backgroundColor: '#fafafa'
+                }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {[0, 1, 2, 3].map(step => (
+                      <div
+                        key={step}
+                        onClick={() => setImportTourStep(step)}
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          backgroundColor: importTourStep === step ? '#4CAF50' : '#ddd',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s'
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    {importTourStep > 0 && (
+                      <button
+                        onClick={() => setImportTourStep(importTourStep - 1)}
+                        style={{
+                          padding: '0.75rem 1.5rem',
+                          backgroundColor: '#fff',
+                          border: '2px solid #4CAF50',
+                          color: '#4CAF50',
+                          borderRadius: 8,
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          fontSize: '1rem'
+                        }}
+                      >← ก่อนหน้า</button>
+                    )}
+                    {importTourStep < 3 ? (
+                      <button
+                        onClick={() => setImportTourStep(importTourStep + 1)}
+                        style={{
+                          padding: '0.75rem 1.5rem',
+                          backgroundColor: '#4CAF50',
+                          border: 'none',
+                          color: '#fff',
+                          borderRadius: 8,
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          fontSize: '1rem',
+                          boxShadow: '0 2px 8px rgba(76,175,80,0.3)'
+                        }}
+                      >ถัดไป →</button>
+                    ) : (
+                      <button
+                        onClick={() => { setImportTourClosing(true); setTimeout(() => { setImportTourOpen(false); setImportTourClosing(false); }, 300); }}
+                        style={{
+                          padding: '0.75rem 1.5rem',
+                          backgroundColor: '#4CAF50',
+                          border: 'none',
+                          color: '#fff',
+                          borderRadius: 8,
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          fontSize: '1rem',
+                          boxShadow: '0 2px 8px rgba(76,175,80,0.3)'
+                        }}
+                      >เริ่มใช้งาน 🚀</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
       </main>
     </div>
   );

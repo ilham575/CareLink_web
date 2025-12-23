@@ -738,6 +738,44 @@ function CustomerDetail() {
     }
   };
 
+  // ฟังก์ชันยกเลิกการใส่ข้อมูลยาที่แพ้ (ลบข้อมูลทั้งหมด)
+  const handleClearAllergy = async () => {
+    // เปิด confirmation modal ก่อน
+    setConfirmModal({
+      open: true,
+      title: '⚠️ ยกเลิกการใส่ข้อมูลยาที่แพ้',
+      message: 'คุณต้องการลบข้อมูลยาที่แพ้ทั้งหมดใช่หรือไม่? การทำการนี้จะไม่สามารถยกเลิกได้',
+      confirmText: 'ยืนยันการลบ',
+      cancelText: 'ยกเลิก',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const token = localStorage.getItem('jwt') || localStorage.getItem('token');
+          const res = await fetch(API.customerProfiles.update(customerDocumentId), {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: token ? `Bearer ${token}` : ''
+            },
+            body: JSON.stringify({ data: { Allergic_drugs: null } })
+          });
+
+          if (!res.ok) throw new Error('ไม่สามารถลบข้อมูลได้');
+
+          const updatedCustomer = await res.json();
+          setCustomer(updatedCustomer.data || updatedCustomer);
+          setAllergyModal({ open: false, allergies: [], availableDrugs: [] });
+          setConfirmModal({ ...confirmModal, open: false });
+          toast.success('ลบข้อมูลยาที่แพ้สำเร็จ');
+        } catch (err) {
+          console.error('Error clearing allergy:', err);
+          toast.error('เกิดข้อผิดพลาด: ' + err.message);
+          setConfirmModal({ ...confirmModal, open: false });
+        }
+      }
+    });
+  };
+
   // เปิด modal แก้ไขอาการ
   const openEditSymptomModal = () => {
     setEditSymptomModal({
@@ -1196,6 +1234,7 @@ function CustomerDetail() {
 
   return (
     <div className="staff-cust-detail-page">
+      <HomeHeader pharmacyName={pharmacy?.name_th || ''} pharmacistName={getPharmacistName(pharmacy)} />
       
       <main className="staff-cust-detail-main">
         {/* Modern Header Section */}
@@ -1472,7 +1511,27 @@ function CustomerDetail() {
                         )}
                       </button>
                       {userRole === 'pharmacy' && (
-                        <button className="edit-btn-allergy" onClick={() => openEditMedicalModal('allergy')}>✏️ แก้ไข</button>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button className="edit-btn-allergy" onClick={() => openEditMedicalModal('allergy')}>✏️ แก้ไข</button>
+                          {customer.Allergic_drugs && (
+                            <button 
+                              className="edit-btn-allergy delete" 
+                              onClick={handleClearAllergy}
+                              style={{
+                                background: '#ff4d4f',
+                                color: 'white',
+                                padding: '6px 12px',
+                                borderRadius: '4px',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                fontWeight: '500'
+                              }}
+                            >
+                              🗑️ ลบ
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                     <div className="info-row">
@@ -1708,6 +1767,11 @@ function CustomerDetail() {
                             <p className="prescribed-drug-name-en">
                               {drug ? drug.name_en : '-'}
                             </p>
+                            {drug && drug.manufacturer && (
+                              <div className="prescribed-drug-manufacturer" style={{ fontSize: '12px', color: '#0050b3', fontWeight: '500', marginTop: '4px' }}>
+                                📦 {drug.manufacturer}
+                              </div>
+                            )}
                             {drug && drug.price && (
                               <div className="prescribed-drug-price">
                                 ราคา: {drug.price} บาท
@@ -2157,9 +2221,58 @@ function CustomerDetail() {
         }
         open={allergyModal.open}
         onCancel={() => setAllergyModal({ open: false, allergies: [], availableDrugs: [] })}
-        onOk={handleSaveAllergy}
-        okText="บันทึก"
-        cancelText="ยกเลิก"
+        footer={[
+          customer?.Allergic_drugs ? (
+            <button
+              key="clear"
+              onClick={handleClearAllergy}
+              style={{
+                background: '#ff4d4f',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                marginRight: '8px'
+              }}
+            >
+              🗑️ ลบข้อมูลทั้งหมด
+            </button>
+          ) : null,
+          <button
+            key="cancel"
+            onClick={() => setAllergyModal({ open: false, allergies: [], availableDrugs: [] })}
+            style={{
+              background: '#f5f5f5',
+              border: '1px solid #d9d9d9',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            ยกเลิก
+          </button>,
+          <button
+            key="ok"
+            onClick={handleSaveAllergy}
+            style={{
+              background: '#1890ff',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500',
+              marginLeft: '8px'
+            }}
+          >
+            บันทึก
+          </button>
+        ]}
         centered
         className="modal-allergy"
         width={700}
@@ -2815,6 +2928,19 @@ function CustomerDetail() {
                               }}>
                                 {drug.name_en}
                               </span>
+                              {drug && drug.manufacturer && (
+                                <span style={{ 
+                                  background: '#0050b3', 
+                                  color: 'white',
+                                  padding: '2px 8px', 
+                                  borderRadius: '4px', 
+                                  fontSize: '12px',
+                                  fontWeight: 'bold',
+                                  marginRight: '8px'
+                                }}>
+                                  📦 {drug.manufacturer}
+                                </span>
+                              )}
                               <span style={{ 
                                 background: isSelected ? '#52c41a' : '#faad14', 
                                 color: 'white',

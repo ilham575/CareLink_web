@@ -705,7 +705,7 @@ function CustomerDetailStaff() {
 
   return (
     <div className="customer-detail-page">
-      />
+      <HomeHeader pharmacyName={pharmacy?.name_th || ''} pharmacistName={getPharmacistName(pharmacy)} />
       
       <main className="customer-detail-main">
         {/* Header summary: patient info only */}
@@ -1126,6 +1126,11 @@ function CustomerDetailStaff() {
                               <p className="prescribed-drug-name-en">
                                 {drug ? drug.name_en : '-'}
                               </p>
+                              {drug && drug.manufacturer && (
+                                <div className="prescribed-drug-manufacturer" style={{ fontSize: '12px', color: '#0050b3', fontWeight: '500', marginTop: '4px' }}>
+                                  📦 {drug.manufacturer}
+                                </div>
+                              )}
                               {drug && drug.price && (
                                 <div className="prescribed-drug-price">
                                   ราคา: {drug.price} บาท

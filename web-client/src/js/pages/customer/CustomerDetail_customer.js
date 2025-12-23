@@ -482,6 +482,11 @@ function CustomerDetailCustomer() {
                               <p className="cust-drug-name-en">
                                 {drug ? drug.name_en : '-'}
                               </p>
+                              {drug && drug.manufacturer && (
+                                <div className="cust-drug-manufacturer" style={{ fontSize: '12px', color: '#0050b3', fontWeight: '500', marginTop: '4px' }}>
+                                  📦 {drug.manufacturer}
+                                </div>
+                              )}
                               {drug && drug.price && (
                                 <div className="cust-drug-price">
                                   ฿{drug.price}

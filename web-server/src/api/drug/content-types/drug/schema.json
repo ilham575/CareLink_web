@@ -20,17 +20,12 @@
     "description": {
       "type": "text"
     },
-    "lot_number": {
-      "type": "string"
-    },
-    "date_produced": {
-      "type": "string"
-    },
-    "expiry_date": {
-      "type": "string"
+    "manufacturer": {
+      "type": "string",
+      "description": "ชื่อยี่ห้า - ชื่อที่บริษัทตั้งขึ้นเพื่อจำหน่ายยา"
     },
     "price": {
-      "type": "string"
+      "type": "decimal"
     },
     "drug_store": {
       "type": "relation",
