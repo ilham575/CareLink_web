@@ -1,5 +1,6 @@
 'use strict';
 const importRoles = require('../scripts/importRoles');
+const { initializeSocketIO } = require('./socket-server');
 
 module.exports = {
   register() {},
@@ -9,6 +10,9 @@ module.exports = {
     
     // Run database migrations
     await runDatabaseMigrations({ strapi });
+    
+    // Initialize Socket.IO on Strapi's HTTP server
+    initializeSocketIO(strapi, strapi.server.httpServer || strapi.server);
   },
 };
 

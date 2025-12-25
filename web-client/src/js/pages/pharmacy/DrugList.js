@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { API } from '../../../utils/apiConfig';
@@ -202,6 +202,7 @@ function matchesStore(item, storeDocumentId) {
 export default function DrugList() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [drugs, setDrugs] = useState([]);
   const [store, setStore] = useState(null);
   // prefer using documentId for matching relations; fall back to route id if not available
@@ -221,6 +222,9 @@ export default function DrugList() {
   const [showModal, setShowModal] = useState(false);
   const [editingDrug, setEditingDrug] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  // Highlight drug from navigation state (when coming from out-of-stock warning)
+  const [highlightDrugId, setHighlightDrugId] = useState(null);
+  const highlightRef = useRef(null);
   // Batch management
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState(null);
@@ -337,6 +341,47 @@ export default function DrugList() {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [id, token]);
+
+  // Handle highlight drug from navigation state (when coming from out-of-stock warning)
+  useEffect(() => {
+    if (location.state?.highlightDrugId && location.state?.fromOutOfStock) {
+      const drugId = location.state.highlightDrugId;
+      const drugName = location.state.highlightDrugName;
+      
+      // Set highlight state
+      setHighlightDrugId(drugId);
+      
+      // Switch to stock tab to show all drugs
+      setActiveTab('stock');
+      
+      // Set search term to filter to this drug only (คัดเหลือยาเดียวในตาราง)
+      setSearchTerm(drugName);
+      
+      // Show toast notification
+      toast.warning(`กรุณาเพิ่มสต๊อกยา "${drugName}" ที่หมดแล้ว`, {
+        autoClose: 5000,
+        position: 'top-center'
+      });
+      
+      // Scroll to the highlighted drug after a short delay (wait for render)
+      setTimeout(() => {
+        if (highlightRef.current) {
+          highlightRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      }, 500);
+      
+      // Clear the highlight after 5 seconds
+      setTimeout(() => {
+        setHighlightDrugId(null);
+      }, 5000);
+      
+      // Clear the location state to prevent re-triggering on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   // Clear toast key map on unmount (toasts will auto-dismiss after 3s)
   useEffect(() => {
@@ -1290,16 +1335,43 @@ export default function DrugList() {
                 </tr>
               </thead>
               <tbody>
-                        {filteredDrugs.map((drug, idx) => (
-                          <React.Fragment key={getDrugKey(drug) || idx}>
-                            <tr>
+                        {filteredDrugs.map((drug, idx) => {
+                          const drugKey = getDrugKey(drug);
+                          const isHighlighted = highlightDrugId && drugKey === highlightDrugId;
+                          
+                          return (
+                          <React.Fragment key={drugKey || idx}>
+                            <tr 
+                              ref={isHighlighted ? highlightRef : null}
+                              style={{
+                                backgroundColor: isHighlighted ? '#fff3cd' : undefined,
+                                border: isHighlighted ? '3px solid #ffc107' : undefined,
+                                transition: 'all 0.3s ease',
+                                animation: isHighlighted ? 'pulse 2s infinite' : undefined
+                              }}
+                            >
                               <td>
-                                <input type="checkbox" checked={selectedIds.includes(getDrugKey(drug))} onChange={() => toggleSelection(getDrugKey(drug))} />
+                                <input type="checkbox" checked={selectedIds.includes(drugKey)} onChange={() => toggleSelection(drugKey)} />
                               </td>
                               <td data-label="ชื่อยี่ห้อ" style={{ fontWeight: 'bold', color: '#2c3e50' }}>
                                 {drug.manufacturer || '(ไม่ระบุ)'}
                               </td>
-                              <td data-label="ชื่อยา" className="drug-name">{drug.name_th || drug.name_en || '-'}</td>
+                              <td data-label="ชื่อยา" className="drug-name">
+                                {drug.name_th || drug.name_en || '-'}
+                                {isHighlighted && (
+                                  <span style={{ 
+                                    marginLeft: '8px', 
+                                    background: '#ff9800', 
+                                    color: 'white', 
+                                    padding: '2px 8px', 
+                                    borderRadius: '4px', 
+                                    fontSize: '11px',
+                                    fontWeight: 'bold'
+                                  }}>
+                                    ⚠️ สต๊อกหมด
+                                  </span>
+                                )}
+                              </td>
                               <td data-label="ข้อบ่งใช้" className="drug-use">{drug.description || '-'}</td>
                               <td data-label="ราคา" style={{ fontWeight: 'bold', color: '#d9534f' }}>
                                 {drug.price ? `${drug.price} ฿` : '(ไม่ระบุ)'}
@@ -1325,12 +1397,13 @@ export default function DrugList() {
                               <td data-label="การดำเนินการ">
                                 <div className="action-buttons">
                                   <button className="btn-action edit" onClick={() => handleOpenModal(drug)}>แก้ไข</button>
-                                  <button className="btn-action delete" onClick={() => handleDelete(getDrugKey(drug))}>ลบ</button>
+                                  <button className="btn-action delete" onClick={() => handleDelete(drugKey)}>ลบ</button>
                                 </div>
                               </td>
                             </tr>
                           </React.Fragment>
-                        ))}
+                        );
+                        })}
               </tbody>
             </table>
           )}

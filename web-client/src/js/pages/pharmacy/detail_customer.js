@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { io } from 'socket.io-client';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
 import '../../../css/pages/pharmacy/detail_customer.css';
@@ -260,16 +261,90 @@ function CustomerDetail() {
     }
   }, [customerDocumentId, pharmacyId]);
 
-  // Smart Polling: ใช้ exponential backoff + ETag caching + change detection (เลียนแบบ staff page)
+  // Socket.IO Connection for real-time staff status updates
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    if (!latestNotification?.documentId) return;
+
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:1337';
+    const token = localStorage.getItem('jwt') || '';
+
+    console.log('[Socket] Attempting connection to:', socketUrl, 'with token:', !!token);
+
+    socketRef.current = io(socketUrl, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5
+    });
+
+    socketRef.current.on('connect', () => {
+      console.log('[Socket] Connected to Strapi server');
+      
+      // Join rooms for this notification and customer
+      const notifRoom = `notification:${latestNotification.documentId}`;
+      const customerRoom = `customer:${customerDocumentId}`;
+      
+      socketRef.current.emit('join', notifRoom);
+      socketRef.current.emit('join', customerRoom);
+    });
+
+    // Handle connection error
+    socketRef.current.on('connect_error', (error) => {
+      console.error('[Socket] Connection error:', error.message || error);
+      toast.warning('⚠️ Connection to real-time server lost, falling back to polling');
+    });
+
+    // Handle disconnect
+    socketRef.current.on('disconnect', (reason) => {
+      console.log('[Socket] Disconnected from server:', reason);
+    });
+
+    // Listen for notification updates from staff
+    socketRef.current.on('notification:update', (updatedNotif) => {
+      console.log('[Socket] Received staff status update:', updatedNotif);
+      
+      if (!updatedNotif) return;
+
+      // Update notification and staff work status
+      setLatestNotification(updatedNotif);
+      
+      if (updatedNotif.staff_work_status) {
+        const hasChanges = JSON.stringify(staffWorkStatus) !== JSON.stringify(updatedNotif.staff_work_status);
+        if (hasChanges) {
+          setStaffWorkStatus(updatedNotif.staff_work_status);
+          toast.info('🔄 พนักงานได้อัพเดตสถานะ');
+        }
+      }
+    });
+
+    return () => {
+      if (socketRef.current) {
+        const notifRoom = `notification:${latestNotification.documentId}`;
+        const customerRoom = `customer:${customerDocumentId}`;
+        socketRef.current.emit('leave', notifRoom);
+        socketRef.current.emit('leave', customerRoom);
+        socketRef.current.disconnect();
+      }
+    };
+  }, [latestNotification?.documentId, customerDocumentId]);
+
+  // Smart Polling: fallback when socket is not available (keep as backup)
   const { resetInterval: resetNotificationPoll } = useSmartPolling(
-    latestNotification?.documentId ? API.notifications.getByDocumentId(latestNotification.documentId) : null,
+    !socketRef.current?.connected && latestNotification?.documentId ? API.notifications.getByDocumentId(latestNotification.documentId) : null,
     {
       initialInterval: 2000, // เริ่มต้น 2 วินาที
       maxInterval: 30000, // สูงสุด 30 วินาที
       backoffMultiplier: 1.3,
       enabled: !!latestNotification?.documentId,
       onDataChange: (newData) => {
-        const updatedNotif = newData.data;
+        // newData is the direct response from API: { data: {...} }
+        const updatedNotif = newData?.data || newData;
+        console.log('[DetailCustomer] Polling data changed:', updatedNotif);
+        
         if (updatedNotif?.staff_work_status) {
           const hasChanges = JSON.stringify(staffWorkStatus) !== JSON.stringify(updatedNotif.staff_work_status);
           if (hasChanges) {
@@ -281,6 +356,7 @@ function CustomerDetail() {
       },
       onError: (error) => {
         console.error('Error in smart polling for notifications:', error);
+        // Don't show toast on every error to avoid spam
       }
     }
   );
@@ -587,13 +663,40 @@ function CustomerDetail() {
       toast.success('บันทึกยาสำเร็จ');
       setAddDrugModal(prev => ({ ...prev, open: false }));
       setDrugQuantities({});
-      // refresh customer data
+      
+      // refresh customer data พร้อมกับ assigned_by_staff ข้อมูล
       const customerRes = await fetch(
-        API.customerProfiles.getByIdBasic(customerDocumentId),
+        API.customerProfiles.getByDocumentId(customerDocumentId),
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
       );
       const customerData = await customerRes.json();
-      setCustomer(customerData.data);
+      const customer = Array.isArray(customerData.data) ? customerData.data[0] : customerData.data;
+      setCustomer(customer);
+      
+      // อัพเดต assignedByStaff เพื่อให้แท็บการทำงานยังคงแสดง
+      if (customer?.assigned_by_staff && customer.assigned_by_staff.documentId) {
+        setAssignedByStaff(customer.assigned_by_staff);
+      }
+      
+      // reload notification ด้วยเพื่อให้ staff work status ทำงานต่อ
+      if (customer?.assigned_by_staff?.documentId) {
+        try {
+          const notifRes = await fetch(
+            API.notifications.list(`filters[staff_profile][documentId][$eq]=${customer.assigned_by_staff.documentId}&filters[customer_profile][documentId][$eq]=${customerDocumentId}&sort=createdAt:desc&pagination[limit]=1`),
+            { headers: { Authorization: token ? `Bearer ${token}` : '' } }
+          );
+          if (notifRes.ok) {
+            const notifData = await notifRes.json();
+            if (notifData.data?.length > 0) {
+              setLatestNotification(notifData.data[0]);
+              // รีเซ็ต polling interval เพื่อให้ค้นหาข้อมูลใหม่
+              resetNotificationPoll();
+            }
+          }
+        } catch (err) {
+          console.warn('Could not reload notification:', err);
+        }
+      }
     } catch (err) {
       toast.error(err.message || 'เกิดข้อผิดพลาด');
     }
@@ -1034,23 +1137,34 @@ function CustomerDetail() {
             disease: customer.congenital_disease || ''
           },
           
-          // Initialize empty staff_work_status (keep existing status for updates)
-          // Make sure to create a plain object without any React elements
-          staff_work_status: isUpdate ? {
-            received: Boolean(staffWorkStatus?.received),
-            prepared: Boolean(staffWorkStatus?.prepared),
-            received_at: staffWorkStatus?.received_at ? String(staffWorkStatus.received_at) : null,
-            prepared_at: staffWorkStatus?.prepared_at ? String(staffWorkStatus.prepared_at) : null,
-            prepared_note: String(staffWorkStatus?.prepared_note || ''),
-            outOfStock: Array.isArray(staffWorkStatus?.outOfStock) ? [...staffWorkStatus.outOfStock] : []
-          } : {
-            received: false,
-            prepared: false,
-            received_at: null,
-            prepared_at: null,
-            prepared_note: '',
-            outOfStock: []
-          },
+          // Initialize staff_work_status.
+          // For normal assignments create fresh defaults. For updates, reset all statuses
+          // except keep any `outOfStock` entries reported by staff.
+          staff_work_status: (function() {
+            const existingOOS = Array.isArray(staffWorkStatus?.outOfStock) ? [...new Set([...staffWorkStatus.outOfStock])] : [];
+            if (!isUpdate) {
+              return {
+                received: false,
+                prepared: false,
+                received_at: null,
+                prepared_at: null,
+                prepared_note: '',
+                outOfStock: existingOOS
+              };
+            }
+            // For updates: reset actionable flags but preserve outOfStock
+            return {
+              received: false,
+              prepared: false,
+              received_at: null,
+              prepared_at: null,
+              prepared_note: '',
+              outOfStock: existingOOS,
+              cancelled: false,
+              cancelled_at: null,
+              cancelled_note: ''
+            };
+          })(),
           
           // Status fields
           is_read: false,
@@ -1059,11 +1173,19 @@ function CustomerDetail() {
       };
 
       console.log('Sending notification:', safeNotificationData);
+      console.log('isUpdate:', isUpdate, 'latestNotification?.id:', latestNotification?.id);
+
+      // ถ้าเป็นการอัพเดต ให้อัพเดต notification เดิม ไม่ใช่สร้างใหม่
+      const notificationEndpoint = isUpdate && latestNotification?.id
+        ? API.notifications.updateByDocumentId(latestNotification.documentId)
+        : API.notifications.create();
+      
+      const notificationMethod = isUpdate && latestNotification?.id ? 'PUT' : 'POST';
 
       const notificationRes = await fetch(
-        API.notifications.create(),
+        notificationEndpoint,
         {
-          method: 'POST',
+          method: notificationMethod,
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`
@@ -1090,108 +1212,121 @@ function CustomerDetail() {
         }
       );
 
+      let result = null;
       if (notificationRes.ok) {
-        const result = await notificationRes.json();
-        console.log('Notification created:', result);
-        
-            // Also update customer profile with assigned_by_staff (only on first assign)
-        if (!isUpdate) {
-          try {
-            // Fetch the staff profile with populated user relation so we have name/avatar
-            const staffRes = await fetch(
-              API.staffProfiles.getByDocumentIdWithUser(targetStaffId),
-              { headers: { Authorization: token ? `Bearer ${token}` : '' } }
-            );
-
-            if (staffRes.ok) {
-              const staffData = await staffRes.json();
-              const staffProfile = staffData.data?.[0];
-
-              if (staffProfile) {
-                // Update customer profile using the internal numeric id for relation
-                const updateRes = await fetch(
-                  API.customerProfiles.update(customerDocumentId), { method: 'PUT',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                      data: {
-                        // use numeric id to set relation cleanly
-                        assigned_by_staff: staffProfile.id
-                      }
-                    })
-                  }
-                );
-
-                if (updateRes.ok) {
-                  console.log('Customer profile updated with assigned_by_staff (id)', staffProfile.id);
-                  // Update local state with the populated staff profile so UI shows name/avatar
-                  setAssignedByStaff(staffProfile);
-                } else {
-                  console.error('Failed to update customer.assigned_by_staff', updateRes.status);
-                }
-              }
-            } else {
-              console.error('Failed to fetch staff profile for assignment', staffRes.status);
-            }
-          } catch (err) {
-            console.error('Error updating assigned_by_staff:', err);
-          }
-        }
-        
-        // update latestNotification state from created notification result (if backend returns it)
-        try {
-          const createdEntry = result.data || result;
-          console.log('Notification response data:', createdEntry);
-          setLatestNotification(createdEntry);
-          
-          // Also update staffWorkStatus from the notification's staff_work_status field
-          if (createdEntry.staff_work_status) {
-            console.log('Updating staffWorkStatus from notification:', createdEntry.staff_work_status);
-            setStaffWorkStatus(prev => ({
-              ...prev,
-              received: createdEntry.staff_work_status.received || false,
-              prepared: createdEntry.staff_work_status.prepared || false,
-              received_at: createdEntry.staff_work_status.received_at || null,
-              prepared_at: createdEntry.staff_work_status.prepared_at || null,
-              prepared_note: createdEntry.staff_work_status.prepared_note || '',
-              outOfStock: createdEntry.staff_work_status.outOfStock || [],
-              cancelled: createdEntry.staff_work_status.cancelled || false,
-              cancelled_at: createdEntry.staff_work_status.cancelled_at || null,
-              cancelled_note: createdEntry.staff_work_status.cancelled_note || ''
-            }));
-          } else {
-            console.warn('NO staff_work_status in notification response - initializing defaults');
-            setStaffWorkStatus({
-              received: false,
-              prepared: false,
-              received_at: null,
-              prepared_at: null,
-              prepared_note: '',
-              outOfStock: [],
-              cancelled: false,
-              cancelled_at: null,
-              cancelled_note: ''
-            });
-          }
-        } catch (e) {
-          console.warn('Could not set latestNotification from response', e);
-        }
-
-        toast.success(isUpdate ? '✅ ส่งข้อมูลอัพเดตให้พนักงานสำเร็จ' : '✅ ส่งข้อมูลให้พนักงานสำเร็จ');
-                setStaffAssignModal({
-          open: false,
-          availableStaff: [],
-          selectedStaffId: null,
-          loading: false,
-          assignNote: ''
-        });
+        result = await notificationRes.json();
+        console.log('Notification ' + (isUpdate ? 'updated' : 'created') + ':', result);
+        console.log('✅ Success - documentId:', result.data?.documentId);
+        console.log('✅ Type:', result.data?.type);
       } else {
-        const errorData = await notificationRes.json();
-        console.error('Notification error:', errorData);
-        toast.error(`ไม่สามารถส่งข้อมูลได้: ${errorData.error?.message || 'Unknown error'}`);
+        const errorData = await notificationRes.json().catch(() => ({}));
+        const errorMsg = errorData.error?.message || notificationRes.statusText;
+        console.error('❌ Notification ' + (isUpdate ? 'update' : 'create') + ' failed:', {
+          status: notificationRes.status,
+          method: notificationMethod,
+          endpoint: notificationEndpoint,
+          error: errorMsg
+        });
+        toast.error('❌ ส่งข้อมูล' + (isUpdate ? 'อัพเดต' : '') + 'ไม่สำเร็จ: ' + errorMsg);
+        return;
       }
+
+      // ใช้ result ที่ได้มาแล้ว ไม่ต้อง read json อีกครั้ง
+      console.log('Processing notification result...');
+      
+          // Also update customer profile with assigned_by_staff (only on first assign)
+      if (!isUpdate) {
+        try {
+          // Fetch the staff profile with populated user relation so we have name/avatar
+          const staffRes = await fetch(
+            API.staffProfiles.getByDocumentIdWithUser(targetStaffId),
+            { headers: { Authorization: token ? `Bearer ${token}` : '' } }
+          );
+
+          if (staffRes.ok) {
+            const staffData = await staffRes.json();
+            const staffProfile = staffData.data?.[0];
+
+            if (staffProfile) {
+              // Update customer profile using the internal numeric id for relation
+              const updateRes = await fetch(
+                API.customerProfiles.update(customerDocumentId), { method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    data: {
+                      // use numeric id to set relation cleanly
+                      assigned_by_staff: staffProfile.id
+                    }
+                  })
+                }
+              );
+
+              if (updateRes.ok) {
+                console.log('Customer profile updated with assigned_by_staff (id)', staffProfile.id);
+                // Update local state with the populated staff profile so UI shows name/avatar
+                setAssignedByStaff(staffProfile);
+              } else {
+                console.error('Failed to update customer.assigned_by_staff', updateRes.status);
+              }
+            }
+          } else {
+            console.error('Failed to fetch staff profile for assignment', staffRes.status);
+          }
+        } catch (err) {
+          console.error('Error updating assigned_by_staff:', err);
+        }
+      }
+      
+      // update latestNotification state from created notification result (if backend returns it)
+      try {
+        const createdEntry = result.data || result;
+        console.log('Notification response data:', createdEntry);
+        setLatestNotification(createdEntry);
+        
+        // Also update staffWorkStatus from the notification's staff_work_status field
+        if (createdEntry.staff_work_status) {
+          console.log('Updating staffWorkStatus from notification:', createdEntry.staff_work_status);
+          setStaffWorkStatus(prev => ({
+            ...prev,
+            received: createdEntry.staff_work_status.received || false,
+            prepared: createdEntry.staff_work_status.prepared || false,
+            received_at: createdEntry.staff_work_status.received_at || null,
+            prepared_at: createdEntry.staff_work_status.prepared_at || null,
+            prepared_note: createdEntry.staff_work_status.prepared_note || '',
+            outOfStock: createdEntry.staff_work_status.outOfStock || [],
+            cancelled: createdEntry.staff_work_status.cancelled || false,
+            cancelled_at: createdEntry.staff_work_status.cancelled_at || null,
+            cancelled_note: createdEntry.staff_work_status.cancelled_note || ''
+          }));
+        } else {
+          console.warn('NO staff_work_status in notification response - initializing defaults');
+          setStaffWorkStatus({
+            received: false,
+            prepared: false,
+            received_at: null,
+            prepared_at: null,
+            prepared_note: '',
+            outOfStock: [],
+            cancelled: false,
+            cancelled_at: null,
+            cancelled_note: ''
+          });
+        }
+      } catch (e) {
+        console.warn('Could not set latestNotification from response', e);
+      }
+
+      toast.success(isUpdate ? '✅ ส่งข้อมูลอัพเดตให้พนักงานสำเร็จ' : '✅ ส่งข้อมูลให้พนักงานสำเร็จ');
+      setStaffAssignModal({
+        open: false,
+        availableStaff: [],
+        selectedStaffId: null,
+        loading: false,
+        assignNote: ''
+      });
     } catch (error) {
       console.error('Error assigning to staff:', error);
       toast.error('เกิดข้อผิดพลาดในการส่งข้อมูล');
@@ -1263,6 +1398,37 @@ function CustomerDetail() {
               </div>
             </div>
             <div className="header-right">
+              <div className="header-actions" style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                <button
+                  onClick={() => navigate(`/drug_store_pharmacy/${pharmacy?.documentId}/customer/${customerDocumentId}/history?pharmacyId=${pharmacy?.documentId}`)}
+                  style={{
+                    padding: '10px 20px',
+                    background: 'linear-gradient(135deg, #1890ff, #0050b3)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(24, 144, 255, 0.3)',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 16px rgba(24, 144, 255, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(24, 144, 255, 0.3)';
+                  }}
+                  title="ดูประวัติการมาใช้บริการทั้งหมดของลูกค้าคนนี้"
+                >
+                  📋 ดูประวัติการมา
+                </button>
+              </div>
               <div className="header-stats">
                 <div className="stat-item">
                   <span className="stat-label">รายการยา</span>
@@ -2106,7 +2272,7 @@ function CustomerDetail() {
         ]}
         centered
         width={600}
-        bodyStyle={{ maxHeight: '70vh', overflowY: 'auto', padding: '24px' }}
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto', padding: '24px' } }}
       >
         {allergyDetailModal.allergies && allergyDetailModal.allergies.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -2630,11 +2796,11 @@ function CustomerDetail() {
           maxWidth: window.innerWidth <= 768 ? '95vw' : '90vw',
           margin: window.innerWidth <= 768 ? '0 auto' : undefined
         }}
-        bodyStyle={{ 
+        styles={{ body: {
           maxHeight: window.innerWidth <= 768 ? '70vh' : '600px', 
           overflowY: 'auto',
           padding: window.innerWidth <= 768 ? '15px' : '24px'
-        }}
+        } }}
         okButtonProps={{ 
           disabled: addDrugModal.selectedDrugs.length === 0,
           style: { 
@@ -2804,6 +2970,8 @@ function CustomerDetail() {
                         const itemDrugId = typeof item === 'string' ? item : item.drugId;
                         return itemDrugId === drug.documentId;
                       });
+                      // Disable if staff reported out of stock for this drug
+                      const isOutOfStock = Array.isArray(staffWorkStatus?.outOfStock) && staffWorkStatus.outOfStock.includes(drug.documentId);
                       // Determine if this drug matches any allergy entry (by name or id)
                       const dNameTh = (drug.name_th || '').toString().toLowerCase();
                       const dNameEn = (drug.name_en || '').toString().toLowerCase();
@@ -2821,11 +2989,11 @@ function CustomerDetail() {
                             padding: '16px', 
                             borderRadius: '12px',
                             background: isSelected ? 'linear-gradient(90deg, #f6ffed, #f0f9ff)' : '#fff',
-                            cursor: isAllergic ? 'not-allowed' : 'pointer',
+                            cursor: isAllergic || isOutOfStock ? 'not-allowed' : 'pointer',
                             transition: 'all 0.3s ease',
                             position: 'relative',
                             boxShadow: isSelected ? '0 4px 12px rgba(82, 196, 26, 0.15)' : '0 2px 8px rgba(0,0,0,0.06)',
-                            opacity: isAllergic ? 0.55 : 1
+                            opacity: isAllergic || isOutOfStock ? 0.55 : 1
                           }}
                           onClick={() => {
                             if (isAllergic) {
@@ -2833,6 +3001,40 @@ function CustomerDetail() {
                               toast.warn('ไม่สามารถเลือกยานี้ได้ เนื่องจากลูกค้าแพ้ยา');
                               return;
                             }
+                            if (isOutOfStock) {
+                              toast.warn('ไม่สามารถเลือกยานี้ได้ เนื่องจากพนักงานแจ้งว่ายาหมดสต็อก');
+                              return;
+                            }
+                            
+                            // เช็คสต๊อกก่อนเลือกยา (เฉพาะตอนเพิ่มยาใหม่ ไม่เช็คตอนลบออก)
+                            if (!isSelected) {
+                              // คำนวณจำนวนยาทั้งหมดในสต๊อกจาก drug_batches
+                              const totalStock = drug.drug_batches && Array.isArray(drug.drug_batches)
+                                ? drug.drug_batches.reduce((sum, batch) => sum + (parseInt(batch.quantity) || 0), 0)
+                                : 0;
+                              
+                              console.log('Checking stock for drug:', drug.name_th, 'Total stock:', totalStock);
+                              
+                              // ถ้าไม่มีสต๊อกหรือสต๊อก = 0
+                              if (totalStock <= 0) {
+                                toast.error(`ยา "${drug.name_th}" หมดสต๊อก กรุณาเพิ่มสต๊อกก่อนเลือก`, {
+                                  autoClose: 4000
+                                });
+                                
+                                // Navigate ไปหน้า DrugList พร้อมชี้ไปยังยานั้น
+                                setTimeout(() => {
+                                  navigate(`/drug_store_pharmacy/${pharmacyId}/drugs`, {
+                                    state: { 
+                                      highlightDrugId: drug.documentId,
+                                      highlightDrugName: drug.name_th,
+                                      fromOutOfStock: true
+                                    }
+                                  });
+                                }, 500);
+                                return;
+                              }
+                            }
+                            
                             if (isSelected) {
                               // ลบออกจาก selectedDrugs
                               setAddDrugModal(prev => ({

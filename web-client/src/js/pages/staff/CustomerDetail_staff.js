@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { io } from 'socket.io-client';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
 import '../../../css/pages/pharmacy/detail_customer.css';
@@ -24,6 +25,11 @@ function formatThaiDate(dateStr) {
   const year = d.year() + 543;
   return `${day} ${month} ${year}`;
 }
+
+// Disable debug console.log calls in this file to keep console clean.
+// If you need logs while developing, remove or comment out the following two lines.
+console._orig_log = console._orig_log || console.log;
+console.log = () => {};
 
 function CustomerDetailStaff() {
   const { customerDocumentId } = useParams();
@@ -180,16 +186,60 @@ function CustomerDetailStaff() {
           setNotification(notif);
 
           // อ่านสถานะจาก notification data
+          console.log('[LoadData] === isNotificationOnly MODE ===');
+          console.log('[LoadData] Full notification object:', notif);
+          console.log('[LoadData] Notification type:', notif?.type);
+          console.log('[LoadData] Notification staff_work_status:', notif?.staff_work_status);
+          console.log('[LoadData] Loading staff status from notification (isNotificationOnly)');
           if (notif?.staff_work_status) {
-            setStaffStatus(notif.staff_work_status);
-            // ดึง selected batches จากที่เก็บไว้ใน notification
-            if (notif.staff_work_status.batches_selected) {
-              setSelectedBatches(notif.staff_work_status.batches_selected);
+            console.log('[LoadData] Found staff_work_status:', notif.staff_work_status);
+            // If this notification is an assignment update from the pharmacy,
+            // reset actionable status fields but preserve outOfStock.
+            if (notif.type === 'customer_assignment_update') {
+              const preservedOOS = Array.isArray(notif.staff_work_status.outOfStock) ? notif.staff_work_status.outOfStock : [];
+              const resetStatus = {
+                received: false,
+                prepared: false,
+                received_at: null,
+                prepared_at: null,
+                prepared_note: '',
+                outOfStock: preservedOOS,
+                cancelled: false,
+                cancelled_at: null,
+                cancelled_note: ''
+              };
+              console.log('[LoadData] Setting reset status:', resetStatus);
+              setStaffStatus(resetStatus);
+              if (notif.staff_work_status.batches_selected) {
+                setSelectedBatches(notif.staff_work_status.batches_selected);
+              }
+            } else {
+              console.log('[LoadData] Setting full staff status:', notif.staff_work_status);
+              setStaffStatus(notif.staff_work_status);
+              // ดึง selected batches จากที่เก็บไว้ใน notification
+              if (notif.staff_work_status.batches_selected) {
+                setSelectedBatches(notif.staff_work_status.batches_selected);
+              }
             }
+          } else {
+            console.log('[LoadData] ⚠️ No staff_work_status in notification, initializing empty status');
+            // Initialize with empty status if not found
+            setStaffStatus({
+              received: false,
+              prepared: false,
+              received_at: null,
+              prepared_at: null,
+              prepared_note: '',
+              outOfStock: [],
+              cancelled: false,
+              cancelled_at: null,
+              cancelled_note: ''
+            });
           }
 
         } else {
           // โหลด customer profile ตามปกติ
+          console.log('[LoadData] Loading customer:', customerDocumentId);
           const customerRes = await fetch(
             API.customerProfiles.getByIdBasic(customerDocumentId),
             {
@@ -200,6 +250,7 @@ function CustomerDetailStaff() {
           if (!customerRes.ok) throw new Error('ไม่สามารถโหลดข้อมูลลูกค้าได้');
           
           const customerData = await customerRes.json();
+          console.log('[LoadData] Customer data:', customerData.data);
           setCustomer(customerData.data);
           
           // โหลดข้อมูล staff profile
@@ -213,25 +264,135 @@ function CustomerDetailStaff() {
             const staffProfile = staffData.data?.[0];
 
             if (staffProfile) {
+              console.log('[LoadData] Searching notification for staff:', staffProfile.documentId, 'customer:', customerDocumentId);
+              
               // โหลด notification ของลูกค้าคนนี้ที่ส่งมาให้ staff คนนี้
+              // ค้นหาทั้งจาก customer_profile relation และจาก notification.data
               const notifRes = await fetch(
-                API.notifications.getStaffAssignments(staffProfile.documentId, customerDocumentId),
+                API.notifications.list(`filters[staff_profile][documentId][$eq]=${staffProfile.documentId}&filters[type][$in][0]=customer_assignment&filters[type][$in][1]=customer_assignment_update&populate=*&sort[0]=createdAt:desc`),
                 { headers: { Authorization: token ? `Bearer ${token}` : '' } }
               );
 
               if (notifRes.ok) {
                 const notifData = await notifRes.json();
-                const notif = notifData.data?.[0];
+                console.log('[LoadData] All notifications:', notifData.data);
+                
+                // หา notification ที่ตรงกับ customer นี้
+                // ลองหาจาก customer_profile relation ก่อน
+                let notif = notifData.data?.find(n => n.customer_profile?.documentId === customerDocumentId);
+                
+                // ถ้าไม่เจอ ลองหาจาก customer name/phone ใน notification.data
+                if (!notif && customerData?.data?.users_permissions_user) {
+                  const customerName = customerData.data.users_permissions_user.full_name;
+                  const customerPhone = customerData.data.users_permissions_user.phone;
+                  console.log('[LoadData] Searching by name/phone:', customerName, customerPhone);
+                  
+                  notif = notifData.data?.find(n => {
+                    const d = n.data || {};
+                    return d.customer_name === customerName || d.customer_phone === customerPhone;
+                  });
+                }
+                
+                // ถ้ายังไม่เจอ ใช้ตัวล่าสุด
+                if (!notif) {
+                  notif = notifData.data?.[0];
+                  console.log('[LoadData] Using latest notification:', notif?.documentId);
+                }
+                
+                console.log('[LoadData] Found notification:', notif);
+                console.log('[LoadData] notification.staff_work_status:', notif?.staff_work_status);
                 setNotification(notif);
 
                 // อ่านสถานะจาก notification staff_work_status
                 if (notif?.staff_work_status) {
-                  setStaffStatus(notif.staff_work_status);
-                  // ดึง selected batches จากที่เก็บไว้ใน notification
-                  if (notif.staff_work_status.batches_selected) {
-                    setSelectedBatches(notif.staff_work_status.batches_selected);
+                  console.log('[LoadData] Setting staff status from notification');
+                  // If this notification is an assignment update from the pharmacy,
+                  // reset actionable status fields but preserve outOfStock.
+                  // BUT: Only reset if staff hasn't acknowledged the update yet
+                  if (notif.type === 'customer_assignment_update') {
+                    const staffReceivedAt = notif.staff_work_status.received_at;
+                    const staffPreparedAt = notif.staff_work_status.prepared_at;
+                    const notifUpdatedAt = notif.updatedAt;
+                    
+                    // ถ้าพนักงานยืนยันรับข้อมูล หรือ จัดยาเสร็จ หลังจาก notification ถูกอัปเดต = ไม่ต้อง reset
+                    // เช็คทั้ง received_at และ prepared_at เพราะถ้า prepared แล้ว แสดงว่าทำงานเสร็จแล้ว
+                    const staffAcknowledgedUpdate = 
+                      (staffPreparedAt && notifUpdatedAt && new Date(staffPreparedAt) >= new Date(notifUpdatedAt)) ||
+                      (staffReceivedAt && notifUpdatedAt && new Date(staffReceivedAt) >= new Date(notifUpdatedAt));
+                    
+                    console.log('[LoadData] Check reset condition:', {
+                      type: notif.type,
+                      staffReceivedAt,
+                      staffPreparedAt,
+                      notifUpdatedAt,
+                      staffAcknowledgedUpdate,
+                      shouldReset: !staffAcknowledgedUpdate
+                    });
+                    
+                    if (!staffAcknowledgedUpdate) {
+                      // Reset เฉพาะเมื่อพนักงานยังไม่ได้ยืนยันรับข้อมูลหลังอัปเดต
+                      const preservedOOS = Array.isArray(notif.staff_work_status.outOfStock) ? notif.staff_work_status.outOfStock : [];
+                      const resetStatus = {
+                        received: false,
+                        prepared: false,
+                        received_at: null,
+                        prepared_at: null,
+                        prepared_note: '',
+                        outOfStock: preservedOOS,
+                        cancelled: false,
+                        cancelled_at: null,
+                        cancelled_note: ''
+                      };
+                      console.log('[LoadData] Reset status for update notification:', resetStatus);
+                      setStaffStatus(resetStatus);
+                    } else {
+                      // ใช้สถานะที่มีอยู่ เพราะพนักงานยืนยันแล้ว
+                      console.log('[LoadData] Staff already acknowledged, keeping status:', notif.staff_work_status);
+                      setStaffStatus(notif.staff_work_status);
+                    }
+                    // ดึง selected batches จากที่เก็บไว้ใน notification (always load for update notifications)
+                    if (notif.staff_work_status.batches_selected) {
+                      console.log('[LoadData] Loading batches_selected from update notification:', notif.staff_work_status.batches_selected);
+                      setSelectedBatches(notif.staff_work_status.batches_selected);
+                    }
+                  } else {
+                    console.log('[LoadData] Setting full status:', notif.staff_work_status);
+                    setStaffStatus(notif.staff_work_status);
+                    // ดึง selected batches จากที่เก็บไว้ใน notification
+                    if (notif.staff_work_status.batches_selected) {
+                      console.log('[LoadData] Loading batches_selected from notification:', notif.staff_work_status.batches_selected);
+                      setSelectedBatches(notif.staff_work_status.batches_selected);
+                    }
                   }
+                } else {
+                  console.log('[LoadData] ⚠️ No staff_work_status found in notification');
+                  // Initialize with empty status
+                  setStaffStatus({
+                    received: false,
+                    prepared: false,
+                    received_at: null,
+                    prepared_at: null,
+                    prepared_note: '',
+                    outOfStock: [],
+                    cancelled: false,
+                    cancelled_at: null,
+                    cancelled_note: ''
+                  });
                 }
+              } else {
+                console.log('[LoadData] ⚠️ No notification found');
+                // Initialize with empty status if no notification
+                setStaffStatus({
+                  received: false,
+                  prepared: false,
+                  received_at: null,
+                  prepared_at: null,
+                  prepared_note: '',
+                  outOfStock: [],
+                  cancelled: false,
+                  cancelled_at: null,
+                  cancelled_note: ''
+                });
               }
             }
           }
@@ -277,9 +438,220 @@ function CustomerDetailStaff() {
       loadCustomerData();
     }
   }, [customerDocumentId, pharmacyId]);
-  // Smart Polling: ใช้ exponential backoff + ETag caching + change detection
+
+  // Socket.IO Connection for real-time notification updates
+  const socketRef = useRef(null);
+
+  // Effect: Reload notification every 5 seconds to catch updates from pharmacy
+  // This ensures we subscribe to the latest notification (e.g., after update creates new one)
+  useEffect(() => {
+    if (!customerDocumentId) return;
+
+    const reloadNotification = async () => {
+      try {
+        const token = localStorage.getItem('jwt') || '';
+        const staffProfile = JSON.parse(localStorage.getItem('staff_profile') || '{}');
+        
+        if (!staffProfile?.documentId) return;
+
+        const notifRes = await fetch(
+          API.notifications.getStaffAssignments(staffProfile.documentId, customerDocumentId),
+          { headers: { Authorization: token ? `Bearer ${token}` : '' } }
+        );
+
+        if (notifRes.ok) {
+          const notifData = await notifRes.json();
+          const latestNotif = notifData.data?.[0];
+          
+          if (latestNotif) {
+            // Always update status from the latest notification data
+            if (latestNotif.staff_work_status) {
+              console.log('[AutoReload] 📊 Updating staff status from latest notification');
+              setStaffStatus(latestNotif.staff_work_status);
+              if (latestNotif.staff_work_status.batches_selected) {
+                setSelectedBatches(latestNotif.staff_work_status.batches_selected);
+              }
+            }
+            
+            if (latestNotif.documentId !== notification?.documentId) {
+              console.log('[AutoReload] 🔄 Notification changed from', notification?.documentId, 'to', latestNotif.documentId);
+              setNotification(latestNotif);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[AutoReload] Error reloading notification:', err);
+      }
+    };
+
+    const interval = setInterval(reloadNotification, 5000);
+    return () => clearInterval(interval);
+  }, [customerDocumentId]);
+
+  useEffect(() => {
+    if (!notification?.documentId) return;
+
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:1337';
+    const token = localStorage.getItem('jwt') || '';
+
+    console.log('[Socket] Attempting connection to:', socketUrl, 'with token:', !!token);
+
+    // Create socket connection
+    socketRef.current = io(socketUrl, {
+      auth: { token },
+      transports: ['websocket', 'polling'], // websocket first for better performance
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+      forceNew: false,
+      rejectUnauthorized: false
+    });
+
+    console.log('[Socket] Created socket with config:', {
+      url: socketUrl,
+      hasToken: !!token,
+      transports: ['websocket', 'polling']
+    });
+
+    // Handle connection
+    socketRef.current.on('connect', () => {
+      console.log('[Socket] Connected to Strapi server');
+      console.log('[Socket] 🎉 Socket.IO transport used:', socketRef.current?.io?.engine?.transport?.name);
+      console.log('[Socket] Socket ID:', socketRef.current?.id);
+      
+      // Join rooms: by notification ID and by customer ID
+      const notifRoom = `notification:${notification.documentId}`;
+      const customerRoom = `customer:${customerDocumentId}`;
+      
+      console.log('[Socket] Joining rooms:', { notifRoom, customerRoom });
+      socketRef.current.emit('join', notifRoom);
+      socketRef.current.emit('join', customerRoom);
+    });
+
+    // Handle connection error
+    socketRef.current.on('connect_error', (error) => {
+      console.error('[Socket] Connection error:', {
+        message: error?.message,
+        data: error?.data,
+        type: error?.type,
+        code: error?.code
+      });
+      console.error('[Socket] Full error:', error);
+    });
+
+    // Handle disconnect
+    socketRef.current.on('disconnect', (reason) => {
+      console.log('[Socket] Disconnected from server:', {
+        reason,
+        reconnecting: socketRef.current?.disconnected === false
+      });
+      console.warn('[Socket] ⚠️ WebSocket disconnected, fallback to polling will be used');
+    });
+
+    // Listen for notification updates
+    socketRef.current.on('notification:update', (updatedNotif) => {
+      console.log('[Socket] Received notification update:', updatedNotif);
+      console.log('[Socket] Notification type:', updatedNotif?.type);
+      console.log('[Socket] Notification title:', updatedNotif?.title);
+      console.log('[Socket] Notification staff_work_status:', updatedNotif?.staff_work_status);
+      console.log('[Socket] Full notification object:', JSON.stringify(updatedNotif, null, 2));
+      
+      if (!updatedNotif) return;
+
+      // Always update notification state with the latest data
+      console.log('[Socket] 🔄 Updating notification state with latest data');
+      setNotification(updatedNotif);
+
+      // Handle status reset for update notifications (preserve outOfStock)
+      if (updatedNotif.type === 'customer_assignment_update') {
+        // เช็คว่า staff acknowledged update นี้แล้วหรือยัง
+        const staffReceivedAt = updatedNotif.staff_work_status?.received_at;
+        const staffPreparedAt = updatedNotif.staff_work_status?.prepared_at;
+        const notifUpdatedAt = updatedNotif.updatedAt;
+        
+        // ถ้าพนักงานยืนยันรับข้อมูล หรือ จัดยาเสร็จ หลังจาก notification ถูกอัปเดต = ไม่ต้อง reset
+        const staffAcknowledgedUpdate = 
+          (staffPreparedAt && notifUpdatedAt && new Date(staffPreparedAt) >= new Date(notifUpdatedAt) - 1000) ||
+          (staffReceivedAt && notifUpdatedAt && new Date(staffReceivedAt) >= new Date(notifUpdatedAt) - 1000); // 1 sec tolerance
+        
+        console.log('[Socket] Check reset condition:', {
+          type: updatedNotif.type,
+          staffReceivedAt,
+          staffPreparedAt,
+          notifUpdatedAt,
+          staffAcknowledgedUpdate
+        });
+        
+        if (!staffAcknowledgedUpdate) {
+          console.log('[Socket] ✅ Detected customer_assignment_update - RESETTING STATUS to initial state');
+          const preservedOOS = Array.isArray(updatedNotif.staff_work_status?.outOfStock) 
+            ? updatedNotif.staff_work_status.outOfStock 
+            : [];
+          const resetStatus = {
+            received: false,
+            prepared: false,
+            received_at: null,
+            prepared_at: null,
+            prepared_note: '',
+            outOfStock: preservedOOS,
+            cancelled: false,
+            cancelled_at: null,
+            cancelled_note: ''
+          };
+          console.log('[Socket] Reset status:', resetStatus);
+          setStaffStatus(resetStatus);
+          toast.success('🔄 เภสัชกรส่งข้อมูลอัพเดต - สถานะถูกรีเซ็ทแล้ว');
+        } else {
+          console.log('[Socket] Staff already acknowledged, keeping status:', updatedNotif.staff_work_status);
+          if (updatedNotif.staff_work_status) {
+            setStaffStatus(updatedNotif.staff_work_status);
+          }
+        }
+      } else {
+        console.log('[Socket] ℹ️ Not customer_assignment_update, type is:', updatedNotif.type);
+        if (updatedNotif.staff_work_status) {
+          console.log('[Socket] 📊 Updating staff status from notification:', updatedNotif.staff_work_status);
+          setStaffStatus(updatedNotif.staff_work_status);
+          // Only show toast if there's a real change (not initial load)
+          if (notification?.documentId === updatedNotif.documentId) {
+            toast.info('🔄 ข้อมูลถูกอัพเดท');
+          }
+        }
+      }
+
+      if (updatedNotif.staff_work_status?.batches_selected) {
+        console.log('[Socket] Setting selected batches:', updatedNotif.staff_work_status.batches_selected);
+        setSelectedBatches(updatedNotif.staff_work_status.batches_selected);
+      }
+    });
+
+    // Listen for customer data updates from pharmacy (when pharmacist updates customer info)
+    socketRef.current.on('customer:update', (updatedCustomer) => {
+      console.log('[Socket] Received customer data update from pharmacy:', updatedCustomer);
+      
+      if (!updatedCustomer) return;
+
+      // Refresh customer data to reflect pharmacist updates
+      setCustomer(updatedCustomer);
+      toast.info('🔄 เภสัชกรได้อัพเดตข้อมูลผู้ป่วย');
+    });
+
+    // Cleanup on unmount
+    return () => {
+      if (socketRef.current) {
+        const notifRoom = `notification:${notification.documentId}`;
+        const customerRoom = `customer:${customerDocumentId}`;
+        socketRef.current.emit('leave', notifRoom);
+        socketRef.current.emit('leave', customerRoom);
+        socketRef.current.disconnect();
+      }
+    };
+  }, [notification?.documentId, customerDocumentId]);
+
+  // Smart Polling: fallback when socket is not available (keep as backup)
   const { resetInterval: resetNotificationPoll } = useSmartPolling(
-    notification?.documentId
+    !socketRef.current?.connected && notification?.documentId
       ? API.notifications.getByDocumentId(notification.documentId)
       : null,
     {
@@ -289,15 +661,80 @@ function CustomerDetailStaff() {
       enabled: !!notification?.documentId,
       onDataChange: (newData) => {
         // เมื่อมีข้อมูลใหม่
+        console.log('[SmartPolling] Data changed, full response:', JSON.stringify(newData, null, 2));
         const updatedNotif = newData.data;
-        if (updatedNotif?.staff_work_status) {
-          // Check if status changed from pharmacy end
+        console.log('[SmartPolling] updatedNotif:', updatedNotif);
+        console.log('[SmartPolling] updatedNotif.type:', updatedNotif?.type);
+        
+        // Handle status reset for update notifications (preserve outOfStock)
+        if (updatedNotif?.type === 'customer_assignment_update') {
+          // เช็คว่า staff acknowledged update นี้แล้วหรือยัง
+          const staffReceivedAt = updatedNotif.staff_work_status?.received_at;
+          const staffPreparedAt = updatedNotif.staff_work_status?.prepared_at;
+          const notifUpdatedAt = updatedNotif.updatedAt;
+          
+          // ถ้าพนักงานยืนยันรับข้อมูล หรือ จัดยาเสร็จ หลังจาก notification ถูกอัปเดต = ไม่ต้อง reset
+          const staffAcknowledgedUpdate = 
+            (staffPreparedAt && notifUpdatedAt && new Date(staffPreparedAt) >= new Date(notifUpdatedAt) - 1000) ||
+            (staffReceivedAt && notifUpdatedAt && new Date(staffReceivedAt) >= new Date(notifUpdatedAt) - 1000); // 1 sec tolerance
+          
+          console.log('[SmartPolling] Check reset condition:', {
+            type: updatedNotif.type,
+            staffReceivedAt,
+            staffPreparedAt,
+            notifUpdatedAt,
+            staffAcknowledgedUpdate
+          });
+          
+          if (!staffAcknowledgedUpdate) {
+            console.log('[SmartPolling] ✅ Detected customer_assignment_update, resetting status');
+            const preservedOOS = Array.isArray(updatedNotif.staff_work_status?.outOfStock) 
+              ? updatedNotif.staff_work_status.outOfStock 
+              : [];
+            const resetStatus = {
+              received: false,
+              prepared: false,
+              received_at: null,
+              prepared_at: null,
+              prepared_note: '',
+              outOfStock: preservedOOS,
+              cancelled: false,
+              cancelled_at: null,
+              cancelled_note: ''
+            };
+            setStaffStatus(resetStatus);
+            setNotification(updatedNotif);
+            toast.info('🔄 เภสัชกรได้ส่งข้อมูลอัพเดต - สถานะรีเซ็ทแล้ว');
+          } else {
+            console.log('[SmartPolling] Staff already acknowledged, keeping status');
+            // อัปเดต notification แต่ไม่ reset status
+            if (updatedNotif.staff_work_status) {
+              setStaffStatus(updatedNotif.staff_work_status);
+            }
+            setNotification(updatedNotif);
+          }
+          // ดึง selected batches จากที่เก็บไว้ใน notification (always load for update notifications)
+          if (updatedNotif.staff_work_status?.batches_selected) {
+            console.log('[SmartPolling] Loading batches_selected from update notification:', updatedNotif.staff_work_status.batches_selected);
+            setSelectedBatches(updatedNotif.staff_work_status.batches_selected);
+          }
+        } else if (updatedNotif?.staff_work_status) {
+          // Check if status changed from pharmacy end (non-update notifications)
+          console.log('[SmartPolling] ❌ Not customer_assignment_update, type is:', updatedNotif.type);
           const hasChanges = JSON.stringify(staffStatus) !== JSON.stringify(updatedNotif.staff_work_status);
+          console.log('[SmartPolling] hasChanges:', hasChanges);
           if (hasChanges) {
             setStaffStatus(updatedNotif.staff_work_status);
             setNotification(updatedNotif);
             toast.info('🔄 เภสัชกรได้ส่งข้อมูลอัพเดต');
           }
+          // ดึง selected batches จากที่เก็บไว้ใน notification
+          if (updatedNotif.staff_work_status.batches_selected) {
+            console.log('[SmartPolling] Loading batches_selected from non-update notification:', updatedNotif.staff_work_status.batches_selected);
+            setSelectedBatches(updatedNotif.staff_work_status.batches_selected);
+          }
+        } else {
+          console.log('[SmartPolling] No staff_work_status found in response');
         }
       },
       onError: (error) => {
@@ -358,6 +795,12 @@ function CustomerDetailStaff() {
       // บันทึก Lot ลงใน notification
       const updatedStatus = { ...staffStatus, batches_selected: selectedBatches };
 
+      console.log('[SaveLots] Sending to backend:', {
+        staffStatus: staffStatus,
+        selectedBatches: selectedBatches,
+        updatedStatus: updatedStatus
+      });
+
       const notifIdentifier = notification?.documentId;
       const res = await fetch(API.notifications.updateByDocumentId(notifIdentifier), {
         method: 'PUT',
@@ -372,9 +815,19 @@ function CustomerDetailStaff() {
         })
       });
 
+      const responseData = await res.json();
+      console.log('[SaveLots] Backend response:', responseData);
+      console.log('[SaveLots] Response staff_work_status:', responseData?.data?.staff_work_status);
+
       if (res.ok) {
-        setStaffStatus(updatedStatus);
-        setNotification(prev => ({ ...prev, staff_work_status: updatedStatus }));
+        // Use the response data from backend instead of local state
+        const backendStaffStatus = responseData?.data?.staff_work_status || updatedStatus;
+        console.log('[SaveLots] Using staff_work_status from backend:', backendStaffStatus);
+        
+        setStaffStatus(backendStaffStatus);
+        setNotification(prev => ({ ...prev, staff_work_status: backendStaffStatus }));
+        setSelectedBatches(backendStaffStatus.batches_selected || {});
+        
         toast.success('บันทึก Lot ยาสำเร็จ - ตอนนี้สามารถกด "จัดยาส่งแล้ว" ได้');
       } else {
         throw new Error('ไม่สามารถบันทึก Lot ได้');
@@ -412,6 +865,9 @@ function CustomerDetailStaff() {
         updatedStatus.prepared = true;
         updatedStatus.prepared_at = now;
         updatedStatus.prepared_note = note;
+        // CRITICAL: Save batches_selected when marking as prepared
+        updatedStatus.batches_selected = selectedBatches;
+        console.log('[HandleUpdateStatus] Saving batches_selected with prepared status:', selectedBatches);
         // Reset cancelled status เมื่อจัดส่งยารอบใหม่
         updatedStatus.cancelled = false;
         updatedStatus.cancelled_at = null;
@@ -457,6 +913,9 @@ function CustomerDetailStaff() {
       }
 
       const notifIdentifier = notification?.documentId;
+      console.log('[UpdateStatus] Updating notification:', notifIdentifier);
+      console.log('[UpdateStatus] New staff_work_status:', updatedStatus);
+      
       const res = await fetch(API.notifications.updateByDocumentId(notifIdentifier), {
         method: 'PUT',
         headers: {
@@ -471,9 +930,26 @@ function CustomerDetailStaff() {
         })
       });
 
+      console.log('[UpdateStatus] Response status:', res.status);
+      
       if (res.ok) {
-        setStaffStatus(updatedStatus);
-        setNotification(prev => ({ ...prev, staff_work_status: updatedStatus, is_read: true }));
+        const responseData = await res.json();
+        console.log('[UpdateStatus] Response data:', responseData);
+        console.log('[UpdateStatus] Response staff_work_status:', responseData?.data?.staff_work_status);
+        
+        // Use response data from backend to ensure sync
+        const backendStaffStatus = responseData?.data?.staff_work_status || updatedStatus;
+        console.log('[UpdateStatus] Using staff_work_status from backend:', backendStaffStatus);
+        
+        setStaffStatus(backendStaffStatus);
+        setNotification(prev => ({ ...prev, staff_work_status: backendStaffStatus, is_read: true }));
+        
+        // Update selectedBatches from backend response to ensure sync
+        if (backendStaffStatus.batches_selected) {
+          console.log('[UpdateStatus] Updating selectedBatches from backend:', backendStaffStatus.batches_selected);
+          setSelectedBatches(backendStaffStatus.batches_selected);
+        }
+        
         toast.success('อัปเดตสถานะสำเร็จ');
         setStatusModal({ open: false, type: '', note: '' });
         
@@ -670,6 +1146,17 @@ function CustomerDetailStaff() {
   const user = customer.users_permissions_user;
   const notifData = notification?.data || {};
 
+  // Debug: Log staffStatus to console
+  console.log('[Render] Current staffStatus:', staffStatus);
+  console.log('[Render] staffStatus.received:', staffStatus.received);
+  console.log('[Render] staffStatus.received_at:', staffStatus.received_at);
+  console.log('[Render] staffStatus.prepared:', staffStatus.prepared);
+  console.log('[Render] staffStatus.prepared_at:', staffStatus.prepared_at);
+  console.log('[Render] Current selectedBatches:', selectedBatches);
+  console.log('[Render] Notification staff_work_status:', notification?.staff_work_status);
+  console.log('[Render] Notification staff_work_status.batches_selected:', notification?.staff_work_status?.batches_selected);
+  console.log('[Render] Full notification object:', notification);
+
   // Parse allergies to support both single and multiple allergies
   const parseAllergies = (val) => {
     if (!val) return [];
@@ -709,18 +1196,106 @@ function CustomerDetailStaff() {
       
       <main className="customer-detail-main">
         {/* Header summary: patient info only */}
-        <div className="detail-header-summary">
-          <div className="detail-header-left">
-            <div className="detail-header-name">{user?.full_name || 'ไม่พบชื่อ'}</div>
-            <div className="detail-header-meta">
-              <span>{user?.phone || '-'}</span>
-              <span className="dot">•</span>
-              <span>{customer.Follow_up_appointment_date ? formatThaiDate(customer.Follow_up_appointment_date) : 'ไม่มีวันนัด'}</span>
+        <div className="detail-header-summary" style={{
+          background: 'linear-gradient(135deg, #f8f9ff 0%, #f0f3ff 100%)',
+          borderRadius: '16px',
+          padding: '24px 32px',
+          marginBottom: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxShadow: '0 4px 20px rgba(102, 126, 234, 0.08)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          transition: 'all 0.3s ease',
+          backdropFilter: 'blur(10px)',
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: '-50%',
+            right: '-50%',
+            width: '400px',
+            height: '400px',
+            background: 'radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%)',
+            borderRadius: '50%',
+            pointerEvents: 'none'
+          }
+        }}>
+          <div className="detail-header-left" style={{ flex: 1 }}>
+            <div className="detail-header-name" style={{
+              fontSize: '28px',
+              fontWeight: '700',
+              color: '#1f2937',
+              marginBottom: '12px',
+              letterSpacing: '-0.5px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              👤 {user?.full_name || 'ไม่พบชื่อ'}
+            </div>
+            <div className="detail-header-meta" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              flexWrap: 'wrap'
+            }}>
+              <span style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                background: 'rgba(59, 130, 246, 0.08)',
+                borderRadius: '8px',
+                color: '#3b82f6',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}>
+                📱 {user?.phone || '-'}
+              </span>
+              <span className="dot" style={{ color: '#d1d5db', fontSize: '20px' }}>•</span>
+              <span style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                background: 'rgba(132, 204, 22, 0.08)',
+                borderRadius: '8px',
+                color: '#84cc16',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}>
+                📅 {customer.Follow_up_appointment_date ? formatThaiDate(customer.Follow_up_appointment_date) : 'ไม่มีวันนัด'}
+              </span>
             </div>
           </div>
-          <div className="detail-header-right">
-            <div className="detail-header-badges">
-              <div className="pill-badge">💊 {customer.prescribed_drugs ? customer.prescribed_drugs.length : 0}</div>
+          <div className="detail-header-right" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px'
+          }}>
+            <div className="detail-header-badges" style={{
+              display: 'flex',
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}>
+              <div className="pill-badge" style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                padding: '12px 20px',
+                borderRadius: '24px',
+                fontSize: '15px',
+                fontWeight: '600',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.3s ease'
+              }}>
+                💊 {customer.prescribed_drugs ? customer.prescribed_drugs.length : 0} รายการ
+              </div>
             </div>
           </div>
         </div>
@@ -749,7 +1324,16 @@ function CustomerDetailStaff() {
                 fontWeight: 'bold'
               }}
             >
-              {staffStatus.received ? '✅ ได้รับข้อมูลแล้ว' : '📥 ยืนยันรับข้อมูล'}
+              {staffStatus.received ? (
+                <>
+                  ✅ ได้รับข้อมูล
+                  {staffStatus.received_at && (
+                    <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.9 }}>
+                      {formatThaiDate(staffStatus.received_at)}
+                    </div>
+                  )}
+                </>
+              ) : '📥 ยืนยันรับข้อมูล'}
             </button>
             
             <button
@@ -768,7 +1352,16 @@ function CustomerDetailStaff() {
               }}
               title={!lotsSaved ? 'กรุณาบันทึก Lot ยาก่อน' : staffStatus.prepared ? 'จัดยาส่งแล้ว' : ''}
             >
-              {staffStatus.prepared ? '✅ จัดยาส่งแล้ว' : '📦 จัดยาส่งไปแล้ว'}
+              {staffStatus.prepared ? (
+                <>
+                  ✅ จัดยาสำเร็จ
+                  {staffStatus.prepared_at && (
+                    <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.9 }}>
+                      {formatThaiDate(staffStatus.prepared_at)}
+                    </div>
+                  )}
+                </>
+              ) : '📦 จัดยาส่งไปแล้ว'}
             </button>
             
             {staffStatus.prepared && (
@@ -837,8 +1430,11 @@ function CustomerDetailStaff() {
           type="card" 
           size="large"
           className="customer-detail-tabs responsive"
-        >
-          <Tabs.TabPane tab={<span>📋 ข้อมูลพื้นฐาน</span>} key="1">
+          items={[
+            {
+              label: <span>📋 ข้อมูลพื้นฐาน</span>,
+              key: '1',
+              children: (
             <div className="customer-info-form responsive">
               {/* Essential Customer Info */}
               <div className="essential-info-grid">
@@ -938,9 +1534,12 @@ function CustomerDetailStaff() {
                 </div>
               </div>
             </div>
-          </Tabs.TabPane>
-
-          <Tabs.TabPane tab={<span>🩺 อาการและการติดตาม</span>} key="2">
+              )
+            },
+            {
+              label: <span>🩺 อาการและการติดตาม</span>,
+              key: '2',
+              children: (
             <div className="symptoms-followup-panel responsive">
               {/* อาการปัจจุบัน */}
               <div className="symptom-section">
@@ -1035,9 +1634,12 @@ function CustomerDetailStaff() {
                 </div>
               </div>
             </div>
-          </Tabs.TabPane>
-
-          <Tabs.TabPane tab={<span>💊 รายการยา <span className="tab-badge">{customer?.prescribed_drugs?.length || 0}</span></span>} key="3">
+              )
+            },
+            {
+              label: <span>💊 รายการยา <span className="tab-badge">{customer?.prescribed_drugs?.length || 0}</span></span>,
+              key: '3',
+              children: (
             <div className="customer-actions-panel responsive">
               <div className="actions-header responsive">
                 <h2>รายการยาที่ต้องใช้</h2>
@@ -1323,9 +1925,12 @@ function CustomerDetailStaff() {
                 </div>
               )}
             </div>
-          </Tabs.TabPane>
-
-          <Tabs.TabPane tab={<span>📋 ดำเนินการ</span>} key="4">
+              )
+            },
+            {
+              label: <span>📋 ดำเนินการ</span>,
+              key: '4',
+              children: (
             <div className="customer-actions-panel responsive">
               {/* Status Summary */}
               <div style={{ marginBottom: '20px' }}>
@@ -1489,8 +2094,10 @@ function CustomerDetailStaff() {
                 </div>
               )}
             </div>
-          </Tabs.TabPane>
-        </Tabs>
+              )
+            }
+          ]}
+        />
       </main>
 
       <Footer />
@@ -1717,7 +2324,7 @@ function CustomerDetailStaff() {
         ]}
         centered
         width={600}
-        bodyStyle={{ maxHeight: '70vh', overflowY: 'auto', padding: '24px' }}
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto', padding: '24px' } }}
       >
         {allergyDetailModal.allergies && allergyDetailModal.allergies.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

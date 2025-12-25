@@ -581,7 +581,7 @@ function CustomerDetailCustomer() {
         ]}
         centered
         width={600}
-        bodyStyle={{ maxHeight: '70vh', overflowY: 'auto', padding: '24px' }}
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto', padding: '24px' } }}
       >
         {allergyDetailModal.allergies && allergyDetailModal.allergies.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

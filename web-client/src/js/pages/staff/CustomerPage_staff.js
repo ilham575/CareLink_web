@@ -46,9 +46,9 @@ function CustomerPageStaff() {
         }
 
         // โหลด notifications ที่ส่งมาให้พนักงานคนนี้
-        // ใช้ populate=* ชั่วคราวเพื่อหลีกเลี่ยงปัญหา ValidationError ของคีย์
+        // รองรับทั้ง customer_assignment (ครั้งแรก) และ customer_assignment_update (อัพเดต)
         const notifRes = await fetch(
-          API.notifications.list(`filters[staff_profile][documentId][$eq]=${staffProfile.documentId}&filters[type][$eq]=customer_assignment&populate=*`),
+          API.notifications.list(`filters[staff_profile][documentId][$eq]=${staffProfile.documentId}&filters[type][$in][0]=customer_assignment&filters[type][$in][1]=customer_assignment_update&populate=*&sort[0]=createdAt:desc`),
           { headers: { Authorization: token ? `Bearer ${token}` : '' } }
         );
 
@@ -74,7 +74,7 @@ function CustomerPageStaff() {
             const generatedId = `notif_${notif.documentId || notif.id}`;
             
             // พยายาม parse ชื่อจาก message ถ้าไม่มีใน data
-            let full_name = d.full_name || d.name || d.patient_name || d.patient_full_name || 'ไม่ระบุ';
+            let full_name = d.customer_name || d.full_name || d.name || d.patient_name || d.patient_full_name || 'ไม่ระบุ';
             if (full_name === 'ไม่ระบุ' && notif.message) {
               const match = notif.message.match(/ได้รับมอบหมายดูแลผู้ป่วย:\s*([^\n]+)/);
               if (match) {
@@ -84,7 +84,7 @@ function CustomerPageStaff() {
             
             const userObj = {
               full_name: full_name,
-              phone: d.phone || d.tel || d.mobile || '',
+              phone: d.customer_phone || d.phone || d.tel || d.mobile || '',
               email: d.email || ''
             };
 
@@ -236,6 +236,13 @@ function CustomerPageStaff() {
               const notification = customer.notification;
               const notifData = notification?.data || {};
 
+              // Debug: ดูโครงสร้างข้อมูล
+              console.log('=== Customer Data Structure ===');
+              console.log('customer:', customer);
+              console.log('notification:', notification);
+              console.log('notifData:', notifData);
+              console.log('customer.users_permissions_user:', customer.users_permissions_user);
+
               // Normalize user object from various shapes
               const user = (
                 customer.users_permissions_user?.data?.attributes ||
@@ -244,6 +251,8 @@ function CustomerPageStaff() {
                 customer.users_permissions_user ||
                 {}
               );
+
+              console.log('user after normalization:', user);
 
               const customerDocumentId = customer.documentId || customer.attributes?.documentId || null;
               const userId = (
@@ -269,17 +278,31 @@ function CustomerPageStaff() {
                     <div className="customer-basic-info">
                       <h3 className="customer-name-modern">
                         {(() => {
-                          let displayName = user?.full_name || 'ไม่พบชื่อ';
+                          // ลองดึงชื่อจากหลายแหล่ง
+                          let displayName = 
+                            notifData?.customer_name ||
+                            user?.full_name || 
+                            notifData?.full_name || 
+                            notifData?.name || 
+                            notifData?.patient_name || 
+                            notifData?.patient_full_name || 
+                            customer?.full_name ||
+                            customer?.attributes?.full_name ||
+                            'ไม่พบชื่อ';
+
+                          console.log('Determined displayName:', displayName);
+                          
+                          // ถ้ายังไม่เจอ ลอง parse จาก notification message
                           if (displayName === 'ไม่พบชื่อ' && notification?.message) {
-                            const match = notification.message.match(/ได้รับมอบหมายดูแลผู้ป่วย:\s*([^\n]+)/);
+                            const match = notification.message.match(/ได้รับอัพเดตผู้ป่วย:\s*([^\n]+)|ได้รับมอบหมายดูแลผู้ป่วย:\s*([^\n]+)/);
                             if (match) {
-                              displayName = match[1].trim();
+                              displayName = (match[1] || match[2]).trim();
                             }
                           }
                           return displayName;
                         })()}
                       </h3>
-                      <p className="customer-username">@{user?.username || 'staff'}</p>
+                      <p className="customer-username">@{user?.username || notifData?.username || 'staff'}</p>
                     </div>
                   </div>
 
@@ -296,7 +319,7 @@ function CustomerPageStaff() {
                       )}
 
                       {(() => {
-                        const allergyData = notifData.allergy || customer.Allergic_drugs || customer.attributes?.Allergic_drugs;
+                        const allergyData = customer.Allergic_drugs || customer.attributes?.Allergic_drugs || notifData.allergy;
                         if (!allergyData) return null;
                         const allergyText = formatAllergy(allergyData);
                         return allergyText && allergyText !== 'ไม่มีข้อมูล' && (

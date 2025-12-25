@@ -56,19 +56,24 @@ export const useSmartPolling = (url, options = {}) => {
 
   // ฟังก์ชันหลัก: poll ข้อมูล
   const performPoll = useCallback(async () => {
-    if (!enabled || !isTabActiveRef.current) return;
+    if (!enabled || !isTabActiveRef.current || !url) return;
 
     try {
       const token = localStorage.getItem('jwt');
       const headers = {
-        Authorization: token ? `Bearer ${token}` : ''
+        'Content-Type': 'application/json'
       };
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
 
       // ถ้ามี ETag ให้ส่ง If-None-Match เพื่อลด bandwidth
       if (etagRef.current) {
         headers['If-None-Match'] = etagRef.current;
       }
 
+      console.log('[SmartPolling] Polling URL:', url);
       const response = await fetch(url, { headers });
 
       // 304 Not Modified - ข้อมูลไม่เปลี่ยน ให้ reset interval เพื่อ poll ช้าลง
@@ -83,7 +88,26 @@ export const useSmartPolling = (url, options = {}) => {
       }
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+        const contentType = response.headers.get('content-type');
+        let errorMsg = `API Error: ${response.status} ${response.statusText}`;
+        
+        // Try to get more detailed error message if it's JSON
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.error?.message || errorMsg;
+          } catch (e) {
+            // If parsing fails, just use the basic error message
+          }
+        }
+        
+        throw new Error(errorMsg);
+      }
+
+      // Get content type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Expected JSON response, got: ${contentType || 'unknown'}`);
       }
 
       // ได้ข้อมูลใหม่

@@ -39,6 +39,7 @@ import EditSymptomsCustomer from './js/pages/customer/EditSymptoms_customer';
 import PrintTransferForm from './js/pages/pharmacy/PrintTransferForm';
 import PrintAllergyCard from './js/pages/pharmacy/PrintAllergyCard';
 import RoleBasedRedirect from './js/utils/rolebasedredirect';
+import VisitHistory from './js/pages/pharmacy/VisitHistory';
 import 'antd/dist/reset.css';
 import { API } from './utils/apiConfig';
 
@@ -81,6 +82,10 @@ function App() {
           <Route element={<RequireRole role="pharmacy" />}>
             <Route path="/pharmacyHome" element={<PharmacyHome />} />
             <Route path="/drug_store_pharmacy/:id" element={<DrugStoresDetailPharmacist />} />
+            <Route 
+              path="/drug_store_pharmacy/:pharmacyId/customer/:customerDocumentId/history" 
+              element={<VisitHistory />} 
+            />
           </Route>
 
           {/* -------------------- STAFF -------------------- */}
