@@ -191,7 +191,7 @@ export const API = {
     create: () => `${BASE_URL}/api/notifications`,
     update: (id) => `${BASE_URL}/api/notifications/${id}`,
     updateByDocumentId: (documentId) => `${BASE_URL}/api/notifications/${documentId}`,
-    delete: (id) => `${BASE_URL}/api/notifications/${id}`,
+    delete: (documentId) => `${BASE_URL}/api/notifications/${documentId}`,
   },
 
   // ==================

@@ -114,33 +114,50 @@ function CustomerDetail() {
     console.log('useEffect triggered with customerDocumentId:', customerDocumentId, 'pharmacyId:', pharmacyId);
     const loadCustomerData = async () => {
       console.log('loadCustomerData function called');
-      
-      // Validate customerDocumentId before making API call
+
       if (!customerDocumentId) {
         console.log('customerDocumentId is null or undefined, skipping load');
         setLoading(false);
         return;
       }
-      
-      try {
-        const token = localStorage.getItem('jwt');
-        console.log('Token exists:', !!token);
-        
-        // Load customer data using getByDocumentId instead of getById
-        const customerRes = await fetch(
-          API.customerProfiles.getByDocumentId(customerDocumentId),
-          {
-            headers: { Authorization: token ? `Bearer ${token}` : "" }
+
+      const token = localStorage.getItem('jwt');
+      console.log('Token exists:', !!token);
+
+      // helper: try fetching customer by documentId with retries (backend may take a moment to return newly-created item)
+      const fetchWithRetry = async (attempts = 4, delay = 300) => {
+        for (let i = 0; i < attempts; i++) {
+          try {
+            const res = await fetch(API.customerProfiles.getByDocumentId(customerDocumentId), {
+              headers: { Authorization: token ? `Bearer ${token}` : "" }
+            });
+            if (!res.ok) {
+              const text = await res.text().catch(() => '');
+              throw new Error(`API error ${res.status}: ${text}`);
+            }
+            const data = await res.json();
+            const found = Array.isArray(data.data) ? data.data[0] : data.data;
+            if (found) return found;
+          } catch (err) {
+            console.warn(`Attempt ${i + 1} failed to load customer:`, err.message || err);
           }
-        );
-        
-        if (!customerRes.ok) throw new Error('ไม่สามารถโหลดข้อมูลลูกค้าได้');
-        
-        const customerData = await customerRes.json();
-        console.log('Customer data loaded:', customerData);
-        const customer = Array.isArray(customerData.data) ? customerData.data[0] : customerData.data;
+
+          // wait before retrying (exponential-ish backoff)
+          // but don't wait after last attempt
+          if (i < attempts - 1) await new Promise(r => setTimeout(r, delay * (i + 1)));
+        }
+        return null;
+      };
+
+      try {
+        const customer = await fetchWithRetry();
+        if (!customer) {
+          throw new Error('ไม่พบข้อมูลลูกค้า (หลังจากลองหลายครั้ง)');
+        }
+
+        console.log('Customer data loaded:', customer);
         setCustomer(customer);
-        
+
         // โหลด assigned_by_staff ถ้ามีและมี documentId ให้ถือว่าเป็นข้อมูลที่สมบูรณ์
         if (customer?.assigned_by_staff && customer.assigned_by_staff.documentId) {
           console.log('Customer has assigned_by_staff:', customer.assigned_by_staff);
@@ -149,7 +166,7 @@ function CustomerDetail() {
           console.log('Customer does NOT have assigned_by_staff or it is incomplete');
           setAssignedByStaff(null);
         }
-        
+
         // Load pharmacy data if pharmacyId exists
         if (pharmacyId) {
           const pharmacyRes = await fetch(
@@ -1126,6 +1143,7 @@ function CustomerDetail() {
           
           // Additional data in JSON
           data: {
+            customer_documentId: customerDocumentId, // เพื่อให้พนักงานหน้า dedup ได้ดีขึ้น
             customer_name: user?.full_name || '',
             customer_phone: user?.phone || '',
             symptoms: customer.Customers_symptoms || '',

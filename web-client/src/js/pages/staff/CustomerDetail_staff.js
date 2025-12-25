@@ -28,8 +28,8 @@ function formatThaiDate(dateStr) {
 
 // Disable debug console.log calls in this file to keep console clean.
 // If you need logs while developing, remove or comment out the following two lines.
-console._orig_log = console._orig_log || console.log;
-console.log = () => {};
+// console._orig_log = console._orig_log || console.log;
+// console.log = () => {};
 
 function CustomerDetailStaff() {
   const { customerDocumentId } = useParams();
@@ -749,6 +749,46 @@ function CustomerDetailStaff() {
     } else {
       navigate(-1);
     }
+  };
+
+  // ฟังก์ชันลบแอสไซน์เมนต์ (notification) เมื่อพนักงานไม่ต้องการจัดส่งแล้ว
+  const handleDeleteAssignment = async () => {
+    if (!notification) {
+      toast.error('ไม่พบข้อมูล notification');
+      return;
+    }
+
+    Modal.confirm({
+      title: '⚠️ ลบการแอสไซน์เมนต์',
+      content: 'คุณต้องการลบการแอสไซน์เมนต์นี้ใช่หรือไม่? ข้อมูลลูกค้าจะหายไปจากรายการของคุณ',
+      okText: 'ลบ',
+      okType: 'danger',
+      cancelText: 'ยกเลิก',
+      onOk: async () => {
+        try {
+          const token = localStorage.getItem('jwt');
+          
+          // ลบ notification นี้ โดยใช้ documentId
+          const res = await fetch(
+            API.notifications.delete(notification.documentId),
+            {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` }
+            }
+          );
+
+          if (!res.ok && res.status !== 404) {
+            throw new Error('ไม่สามารถลบการแอสไซน์เมนต์ได้');
+          }
+
+          toast.success('ลบการแอสไซน์เมนต์สำเร็จ');
+          handleBack();
+        } catch (error) {
+          console.error('Error deleting assignment:', error);
+          toast.error(error.message || 'เกิดข้อผิดพลาดในการลบการแอสไซน์เมนต์');
+        }
+      }
+    });
   };
 
   // ฟังก์ชันบันทึก Lot ยาที่เลือก

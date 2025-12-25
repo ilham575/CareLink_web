@@ -178,6 +178,8 @@ function CustomerPage({ id }) {
   }, [location.state]);
 
   const deleteCustomer = (customerId, customerDocumentId, userId, customerName) => {
+    console.log('[deleteCustomer] Starting delete with:', { customerId, customerDocumentId, userId, customerName });
+    
     Modal.confirm({
       title: `ลบลูกค้า "${customerName}"?`,
       content: "ลบข้อมูลลูกค้าและบัญชีผู้ใช้ที่เกี่ยวข้อง (ย้อนกลับไม่ได้)",
@@ -219,7 +221,7 @@ function CustomerPage({ id }) {
           };
 
           const deleteCustomerProfile = async () => {
-            if (!customerId) return;
+            if (!customerDocumentId) return;
             const res = await fetch(
               API.customerProfiles.update(customerDocumentId),
               { method: "DELETE", headers: authHeaders }
@@ -250,6 +252,56 @@ function CustomerPage({ id }) {
               );
               await res.text().catch(() => "");
             } catch (e) {}
+          };
+
+          const deleteRelatedNotifications = async () => {
+            if (!customerDocumentId) {
+              console.log('[deleteRelatedNotifications] No customerDocumentId, returning');
+              return;
+            }
+            try {
+              console.log('[deleteRelatedNotifications] Starting for customerDocumentId:', customerDocumentId);
+              
+              // หา notification ทั้งหมดที่เกี่ยวกับลูกค้าคนนี้
+              const notifRes = await fetch(
+                API.notifications.list(`filters[customer_profile][documentId][$eq]=${customerDocumentId}&pagination[pageSize]=100`),
+                { headers: authHeaders }
+              );
+              
+              console.log('[deleteRelatedNotifications] Query response status:', notifRes.status);
+              
+              if (!notifRes.ok) {
+                console.warn('[deleteRelatedNotifications] Query failed with status:', notifRes.status);
+                return;
+              }
+              
+              const notifData = await notifRes.json();
+              const notifications = Array.isArray(notifData?.data) ? notifData.data : [];
+              
+              console.log('[deleteRelatedNotifications] Found notifications:', notifications.length);
+              
+              // ลบ notification ทั้งหมด
+              for (const notif of notifications) {
+                try {
+                  console.log('[deleteRelatedNotifications] Deleting notification:', notif.documentId);
+                  const deleteRes = await fetch(
+                    API.notifications.delete(notif.documentId),
+                    { method: "DELETE", headers: authHeaders }
+                  );
+                  console.log('[deleteRelatedNotifications] Delete response status:', deleteRes.status);
+                  if (!deleteRes.ok) {
+                    console.warn('[deleteRelatedNotifications] Failed to delete:', deleteRes.status);
+                  }
+                } catch (err) {
+                  console.warn('Failed to delete notification:', notif.documentId, err);
+                }
+              }
+              
+              console.log('[deleteRelatedNotifications] All notifications deleted successfully');
+            } catch (error) {
+              console.warn('Error deleting related notifications:', error);
+              // ไม่แสดง error toast เพราะเป็น cleanup ที่ไม่จำเป็น
+            }
           };
 
           const refreshList = async () => {
@@ -312,6 +364,7 @@ function CustomerPage({ id }) {
 
           try {
             await removeRelation();
+            await deleteRelatedNotifications(); // เพิ่มการลบ notification
             await deleteCustomerProfile();
             await deleteUser();
             await refreshList();

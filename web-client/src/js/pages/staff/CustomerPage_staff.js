@@ -60,36 +60,64 @@ function CustomerPageStaff() {
           const customerMap = new Map();
           (notifData.data || []).forEach(notif => {
             const customerProfile = notif.customer_profile;
+            const d = notif.data || {};
 
+            // หา customer ID จาก priority สูงสุด ไปต่ำสุด
+            let customerId = null;
+            let full_name = '';
+
+            // 1. ลองดึงจาก customer_profile relation
             if (customerProfile && customerProfile.documentId) {
-              customerMap.set(customerProfile.documentId, {
+              customerId = customerProfile.documentId;
+              full_name = customerProfile.users_permissions_user?.full_name || d.customer_name || 'ไม่ระบุ';
+              
+              customerMap.set(customerId, {
                 ...customerProfile,
-                notification: notif // เก็บ notification ไว้ใช้ดูสถานะ
+                notification: notif,
+                _fromRelation: true
               });
               return;
             }
 
-            // ถ้า notification ไม่มีความสัมพันธ์กับ customer_profile ให้สร้างรายการชั่วคราวจาก notif.data
-            const d = notif.data || {};
-            const generatedId = `notif_${notif.documentId || notif.id}`;
-            
-            // พยายาม parse ชื่อจาก message ถ้าไม่มีใน data
-            let full_name = d.customer_name || d.full_name || d.name || d.patient_name || d.patient_full_name || 'ไม่ระบุ';
-            if (full_name === 'ไม่ระบุ' && notif.message) {
-              const match = notif.message.match(/ได้รับมอบหมายดูแลผู้ป่วย:\s*([^\n]+)/);
-              if (match) {
-                full_name = match[1].trim();
-              }
+            // 2. ลองดึงจาก notif.data.customer_documentId (stored in notification data)
+            if (d.customer_documentId) {
+              customerId = d.customer_documentId;
+              full_name = d.customer_name || 'ไม่ระบุ';
             }
-            
+
+            // 3. ถ้ายังไม่มี documentId ให้ใช้ customer_name เป็น key เพื่อ dedup ตามชื่อ
+            if (!customerId) {
+              full_name = d.customer_name || d.full_name || d.name || d.patient_name || d.patient_full_name || 'ไม่ระบุ';
+              
+              // Parse ชื่อจาก message ถ้าไม่มีใน data
+              if (full_name === 'ไม่ระบุ' && notif.message) {
+                const match = notif.message.match(/ได้รับ(?:อัพเดต)?(?:มอบหมายดูแล)?ผู้ป่วย:\s*([^\n]+)/);
+                if (match) {
+                  full_name = match[1].trim();
+                }
+              }
+
+              // ใช้ customer_name เป็น key (ถ้ามี) หรือใช้ notification id
+              customerId = full_name && full_name !== 'ไม่ระบุ' ? `name_${full_name}` : `notif_${notif.documentId || notif.id}`;
+            }
+
+            // ถ้า customer อยู่ใน map แล้ว ให้อัพเดต notification (เพราะ query เรียงตาม createdAt:desc)
+            // สามารถ update notification เพื่อเห็นล่าสุด
+            const existing = customerMap.get(customerId);
+            if (existing) {
+              // เก็บ latest notification ไว้
+              existing.notification = notif;
+              return;
+            }
+
             const userObj = {
               full_name: full_name,
               phone: d.customer_phone || d.phone || d.tel || d.mobile || '',
               email: d.email || ''
             };
 
-            customerMap.set(generatedId, {
-              documentId: generatedId,
+            customerMap.set(customerId, {
+              documentId: customerId,
               users_permissions_user: userObj,
               Customers_symptoms: d.symptoms || '',
               Allergic_drugs: d.allergy ? { allergy: d.allergy } : null,
