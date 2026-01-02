@@ -27,13 +27,22 @@ function initializeSocketIO(strapiInstance, httpServer) {
     return null;
   }
 
+  const allowedOrigins = process.env.SOCKET_ALLOWED_ORIGINS
+    ? process.env.SOCKET_ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
+  
+  console.log('[Socket.IO] CORS allowed origins:', allowedOrigins);
+
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.SOCKET_ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
+      origin: allowedOrigins,
       credentials: true,
       methods: ['GET', 'POST']
     },
-    transports: ['websocket', 'polling']
+    transports: ['websocket', 'polling'],
+    pingInterval: 25000,
+    pingTimeout: 20000,
+    maxHttpBufferSize: 1e6
   });
 
   /**

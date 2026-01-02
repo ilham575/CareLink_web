@@ -333,6 +333,182 @@
   }
 }
 
+/* Additional responsive breakpoints */
+@media (max-width: 480px) {
+  .modern-customer-card {
+    margin-bottom: 12px;
+    border-radius: 10px;
+  }
+
+  .card-header {
+    padding: 14px 16px 10px;
+  }
+
+  .customer-avatar-modern {
+    margin-right: 12px;
+  }
+
+  .avatar-circle {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .customer-name-modern {
+    font-size: 16px;
+  }
+
+  .customer-username {
+    font-size: 13px;
+  }
+
+  .card-content {
+    padding: 0 16px 14px;
+  }
+
+  .info-grid {
+    gap: 10px;
+  }
+
+  .info-item {
+    padding: 10px;
+  }
+
+  .info-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    margin-right: 10px;
+  }
+
+  .info-label {
+    font-size: 11px;
+  }
+
+  .info-value {
+    font-size: 13px;
+  }
+
+  .appointment-section {
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+
+  .appointment-badge {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .appointment-icon {
+    margin-right: 6px;
+    font-size: 14px;
+  }
+
+  .card-footer {
+    padding: 10px 16px 14px;
+    gap: 8px;
+  }
+
+  .btn-modern {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .btn-icon {
+    margin-right: 6px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 320px) {
+  .modern-customer-card {
+    margin-bottom: 8px;
+    border-radius: 8px;
+  }
+
+  .card-header {
+    padding: 12px 14px 8px;
+  }
+
+  .customer-avatar-modern {
+    margin-right: 10px;
+  }
+
+  .avatar-circle {
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+  }
+
+  .customer-name-modern {
+    font-size: 15px;
+  }
+
+  .customer-username {
+    font-size: 12px;
+  }
+
+  .card-content {
+    padding: 0 14px 12px;
+  }
+
+  .info-grid {
+    gap: 8px;
+  }
+
+  .info-item {
+    padding: 8px;
+    border-radius: 8px;
+  }
+
+  .info-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+    margin-right: 8px;
+  }
+
+  .info-label {
+    font-size: 10px;
+  }
+
+  .info-value {
+    font-size: 12px;
+  }
+
+  .appointment-section {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+
+  .appointment-badge {
+    padding: 5px 10px;
+    font-size: 12px;
+    border-radius: 16px;
+  }
+
+  .appointment-icon {
+    margin-right: 4px;
+    font-size: 12px;
+  }
+
+  .card-footer {
+    padding: 8px 14px 12px;
+    gap: 6px;
+  }
+
+  .btn-modern {
+    padding: 10px 12px;
+    font-size: 12px;
+    border-radius: 8px;
+  }
+
+  .btn-icon {
+    margin-right: 4px;
+    font-size: 12px;
+  }
+}
+
 /* Animation */
 @keyframes fadeInUp {
   from {

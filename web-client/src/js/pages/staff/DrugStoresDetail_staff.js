@@ -235,7 +235,7 @@ function DrugStoresDetail_staff() {
                 </div>
               </div>
             </div>
-            <div className="dsstaff-bottom-button" style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', padding: '0 16px' }}>
+            <div className="dsstaff-bottom-button">
               <button
                 className="dsstaff-back-button"
                 onClick={() => {

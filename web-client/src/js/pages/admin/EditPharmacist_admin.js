@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
+import Footer from "../../components/footer";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { API } from "../../../utils/apiConfig";
@@ -55,6 +56,10 @@ function EditPharmacist_admin() {
   const [workingTimesByStore, setWorkingTimesByStore] = useState({}); // เก็บ working_time แยกตาม store
   const [storeOpenClose, setStoreOpenClose] = useState([]); // เพิ่ม state สำหรับ store opening/closing time
   const [currentStoreName, setCurrentStoreName] = useState(""); // เพิ่ม state สำหรับชื่อร้านปัจจุบัน
+  const [selectedDays, setSelectedDays] = useState([]); // เพิ่ม state สำหรับเลือกหลายวัน
+  const [bulkTimeIn, setBulkTimeIn] = useState(""); // เพิ่ม state สำหรับเวลาเริ่ม bulk
+  const [bulkTimeOut, setBulkTimeOut] = useState(""); // เพิ่ม state สำหรับเวลาสิ้นสุด bulk
+  const [showWorkTimesModal, setShowWorkTimesModal] = useState(false); // เพิ่ม state สำหรับ modal แสดงเวลาทำงานทั้งหมด
 
   useEffect(() => {
     const load = async () => {
@@ -663,6 +668,96 @@ function EditPharmacist_admin() {
     }
   };
 
+  // 👉 เพิ่มฟังก์ชันสำหรับเพิ่มเวลา bulk (หลายวันพร้อมกัน)
+  const addBulkWorkingTime = () => {
+    if (selectedDays.length === 0 || !bulkTimeIn || !bulkTimeOut) {
+      toast.error("กรุณาเลือกวันและเวลาที่ต้องการเพิ่ม");
+      return;
+    }
+
+    const newWorkingTimes = [...formData.working_times];
+    selectedDays.forEach(day => {
+      newWorkingTimes.push({
+        day: day,
+        time_in: bulkTimeIn,
+        time_out: bulkTimeOut,
+      });
+    });
+
+    setFormData({
+      ...formData,
+      working_times: newWorkingTimes,
+    });
+
+    // อัพเดท workingTimesByStore ด้วย
+    const currentStoreId = userRole === "pharmacy" && selectedDrugStore 
+      ? selectedDrugStore 
+      : formData.drug_store || (allProfiles[0]?.drug_stores?.[0]?.documentId);
+    if (currentStoreId) {
+      console.log(`🟢 Updating workingTimesByStore for store: ${currentStoreId}`);
+      setWorkingTimesByStore(prev => ({
+        ...prev,
+        [currentStoreId]: newWorkingTimes
+      }));
+    }
+
+    // Reset bulk inputs
+    setSelectedDays([]);
+    setBulkTimeIn("");
+    setBulkTimeOut("");
+  };
+
+  // 👉 จัดการ checkbox สำหรับเลือกวัน bulk
+  const handleDaySelection = (day, checked) => {
+    if (checked) {
+      setSelectedDays(prev => [...prev, day]);
+    } else {
+      setSelectedDays(prev => prev.filter(d => d !== day));
+    }
+  };
+
+  // 💡 รวบรวมเวลาทำงานทั้งหมดจาก allProfiles (ไม่แสดงชื่อร้าน) และจัดเรียง/ลบซ้ำ
+  const getAggregatedWorkingTimes = () => {
+    const times = [];
+    if (!allProfiles || allProfiles.length === 0) return times;
+    
+    allProfiles.forEach(profile => {
+      if (Array.isArray(profile.working_time) && profile.working_time.length > 0) {
+        profile.working_time.forEach(wt => {
+          times.push({
+            day: wt.day,
+            time_in: wt.time_in,
+            time_out: wt.time_out,
+          });
+        });
+      }
+    });
+
+    // dedupe - ลบเวลาที่ซ้ำกัน
+    const keySet = new Set();
+    const unique = [];
+    times.forEach(t => {
+      const key = `${t.day}:${t.time_in}:${t.time_out}`;
+      if (!keySet.has(key)) {
+        keySet.add(key);
+        unique.push(t);
+      }
+    });
+
+    // จัดเรียงตามวัน
+    const dayOrder = ["จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์","อาทิตย์"];
+    unique.sort((a,b) => {
+      const aIdx = dayOrder.indexOf(a.day);
+      const bIdx = dayOrder.indexOf(b.day);
+      if (aIdx === bIdx) {
+        return a.time_in.localeCompare(b.time_in);
+      }
+      return aIdx - bIdx;
+    });
+
+    return unique;
+  };
+
   const handleWorkingTimeChange = (index, field, value) => {
     const updated = [...formData.working_times];
     updated[index][field] = value;
@@ -701,7 +796,7 @@ function EditPharmacist_admin() {
     }
   };
 
-  // 🟢 ฟังก์ชันตรวจสอบเวลาทำงานซ้ำ (ชนกัน) ในร้านเดียวกัน
+  // � ฟังก์ชันตรวจสอบเวลาทำงานซ้ำ (ชนกัน) ในร้านเดียวกัน
   function hasOverlappingWorkingTimes(times) {
     function toMinutes(t) {
       if (!t) return 0;
@@ -950,9 +1045,22 @@ function EditPharmacist_admin() {
         }
       />
       <div className="max-w-3xl mx-auto bg-white shadow-md rounded-lg p-6 mt-6">
-        <h2 className="text-2xl font-bold text-green-700 mb-4">
-          {isOwnerEdit ? "แก้ไขโปรไฟล์ของฉัน" : "แก้ไขข้อมูลเภสัชกร"}
-        </h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold text-green-700">
+            {isOwnerEdit ? "แก้ไขโปรไฟล์ของฉัน" : "แก้ไขข้อมูลเภสัชกร"}
+          </h2>
+          
+          {/* 👉 ปุ่มให้แอดมิน ดูเวลาทำงานทั้งหมดเมื่อเภสัชกรทำงานหลายร้าน */}
+          {userRole === "admin" && allProfiles.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setShowWorkTimesModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
+            >
+              ดูเวลาทำงานทั้งหมด
+            </button>
+          )}
+        </div>
 
         {/* กรณี pharmacy มีหลายร้าน ให้เลือก dropdown */}
         {userRole === "pharmacy" && drugStores.length > 1 && ( /* เปลี่ยนเงื่อนไข */
@@ -1113,52 +1221,99 @@ function EditPharmacist_admin() {
           {/* Working Times */}
           <div className="md:col-span-2">
             <label className="block font-semibold mb-2">วันและเวลาเข้างาน*</label>
+            
+            {/* Bulk Add Section */}
+            <div className="mb-4 p-4 bg-gray-50 rounded">
+              <h4 className="font-medium mb-2">เพิ่มเวลาเดียวกันสำหรับหลายวัน</h4>
+              <div className="grid grid-cols-7 gap-2 mb-2">
+                {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].map(day => (
+                  <label key={day} className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedDays.includes(day)}
+                      onChange={(e) => handleDaySelection(day, e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">{day.slice(0, 3)}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="time"
+                  value={bulkTimeIn}
+                  onChange={(e) => setBulkTimeIn(e.target.value)}
+                  className="border p-2 rounded"
+                  placeholder="เวลาเริ่ม"
+                />
+                <span>-</span>
+                <input
+                  type="time"
+                  value={bulkTimeOut}
+                  onChange={(e) => setBulkTimeOut(e.target.value)}
+                  className="border p-2 rounded"
+                  placeholder="เวลาสิ้นสุด"
+                />
+                <button
+                  type="button"
+                  onClick={addBulkWorkingTime}
+                  className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                >
+                  เพิ่มช่วงเวลา
+                </button>
+              </div>
+            </div>
+
+            {/* Individual Working Times List */}
             {formData.working_times && formData.working_times.length > 0 ? (
-              formData.working_times.map((item, index) => (
-                <div key={index} className="flex gap-2 items-center mb-2">
-                  <select
-                    value={item.day}
-                    onChange={(e) =>
-                      handleWorkingTimeChange(index, "day", e.target.value)
-                    }
-                    className="border p-2 rounded"
-                  >
-                    {/* 🔧 ใช้วันภาษาไทยโดยตรง ไม่ใช้ dayMap */}
-                    <option value="จันทร์">จันทร์</option>
-                    <option value="อังคาร">อังคาร</option>
-                    <option value="พุธ">พุธ</option>
-                    <option value="พฤหัสบดี">พฤหัสบดี</option>
-                    <option value="ศุกร์">ศุกร์</option>
-                    <option value="เสาร์">เสาร์</option>
-                    <option value="อาทิตย์">อาทิตย์</option>
-                  </select>
+              <div className="space-y-2">
+                <h4 className="font-medium">ตารางเวลาทำงานปัจจุบัน</h4>
+                {formData.working_times.map((item, index) => (
+                  <div key={index} className="flex gap-2 items-center p-2 bg-white border rounded">
+                    <select
+                      value={item.day}
+                      onChange={(e) =>
+                        handleWorkingTimeChange(index, "day", e.target.value)
+                      }
+                      className="border p-2 rounded"
+                    >
+                      {/* 🔧 ใช้วันภาษาไทยโดยตรง ไม่ใช้ dayMap */}
+                      <option value="จันทร์">จันทร์</option>
+                      <option value="อังคาร">อังคาร</option>
+                      <option value="พุธ">พุธ</option>
+                      <option value="พฤหัสบดี">พฤหัสบดี</option>
+                      <option value="ศุกร์">ศุกร์</option>
+                      <option value="เสาร์">เสาร์</option>
+                      <option value="อาทิตย์">อาทิตย์</option>
+                    </select>
 
-                  <input
-                    type="time"
-                    value={item.time_in || ""}
-                    onChange={(e) =>
-                      handleWorkingTimeChange(index, "time_in", e.target.value)
-                    }
-                    className="border p-2 rounded"
-                  />
-                  <input
-                    type="time"
-                    value={item.time_out || ""}
-                    onChange={(e) =>
-                      handleWorkingTimeChange(index, "time_out", e.target.value)
-                    }
-                    className="border p-2 rounded"
-                  />
+                    <input
+                      type="time"
+                      value={item.time_in || ""}
+                      onChange={(e) =>
+                        handleWorkingTimeChange(index, "time_in", e.target.value)
+                      }
+                      className="border p-2 rounded"
+                    />
+                    <input
+                      type="time"
+                      value={item.time_out || ""}
+                      onChange={(e) =>
+                        handleWorkingTimeChange(index, "time_out", e.target.value)
+                      }
+                      className="border p-2 rounded"
+                    />
 
-                  <button
-                    type="button"
-                    onClick={() => removeWorkingTime(index)}
-                    className="text-red-500 ml-2"
-                  >
-                    ลบ
-                  </button>
-                </div>
-              ))
+                    <button
+                      type="button"
+                      onClick={() => removeWorkingTime(index)}
+                      className="text-red-500 ml-2"
+                    >
+                      ลบ
+                    </button>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="text-gray-500 mb-2">
                 ยังไม่มีเวลาทำงาน กรุณาเพิ่มเวลาทำงาน
@@ -1170,7 +1325,7 @@ function EditPharmacist_admin() {
               onClick={addWorkingTime}
               className="mt-2 bg-gray-200 px-3 py-1 rounded"
             >
-              + เพิ่มวัน/เวลา
+              + เพิ่มวัน/เวลา แยก
             </button>
           </div>
 
@@ -1217,6 +1372,61 @@ function EditPharmacist_admin() {
           </button>
         </div>
       </div>
+
+      {/* 👉 Modal แสดงเวลาทำงานทั้งหมด */}
+      {showWorkTimesModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
+          onClick={() => setShowWorkTimesModal(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-lg shadow-lg p-4"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="เวลาทำงานทั้งหมดของเภสัชกร"
+          >
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-semibold">เวลาทำงานทั้งหมด</h3>
+              <button
+                type="button"
+                onClick={() => setShowWorkTimesModal(false)}
+                className="text-gray-600 hover:text-gray-800"
+                aria-label="ปิด"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-64 overflow-auto">
+              {(() => {
+                const allWorkingTimes = getAggregatedWorkingTimes();
+                if (allWorkingTimes.length === 0) {
+                  return <p className="text-gray-500 text-center py-4">ไม่มีข้อมูลเวลาทำงาน</p>;
+                }
+                return allWorkingTimes.map((wt, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded border">
+                    <span className="font-medium text-gray-700">{wt.day}</span>
+                    <span className="text-gray-600">{wt.time_in} - {wt.time_out}</span>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            <div className="mt-4 text-right">
+              <button
+                type="button"
+                onClick={() => setShowWorkTimesModal(false)}
+                className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
+              >
+                ปิด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Footer />
     </>
   );
 }

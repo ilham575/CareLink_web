@@ -58,6 +58,14 @@ function AddPharmacist_admin() {
     // { day: "จันทร์", open: "08:00", close: "20:00" }
   ]);
 
+  // เพิ่ม state สำหรับเลือกหลายวัน (multi-day selection)
+  const [selectedDays, setSelectedDays] = useState([]);
+  const [bulkTimeIn, setBulkTimeIn] = useState("");
+  const [bulkTimeOut, setBulkTimeOut] = useState("");
+
+  // สำหรับ modal แสดงเวลาทำงานทั้งหมดของเภสัชกร
+  const [showWorkTimesModal, setShowWorkTimesModal] = useState(false);
+
   // ✅ ดึงข้อมูลเภสัชกรทั้งหมดพร้อมข้อมูลร้านที่ทำงาน
   useEffect(() => {
     const fetchExistingPharmacists = async () => {
@@ -197,6 +205,60 @@ function AddPharmacist_admin() {
     }
   };
 
+  // 📦 รวบรวมรายการร้านจาก pharmacist object หลายรูปแบบ และ dedupe
+  const getAllStoresFromPharmacist = (ph) => {
+    if (!ph) return [];
+    const collected = [];
+
+    const entriesFrom = (src) => {
+      if (!src) return [];
+      if (Array.isArray(src)) return src;
+      if (Array.isArray(src.data)) return src.data;
+      return [];
+    };
+
+    const pushStore = (s) => {
+      if (!s) return;
+      if (typeof s === 'string') {
+        collected.push({ id: s, documentId: s, name: s });
+        return;
+      }
+      const attrs = s.attributes || s;
+      const id = s.id || attrs.id || attrs.documentId || attrs.document_id || attrs.documentId;
+      const documentId = attrs.documentId || attrs.document_id || s.documentId || s.document_id || id;
+      const name = attrs.name_th || attrs.name || attrs.title || s.name;
+      collected.push({ id, documentId, name });
+    };
+
+    // top-level drug_stores
+    entriesFrom(ph.drug_stores).forEach(pushStore);
+    entriesFrom(ph.attributes?.drug_stores?.data).forEach(pushStore);
+    entriesFrom(ph.attributes?.drug_stores).forEach(pushStore);
+
+    // nested pharmacy_profiles -> each profile may have drug_stores
+    const profiles = ph.attributes?.pharmacy_profiles?.data || ph.pharmacy_profiles?.data || ph.pharmacy_profiles || ph.attributes?.pharmacy_profiles;
+    if (profiles) {
+      const profileArray = Array.isArray(profiles) ? profiles : profiles.data || [];
+      profileArray.forEach((p) => {
+        entriesFrom(p.drug_stores || p.attributes?.drug_stores?.data || p.attributes?.drug_stores).forEach(pushStore);
+      });
+    }
+
+    // dedupe by documentId or id
+    const seen = new Set();
+    const uniq = [];
+    collected.forEach((s) => {
+      const key = s.documentId || s.id || s.name;
+      if (!key) return;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniq.push(s);
+      }
+    });
+
+    return uniq;
+  };
+
   // ✅ Working Times
   const addWorkingTime = () => {
     setFormData({
@@ -240,13 +302,180 @@ function AddPharmacist_admin() {
     setStoreWorkingTime(updated);
   };
 
+  // 👉 เพิ่มฟังก์ชันสำหรับเพิ่มเวลา bulk (หลายวันพร้อมกัน) สำหรับ mode "create"
+  const addBulkWorkingTime = () => {
+    if (selectedDays.length === 0 || !bulkTimeIn || !bulkTimeOut) {
+      toast.error("กรุณาเลือกวันและเวลาที่ต้องการเพิ่ม");
+      return;
+    }
+
+    const newWorkingTimes = [...formData.working_time];
+    selectedDays.forEach(day => {
+      newWorkingTimes.push({
+        day: day,
+        time_in: bulkTimeIn,
+        time_out: bulkTimeOut,
+      });
+    });
+
+    setFormData({
+      ...formData,
+      working_time: newWorkingTimes,
+    });
+
+    // Reset bulk inputs
+    setSelectedDays([]);
+    setBulkTimeIn("");
+    setBulkTimeOut("");
+  };
+
+  // 👉 เพิ่มฟังก์ชันสำหรับเพิ่มเวลา bulk ใน mode "select" (storeWorkingTime)
+  const addBulkStoreWorkingTime = () => {
+    if (selectedDays.length === 0 || !bulkTimeIn || !bulkTimeOut) {
+      toast.error("กรุณาเลือกวันและเวลาที่ต้องการเพิ่ม");
+      return;
+    }
+
+    const newWorkingTimes = [...storeWorkingTime];
+    selectedDays.forEach((day) => {
+      newWorkingTimes.push({ day: day, time_in: bulkTimeIn, time_out: bulkTimeOut });
+    });
+
+    setStoreWorkingTime(newWorkingTimes);
+
+    // Reset bulk inputs
+    setSelectedDays([]);
+    setBulkTimeIn("");
+    setBulkTimeOut("");
+  };
+
+  // 👉 จัดการ checkbox สำหรับเลือกวัน bulk
+  const handleDaySelection = (day, checked) => {
+    if (checked) {
+      setSelectedDays(prev => [...prev, day]);
+    } else {
+      setSelectedDays(prev => prev.filter(d => d !== day));
+    }
+  };
+
   // ✅ Handle pharmacist selection - แก้ไขการเข้าถึงข้อมูล
   const handlePharmacistSelect = (e) => {
-    const pharmacistId = e.target.value;
-    const pharmacist = existingPharmacists.find(
-      (p) => p.id.toString() === pharmacistId
-    );
-    setSelectedPharmacist(pharmacist);
+    const userId = e.target.value;
+    if (!userId) {
+      setSelectedPharmacist(null);
+      return;
+    }
+
+    // หา pharmacy profiles ทั้งหมดของ user นี้ และรวมเป็น selectedPharmacist เดียว
+    const profiles = existingPharmacists.filter((p) => {
+      const pUserId =
+        p.users_permissions_user?.id ||
+        p.users_permissions_user?.data?.id ||
+        p.attributes?.users_permissions_user?.data?.id ||
+        p.attributes?.users_permissions_user?.id;
+      return String(pUserId) === String(userId);
+    });
+
+    if (profiles.length === 0) {
+      setSelectedPharmacist(null);
+      return;
+    }
+
+    const representative = profiles[0];
+    const userObj =
+      representative.users_permissions_user ||
+      representative.attributes?.users_permissions_user?.data ||
+      representative.attributes?.users_permissions_user ||
+      null;
+
+    const combined = {
+      users_permissions_user: userObj,
+      pharmacy_profiles: { data: profiles },
+      // keep some top-level fields from the representative for display
+      license_number: representative.license_number || representative.attributes?.license_number,
+      profileimage: representative.profileimage || representative.attributes?.profileimage,
+      // aggregate any top-level working_time entries too
+      working_time: profiles.flatMap((p) => p.working_time || p.attributes?.working_time || p.attributes?.working_time?.data || []),
+    };
+
+    setSelectedPharmacist(combined);
+  };
+
+  // 💡 รวบรวมเวลาทำงานทั้งหมดจาก selectedPharmacist (รวมจากทุก profile และ nested attributes) และจัดเรียง/ลบซ้ำ
+  const getAggregatedWorkingTimesFromSelected = () => {
+    if (!selectedPharmacist) return [];
+    const collected = [];
+
+    // normalize source into array of entries
+    const entriesFrom = (src) => {
+      if (!src) return [];
+      if (Array.isArray(src)) return src;
+      if (Array.isArray(src.data)) return src.data;
+      return [];
+    };
+
+    const pushIfValid = (day, time_in, time_out, store_id) => {
+      if (!day || !time_in || !time_out) return;
+      const d = typeof day === "string" ? day.trim() : day;
+      collected.push({ day: d, time_in, time_out, store_id: store_id || null });
+    };
+
+    const addFrom = (src) => {
+      const arr = entriesFrom(src);
+      arr.forEach((entry) => {
+        const wt = entry?.attributes ? entry.attributes : entry;
+        // support common variants
+        const day = wt?.day || wt?.weekday || wt?.name;
+        const time_in = wt?.time_in || wt?.timeIn || wt?.open || wt?.start_time;
+        const time_out = wt?.time_out || wt?.timeOut || wt?.close || wt?.end_time;
+        const store_id = wt?.store_id || wt?.storeId || wt?.store || wt?.drug_store_id;
+        pushIfValid(day, time_in, time_out, store_id);
+      });
+    };
+
+    // gather from multiple possible fields/shapes
+    addFrom(selectedPharmacist.working_time);
+    addFrom(selectedPharmacist.attributes?.working_time);
+    // also support case where working_time is wrapped as { data: [...] }
+    addFrom(selectedPharmacist.attributes?.working_time?.data);
+
+    // nested pharmacy profiles (various shapes)
+    const profiles =
+      selectedPharmacist.attributes?.pharmacy_profiles?.data ||
+      selectedPharmacist.pharmacy_profiles?.data ||
+      selectedPharmacist.pharmacy_profiles ||
+      selectedPharmacist.attributes?.pharmacy_profiles;
+
+    if (profiles) {
+      const profileArray = Array.isArray(profiles) ? profiles : profiles.data || [];
+      profileArray.forEach((p) => {
+        addFrom(p.working_time || p.attributes?.working_time || p.attributes?.working_time?.data);
+      });
+    }
+
+    if (collected.length === 0) return [];
+
+    // dedupe by day/time
+    const keySet = new Set();
+    const unique = [];
+    collected.forEach((t) => {
+      const key = `${t.day}|${t.time_in}|${t.time_out}`;
+      if (!keySet.has(key)) {
+        keySet.add(key);
+        unique.push(t);
+      }
+    });
+
+    const dayOrder = ["จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์","อาทิตย์"];
+    unique.sort((a,b) => {
+      const da = dayOrder.indexOf(a.day);
+      const db = dayOrder.indexOf(b.day);
+      if (da !== db) return da - db;
+      if (a.time_in !== b.time_in) return a.time_in.localeCompare(b.time_in);
+      return a.time_out.localeCompare(b.time_out);
+    });
+
+    return unique;
   };
 
   // 🟢 ฟังก์ชันตรวจสอบเวลาทำงานซ้ำ (ชนกัน)
@@ -720,7 +949,11 @@ function AddPharmacist_admin() {
                 ) : (
                   <div>
                     <select
-                      value={selectedPharmacist?.id || ""}
+                      value={
+                        selectedPharmacist
+                          ? selectedPharmacist.users_permissions_user?.id || selectedPharmacist.users_permissions_user?.data?.id || selectedPharmacist.id
+                          : ""
+                      }
                       onChange={handlePharmacistSelect}
                       className="w-full border rounded p-2"
                       required
@@ -730,42 +963,26 @@ function AddPharmacist_admin() {
                         new Map(
                           existingPharmacists
                             .filter((pharmacist) => {
-                              // ดึงข้อมูลร้านทั้งหมดที่เภสัชกรคนนี้ทำงาน
-                              let stores = [];
-                              
-                              // ลองหลาย path เพื่อความยืดหยุ่น
-                              if (Array.isArray(pharmacist.drug_stores)) {
-                                stores = pharmacist.drug_stores;
-                              } else if (Array.isArray(pharmacist.attributes?.drug_stores?.data)) {
-                                stores = pharmacist.attributes.drug_stores.data;
-                              } else if (Array.isArray(pharmacist.attributes?.drug_stores)) {
-                                stores = pharmacist.attributes.drug_stores;
-                              }
-                              
-                              // แยกเอา documentId จากแต่ละร้าน
-                              const storeDocumentIds = stores.map((store) => {
-                                if (typeof store === 'string') return store; // ถ้าเป็น string ตรงกันเลย
-                                return store.documentId || store.attributes?.documentId || store.id;
-                              });
-                              
-                              // ตรวจสอบว่าเภสัชกรนี้ทำงานในร้านปัจจุบันแล้วหรือไม่
-                              const isAlreadyInStore = storeDocumentIds.includes(storeId);
-                              
-                              // ถ้ายังไม่ได้ทำงานในร้านนี้ ให้แสดงในรายการ
-                              return !isAlreadyInStore;
+                              const storesList = getAllStoresFromPharmacist(pharmacist);
+                              const storeDocumentIds = storesList.map(s => s.documentId || s.id).filter(Boolean);
+                              return !storeDocumentIds.includes(storeId);
                             })
-                            .map((pharmacist) => [
-                              // ใช้ user id เป็น key เพื่อความเป็นเอกลักษณ์
-                              pharmacist.users_permissions_user?.id ||
+                            .map((pharmacist) => {
+                              const userId =
+                                pharmacist.users_permissions_user?.id ||
                                 pharmacist.users_permissions_user?.data?.id ||
-                                pharmacist.id,
-                              pharmacist,
-                            ])
+                                pharmacist.attributes?.users_permissions_user?.data?.id ||
+                                pharmacist.attributes?.users_permissions_user?.id ||
+                                pharmacist.id;
+                              return [userId, pharmacist];
+                            })
                         ).values()
                       ).map((pharmacist) => {
                         const user =
                           pharmacist.users_permissions_user ||
-                          pharmacist.attributes?.users_permissions_user?.data;
+                          pharmacist.attributes?.users_permissions_user?.data ||
+                          pharmacist.attributes?.users_permissions_user;
+                        const userId = user?.id || user?.data?.id || user?.attributes?.id || pharmacist.users_permissions_user?.id || pharmacist.id;
                         const userName = user?.full_name || user?.attributes?.full_name;
                         const username = user?.username || user?.attributes?.username;
                         const licenseNumber =
@@ -773,8 +990,8 @@ function AddPharmacist_admin() {
                           pharmacist.attributes?.license_number ||
                           "ไม่ระบุ";
                         return (
-                          <option key={pharmacist.id} value={pharmacist.id}>
-                            {userName || `เภสัชกร ID: ${pharmacist.id}`}
+                          <option key={userId} value={userId}>
+                            {userName || `เภสัชกร ID: ${userId}`}
                             {username ? ` (username: ${username}) ` : " "}
                             (ใบอนุญาต: {licenseNumber})
                           </option>
@@ -782,37 +999,23 @@ function AddPharmacist_admin() {
                       })}
                     </select>
                     {(() => {
-                      const availablePharmacists = existingPharmacists.filter((pharmacist) => {
-                        // ดึงข้อมูลร้านทั้งหมดที่เภสัชกรคนนี้ทำงาน
-                        let stores = [];
-                        
-                        // ลองหลาย path เพื่อความยืดหยุ่น
-                        if (Array.isArray(pharmacist.drug_stores)) {
-                          stores = pharmacist.drug_stores;
-                        } else if (Array.isArray(pharmacist.attributes?.drug_stores?.data)) {
-                          stores = pharmacist.attributes.drug_stores.data;
-                        } else if (Array.isArray(pharmacist.attributes?.drug_stores)) {
-                          stores = pharmacist.attributes.drug_stores;
-                        }
-                        
-                        // แยกเอา documentId จากแต่ละร้าน
-                        const storeDocumentIds = stores.map((store) => {
-                          if (typeof store === 'string') return store;
-                          return store.documentId || store.attributes?.documentId || store.id;
-                        });
-                        
-                        // ถ้ายังไม่ได้ทำงานในร้านนี้ ให้แสดงในรายการ
-                        return !storeDocumentIds.includes(storeId);
+                      // Dedupe by users_permissions_user id so we count unique pharmacists (one user = one pharmacist)
+                      const map = new Map();
+                      existingPharmacists.forEach((ph) => {
+                        // skip profiles that already include current store
+                        const stores = getAllStoresFromPharmacist(ph).map(s => s.documentId || s.id).filter(Boolean);
+                        if (stores.includes(storeId)) return;
+
+                        const userId = ph.users_permissions_user?.id || ph.users_permissions_user?.data?.id || ph.attributes?.users_permissions_user?.data?.id || ph.attributes?.users_permissions_user?.id;
+                        const key = userId || ph.id;
+                        if (!map.has(key)) map.set(key, ph);
                       });
-                      
-                      return availablePharmacists.length === 0 ? (
-                        <p className="text-sm text-gray-500 mt-2">
-                          เภสัชกรทั้งหมดทำงานในร้านนี้แล้ว
-                        </p>
+
+                      const uniquePharmacists = Array.from(map.values());
+                      return uniquePharmacists.length === 0 ? (
+                        <p className="text-sm text-gray-500 mt-2">เภสัชกรทั้งหมดทำงานในร้านนี้แล้ว</p>
                       ) : (
-                        <p className="text-sm text-gray-400 mt-1">
-                          พบเภสัชกรที่ใช้งานได้ {availablePharmacists.length} คน
-                        </p>
+                        <p className="text-sm text-gray-400 mt-1">พบเภสัชกรที่ใช้งานได้ {uniquePharmacists.length} คน</p>
                       );
                     })()}
                   </div>
@@ -855,28 +1058,42 @@ function AddPharmacist_admin() {
                       <div className="md:col-span-2">
                         <strong>ร้านที่ทำงานอยู่:</strong>{" "}
                         {(() => {
-                          const stores = selectedPharmacist.drug_stores || selectedPharmacist.attributes?.drug_stores?.data;
-                          return stores?.length || 0;
+                          const storesList = getAllStoresFromPharmacist(selectedPharmacist);
+                          return storesList.length || 0;
                         })()} ร้าน
                       </div>
                     </div>
 
                     {/* แสดงเวลาทำงานปัจจุบัน */}
                     <div className="mt-4 p-3 bg-blue-50 rounded border">
+                      <div className="flex items-center justify-between">
                       <h4 className="font-semibold text-blue-700 mb-2">เวลาทำงานปัจจุบัน</h4>
+                      {/* ปุ่มแสดงเวลาทำงานทั้งหมด (เมื่อเภสัชกรทำงานหลายร้าน) */}
+                      {/* ปุ่ม "ดูเวลาทำงานทั้งหมด" ถูกลบออกเพราะข้อมูลจะแสดงอยู่แล้ว */}
+                    </div>
+
                       {(() => {
-                        const workingTime = selectedPharmacist.working_time || selectedPharmacist.attributes?.working_time;
-                        if (!workingTime || workingTime.length === 0) {
+                        const allTimes = getAggregatedWorkingTimesFromSelected();
+                        if (!allTimes || allTimes.length === 0) {
                           return <p className="text-gray-500 text-sm">ไม่มีข้อมูลเวลาทำงาน</p>;
                         }
 
+                        // Group by day for compact display
+                        const grouped = allTimes.reduce((acc, t) => {
+                          if (!acc[t.day]) acc[t.day] = [];
+                          acc[t.day].push(t);
+                          return acc;
+                        }, {});
+
                         return (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-                            {workingTime.map((wt, index) => (
-                              <div key={index} className="bg-white p-2 rounded border">
-                                <span className="font-medium">{wt.day}:</span>{" "}
+                            {Object.keys(grouped).map((day) => (
+                              <div key={day} className="bg-white p-2 rounded border">
+                                <span className="font-medium">{day}:</span>{" "}
                                 <span className="text-green-600">
-                                  {wt.time_in} - {wt.time_out}
+                                  {grouped[day].map((t, idx) => (
+                                    <div key={idx}>{t.time_in} - {t.time_out}</div>
+                                  ))}
                                 </span>
                               </div>
                             ))}
@@ -894,18 +1111,60 @@ function AddPharmacist_admin() {
                     <p className="text-sm text-gray-600 mb-3">
                       กรุณากำหนดเวลาทำงานของเภสัชกรสำหรับร้านนี้โดยเฉพาะ (Store ID: {storeId})
                     </p>
+                    {/* Bulk Add for select mode */}
+                    <div className="mb-4 p-4 bg-gray-50 rounded">
+                      <h4 className="font-medium mb-2">เพิ่มเวลาเดียวกันสำหรับหลายวัน</h4>
+                      <div className="grid grid-cols-7 gap-2 mb-2">
+                        {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].map(day => (
+                          <label key={day} className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={selectedDays.includes(day)}
+                              onChange={(e) => handleDaySelection(day, e.target.checked)}
+                              className="w-4 h-4"
+                            />
+                            <span className="text-sm">{day.slice(0, 3)}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="time"
+                          value={bulkTimeIn}
+                          onChange={(e) => setBulkTimeIn(e.target.value)}
+                          className="border p-2 rounded"
+                          placeholder="เวลาเริ่ม"
+                        />
+                        <span>-</span>
+                        <input
+                          type="time"
+                          value={bulkTimeOut}
+                          onChange={(e) => setBulkTimeOut(e.target.value)}
+                          className="border p-2 rounded"
+                          placeholder="เวลาสิ้นสุด"
+                        />
+                        <button
+                          type="button"
+                          onClick={addBulkStoreWorkingTime}
+                          className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                        >
+                          เพิ่มช่วงเวลา
+                        </button>
+                      </div>
+                    </div>
                     
                     {/* แสดงคำเตือนถ้ามีเวลาทำงานอื่นที่อาจชนกัน */}
                     {(() => {
-                      const workingTime = selectedPharmacist.working_time || selectedPharmacist.attributes?.working_time || [];
-                      const hasOtherStoreWorkingTime = workingTime.some(wt => wt.store_id && wt.store_id !== storeId);
-                      
+                      const storesList = getAllStoresFromPharmacist(selectedPharmacist);
+                      const storeDocumentIds = storesList.map(s => s.documentId || s.id).filter(Boolean);
+                      const hasOtherStoreWorkingTime = storeDocumentIds.some(id => id && id !== storeId);
+
                       return hasOtherStoreWorkingTime && (
                         <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-700">
                           ⚠️ <strong>ข้อควรระวัง:</strong> เภสัชกรคนนี้มีเวลาทำงานในร้านอื่นอยู่แล้ว กรุณาตรวจสอบให้แน่ใจว่าเวลาทำงานไม่ซ้อนทับกัน
                         </div>
                       );
-                    })()}
+                    })()} 
 
                     {storeWorkingTime.map((item, index) => (
                       <div key={index} className="flex gap-2 items-center mb-2">
@@ -1030,59 +1289,111 @@ function AddPharmacist_admin() {
                 <label className="block font-semibold mb-2">
                   วันและเวลาเข้างาน*
                 </label>
-                {formData.working_time.map((item, index) => (
-                  <div key={index} className="flex gap-2 items-center mb-2">
-                    <select
-                      value={item.day}
-                      onChange={(e) =>
-                        handleWorkingTimeChange(index, "day", e.target.value)
-                      }
-                      className="border p-2 rounded"
-                    >
-                      <option value="จันทร์">จันทร์</option>
-                      <option value="อังคาร">อังคาร</option>
-                      <option value="พุธ">พุธ</option>
-                      <option value="พฤหัสบดี">พฤหัสบดี</option>
-                      <option value="ศุกร์">ศุกร์</option>
-                      <option value="เสาร์">เสาร์</option>
-                      <option value="อาทิตย์">อาทิตย์</option>
-                    </select>
-
+                
+                {/* Bulk Add Section */}
+                <div className="mb-4 p-4 bg-gray-50 rounded">
+                  <h4 className="font-medium mb-2">เพิ่มเวลาเดียวกันสำหรับหลายวัน</h4>
+                  <div className="grid grid-cols-7 gap-2 mb-2">
+                    {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].map(day => (
+                      <label key={day} className="flex items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedDays.includes(day)}
+                          onChange={(e) => handleDaySelection(day, e.target.checked)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">{day.slice(0, 3)}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 items-center">
                     <input
                       type="time"
-                      value={item.time_in}
-                      onChange={(e) =>
-                        handleWorkingTimeChange(index, "time_in", e.target.value)
-                      }
+                      value={bulkTimeIn}
+                      onChange={(e) => setBulkTimeIn(e.target.value)}
                       className="border p-2 rounded"
+                      placeholder="เวลาเริ่ม"
                     />
+                    <span>-</span>
                     <input
                       type="time"
-                      value={item.time_out}
-                      onChange={(e) =>
-                        handleWorkingTimeChange(index, "time_out", e.target.value)
-                      }
+                      value={bulkTimeOut}
+                      onChange={(e) => setBulkTimeOut(e.target.value)}
                       className="border p-2 rounded"
+                      placeholder="เวลาสิ้นสุด"
                     />
-
                     <button
                       type="button"
-                      onClick={() => removeWorkingTime(index)}
-                      className="text-red-500 ml-2"
+                      onClick={addBulkWorkingTime}
+                      className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
                     >
-                      ลบ
+                      เพิ่มช่วงเวลา
                     </button>
                   </div>
-                ))}
-                <div className="flex justify-center mt-2">
-                  <button
-                    type="button"
-                    onClick={addWorkingTime}
-                    className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
-                  >
-                    + เพิ่มวัน/เวลา
-                  </button>
                 </div>
+
+                {/* Individual Working Times List */}
+                {formData.working_time && formData.working_time.length > 0 ? (
+                  <div className="space-y-2">
+                    <h4 className="font-medium">ตารางเวลาทำงานปัจจุบัน</h4>
+                        {formData.working_time.map((item, index) => (
+                      <div key={index} className="flex gap-2 items-center p-2 bg-white border rounded">
+                        <select
+                          value={item.day}
+                          onChange={(e) =>
+                            handleWorkingTimeChange(index, "day", e.target.value)
+                          }
+                          className="border p-2 rounded"
+                        >
+                          <option value="จันทร์">จันทร์</option>
+                          <option value="อังคาร">อังคาร</option>
+                          <option value="พุธ">พุธ</option>
+                          <option value="พฤหัสบดี">พฤหัสบดี</option>
+                          <option value="ศุกร์">ศุกร์</option>
+                          <option value="เสาร์">เสาร์</option>
+                          <option value="อาทิตย์">อาทิตย์</option>
+                        </select>
+
+                        <input
+                          type="time"
+                          value={item.time_in}
+                          onChange={(e) =>
+                            handleWorkingTimeChange(index, "time_in", e.target.value)
+                          }
+                          className="border p-2 rounded"
+                        />
+                        <input
+                          type="time"
+                          value={item.time_out}
+                          onChange={(e) =>
+                            handleWorkingTimeChange(index, "time_out", e.target.value)
+                          }
+                          className="border p-2 rounded"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => removeWorkingTime(index)}
+                          className="text-red-500 ml-2"
+                        >
+                          ลบ
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 mb-2">
+                    ยังไม่มีเวลาทำงาน กรุณาเพิ่มเวลาทำงาน
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={addWorkingTime}
+                  className="mt-2 bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
+                >
+                  + เพิ่มวัน/เวลา แยก
+                </button>
               </div>
 
               {/* Username & Password */}
@@ -1187,6 +1498,71 @@ function AddPharmacist_admin() {
           </div>
         </form>
       </div>
+
+      {/* Modal: แสดงเวลาทำงานทั้งหมด (ไม่แสดงชื่อร้าน) */}
+      {showWorkTimesModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
+          onClick={() => setShowWorkTimesModal(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-lg shadow-lg p-4"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="เวลาทำงานทั้งหมดของเภสัชกร"
+          >
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-semibold">เวลาทำงานทั้งหมด</h3>
+              <button
+                type="button"
+                onClick={() => setShowWorkTimesModal(false)}
+                className="text-gray-600 hover:text-gray-800"
+                aria-label="ปิด"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-64 overflow-auto">
+              {(() => {
+                const allTimes = getAggregatedWorkingTimesFromSelected();
+                if (allTimes.length === 0) {
+                  return <div className="text-gray-500">ไม่มีข้อมูลเวลาทำงาน</div>;
+                }
+
+                // Group by day
+                const grouped = allTimes.reduce((acc, t) => {
+                  if (!acc[t.day]) acc[t.day] = [];
+                  acc[t.day].push(t);
+                  return acc;
+                }, {});
+
+                return Object.keys(grouped).map((day) => (
+                  <div key={day} className="p-2 border rounded">
+                    <div className="font-medium">{day}</div>
+                    <div className="text-sm text-green-700 mt-1">
+                      {grouped[day].map((t, idx) => (
+                        <div key={idx}>{t.time_in} - {t.time_out}</div>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            <div className="mt-4 text-right">
+              <button
+                type="button"
+                onClick={() => setShowWorkTimesModal(false)}
+                className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
+              >
+                ปิด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </>

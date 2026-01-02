@@ -9,7 +9,6 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Modal, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import { API, fetchWithAuth } from '../../../utils/apiConfig';
-import useSmartPolling from '../../../hooks/useSmartPolling';
 
 // เพิ่มฟังก์ชันแปลงวันที่เป็นภาษาไทย
 function formatThaiDate(dateStr) {
@@ -439,6 +438,59 @@ function CustomerDetailStaff() {
     }
   }, [customerDocumentId, pharmacyId]);
 
+  // ✅ NEW: Sync staffStatus whenever notification changes
+  // This ensures that when notification is loaded/updated, staffStatus reflects the latest server state
+  useEffect(() => {
+    if (notification?.staff_work_status) {
+      console.log('[EffectSync] 🔄 Syncing staffStatus from notification:', notification.staff_work_status);
+      setStaffStatus(notification.staff_work_status);
+      
+      // Also sync batches_selected if available
+      if (notification.staff_work_status.batches_selected) {
+        console.log('[EffectSync] ✅ Syncing batches_selected:', notification.staff_work_status.batches_selected);
+        setSelectedBatches(notification.staff_work_status.batches_selected);
+      }
+    }
+  }, [notification?.staff_work_status, notification?.documentId]);
+
+  // Refresh notification when tab becomes visible (catch updates while tab was inactive)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && customerDocumentId && notification?.documentId) {
+        console.log('[VisibilityChange] Staff tab is now visible, checking for real-time updates...');
+        
+        try {
+          const token = localStorage.getItem('jwt') || '';
+          const notifRes = await fetch(
+            API.notifications.getById(notification.documentId),
+            { headers: { Authorization: token ? `Bearer ${token}` : '' } }
+          );
+
+          if (notifRes.ok) {
+            const notifData = await notifRes.json();
+            const updatedNotif = notifData.data;
+            
+            if (updatedNotif?.staff_work_status) {
+              console.log('[VisibilityChange] 🔄 Detected real-time updates:', updatedNotif.staff_work_status);
+              setNotification(updatedNotif);
+              setStaffStatus(updatedNotif.staff_work_status);
+              
+              // Sync batches_selected if available
+              if (updatedNotif.staff_work_status.batches_selected) {
+                setSelectedBatches(updatedNotif.staff_work_status.batches_selected);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[VisibilityChange] Error refreshing notification:', err);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [customerDocumentId, notification?.documentId]);
+
   // Socket.IO Connection for real-time notification updates
   const socketRef = useRef(null);
 
@@ -467,9 +519,17 @@ function CustomerDetailStaff() {
             // Always update status from the latest notification data
             if (latestNotif.staff_work_status) {
               console.log('[AutoReload] 📊 Updating staff status from latest notification');
+              console.log('[AutoReload] staff_work_status:', latestNotif.staff_work_status);
+              console.log('[AutoReload] batches_selected:', latestNotif.staff_work_status.batches_selected);
+              
               setStaffStatus(latestNotif.staff_work_status);
+              
+              // 🔑 IMPORTANT: Always sync batches_selected from latest notification
               if (latestNotif.staff_work_status.batches_selected) {
+                console.log('[AutoReload] ✅ Found batches_selected, updating selectedBatches:', latestNotif.staff_work_status.batches_selected);
                 setSelectedBatches(latestNotif.staff_work_status.batches_selected);
+              } else {
+                console.warn('[AutoReload] ⚠️ No batches_selected in response');
               }
             }
             
@@ -484,7 +544,8 @@ function CustomerDetailStaff() {
       }
     };
 
-    const interval = setInterval(reloadNotification, 5000);
+    // Poll faster to reduce time-to-update (2 seconds)
+    const interval = setInterval(reloadNotification, 2000);
     return () => clearInterval(interval);
   }, [customerDocumentId]);
 
@@ -499,11 +560,12 @@ function CustomerDetailStaff() {
     // Create socket connection
     socketRef.current = io(socketUrl, {
       auth: { token },
-      transports: ['websocket', 'polling'], // websocket first for better performance
+      transports: ['websocket'],
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
+      // Faster reconnection to reduce downtime
+      reconnectionDelay: 500,
+      reconnectionDelayMax: 2000,
+      reconnectionAttempts: 10,
       forceNew: false,
       rejectUnauthorized: false
     });
@@ -538,6 +600,7 @@ function CustomerDetailStaff() {
         code: error?.code
       });
       console.error('[Socket] Full error:', error);
+      toast.error('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ - กรุณารีโหลดหน้า');
     });
 
     // Handle disconnect
@@ -546,7 +609,6 @@ function CustomerDetailStaff() {
         reason,
         reconnecting: socketRef.current?.disconnected === false
       });
-      console.warn('[Socket] ⚠️ WebSocket disconnected, fallback to polling will be used');
     });
 
     // Listen for notification updates
@@ -628,13 +690,23 @@ function CustomerDetailStaff() {
 
     // Listen for customer data updates from pharmacy (when pharmacist updates customer info)
     socketRef.current.on('customer:update', (updatedCustomer) => {
-      console.log('[Socket] Received customer data update from pharmacy:', updatedCustomer);
+      console.log('[Socket] 📨 Received customer data update from pharmacy:', updatedCustomer);
       
       if (!updatedCustomer) return;
 
       // Refresh customer data to reflect pharmacist updates
       setCustomer(updatedCustomer);
-      toast.info('🔄 เภสัชกรได้อัพเดตข้อมูลผู้ป่วย');
+      toast.warning('⚠️ เภสัชกรได้อัพเดตข้อมูลผู้ป่วย - กรุณาตรวจสอบข้อมูลล่าสุด');
+    });
+
+    // Listen for pharmacy notifications (if they send updates)
+    socketRef.current.on('pharmacy:update', (pharmacyUpdate) => {
+      console.log('[Socket] 📨 Received pharmacy update:', pharmacyUpdate);
+      
+      if (!pharmacyUpdate) return;
+      
+      // Handle any pharmacy-specific updates
+      toast.info('🔔 มีข้อมูลอัพเดทจากร้านขายยา');
     });
 
     // Cleanup on unmount
@@ -648,100 +720,6 @@ function CustomerDetailStaff() {
       }
     };
   }, [notification?.documentId, customerDocumentId]);
-
-  // Smart Polling: fallback when socket is not available (keep as backup)
-  const { resetInterval: resetNotificationPoll } = useSmartPolling(
-    !socketRef.current?.connected && notification?.documentId
-      ? API.notifications.getByDocumentId(notification.documentId)
-      : null,
-    {
-      initialInterval: 2000, // เริ่มต้น 2 วินาที
-      maxInterval: 30000, // สูงสุด 30 วินาที
-      backoffMultiplier: 1.3,
-      enabled: !!notification?.documentId,
-      onDataChange: (newData) => {
-        // เมื่อมีข้อมูลใหม่
-        console.log('[SmartPolling] Data changed, full response:', JSON.stringify(newData, null, 2));
-        const updatedNotif = newData.data;
-        console.log('[SmartPolling] updatedNotif:', updatedNotif);
-        console.log('[SmartPolling] updatedNotif.type:', updatedNotif?.type);
-        
-        // Handle status reset for update notifications (preserve outOfStock)
-        if (updatedNotif?.type === 'customer_assignment_update') {
-          // เช็คว่า staff acknowledged update นี้แล้วหรือยัง
-          const staffReceivedAt = updatedNotif.staff_work_status?.received_at;
-          const staffPreparedAt = updatedNotif.staff_work_status?.prepared_at;
-          const notifUpdatedAt = updatedNotif.updatedAt;
-          
-          // ถ้าพนักงานยืนยันรับข้อมูล หรือ จัดยาเสร็จ หลังจาก notification ถูกอัปเดต = ไม่ต้อง reset
-          const staffAcknowledgedUpdate = 
-            (staffPreparedAt && notifUpdatedAt && new Date(staffPreparedAt) >= new Date(notifUpdatedAt) - 1000) ||
-            (staffReceivedAt && notifUpdatedAt && new Date(staffReceivedAt) >= new Date(notifUpdatedAt) - 1000); // 1 sec tolerance
-          
-          console.log('[SmartPolling] Check reset condition:', {
-            type: updatedNotif.type,
-            staffReceivedAt,
-            staffPreparedAt,
-            notifUpdatedAt,
-            staffAcknowledgedUpdate
-          });
-          
-          if (!staffAcknowledgedUpdate) {
-            console.log('[SmartPolling] ✅ Detected customer_assignment_update, resetting status');
-            const preservedOOS = Array.isArray(updatedNotif.staff_work_status?.outOfStock) 
-              ? updatedNotif.staff_work_status.outOfStock 
-              : [];
-            const resetStatus = {
-              received: false,
-              prepared: false,
-              received_at: null,
-              prepared_at: null,
-              prepared_note: '',
-              outOfStock: preservedOOS,
-              cancelled: false,
-              cancelled_at: null,
-              cancelled_note: ''
-            };
-            setStaffStatus(resetStatus);
-            setNotification(updatedNotif);
-            toast.info('🔄 เภสัชกรได้ส่งข้อมูลอัพเดต - สถานะรีเซ็ทแล้ว');
-          } else {
-            console.log('[SmartPolling] Staff already acknowledged, keeping status');
-            // อัปเดต notification แต่ไม่ reset status
-            if (updatedNotif.staff_work_status) {
-              setStaffStatus(updatedNotif.staff_work_status);
-            }
-            setNotification(updatedNotif);
-          }
-          // ดึง selected batches จากที่เก็บไว้ใน notification (always load for update notifications)
-          if (updatedNotif.staff_work_status?.batches_selected) {
-            console.log('[SmartPolling] Loading batches_selected from update notification:', updatedNotif.staff_work_status.batches_selected);
-            setSelectedBatches(updatedNotif.staff_work_status.batches_selected);
-          }
-        } else if (updatedNotif?.staff_work_status) {
-          // Check if status changed from pharmacy end (non-update notifications)
-          console.log('[SmartPolling] ❌ Not customer_assignment_update, type is:', updatedNotif.type);
-          const hasChanges = JSON.stringify(staffStatus) !== JSON.stringify(updatedNotif.staff_work_status);
-          console.log('[SmartPolling] hasChanges:', hasChanges);
-          if (hasChanges) {
-            setStaffStatus(updatedNotif.staff_work_status);
-            setNotification(updatedNotif);
-            toast.info('🔄 เภสัชกรได้ส่งข้อมูลอัพเดต');
-          }
-          // ดึง selected batches จากที่เก็บไว้ใน notification
-          if (updatedNotif.staff_work_status.batches_selected) {
-            console.log('[SmartPolling] Loading batches_selected from non-update notification:', updatedNotif.staff_work_status.batches_selected);
-            setSelectedBatches(updatedNotif.staff_work_status.batches_selected);
-          }
-        } else {
-          console.log('[SmartPolling] No staff_work_status found in response');
-        }
-      },
-      onError: (error) => {
-        console.error('Error in smart polling:', error);
-      }
-    }
-  );
 
   const handleBack = () => {
     if (pharmacyId) {
@@ -866,7 +844,29 @@ function CustomerDetailStaff() {
         
         setStaffStatus(backendStaffStatus);
         setNotification(prev => ({ ...prev, staff_work_status: backendStaffStatus }));
-        setSelectedBatches(backendStaffStatus.batches_selected || {});
+        
+        // ✅ Ensure batches_selected is set from backend response
+        if (backendStaffStatus.batches_selected) {
+          console.log('[SaveLots] ✅ Setting selectedBatches from backend:', backendStaffStatus.batches_selected);
+          setSelectedBatches(backendStaffStatus.batches_selected);
+        } else {
+          // Fallback: if backend doesn't return batches_selected, use local state
+          console.warn('[SaveLots] ⚠️ Backend did not return batches_selected, using local state');
+          setSelectedBatches(prev => ({ ...prev, ...selectedBatches }));
+        }
+        
+        // 🚀 Broadcast to pharmacy page via Socket.IO
+        if (socketRef.current?.connected) {
+          socketRef.current.emit('notification:update', {
+            documentId: notification.documentId,
+            customerDocumentId,
+            staff_work_status: backendStaffStatus,
+            batches_selected: backendStaffStatus.batches_selected || selectedBatches,
+            is_read: true,
+            timestamp: new Date().toISOString()
+          });
+          console.log('[SaveLots] 📡 Broadcast Lots selection to pharmacy via Socket.IO');
+        }
         
         toast.success('บันทึก Lot ยาสำเร็จ - ตอนนี้สามารถกด "จัดยาส่งแล้ว" ได้');
       } else {
@@ -993,20 +993,39 @@ function CustomerDetailStaff() {
         toast.success('อัปเดตสถานะสำเร็จ');
         setStatusModal({ open: false, type: '', note: '' });
         
-        // Broadcast update event ให้ pharmacy detail page ทราบเพื่อให้อัพเดตแบบ real-time
+        // 🚀 Broadcast real-time update via WebSocket to pharmacy page
+        if (socketRef.current?.connected) {
+          const notifRoom = `notification:${notification.documentId}`;
+          const customerRoom = `customer:${customerDocumentId}`;
+          
+          socketRef.current.emit('notification:update', {
+            documentId: notification.documentId,
+            customerDocumentId,
+            staff_work_status: backendStaffStatus,
+            batches_selected: backendStaffStatus.batches_selected,
+            is_read: true,
+            timestamp: new Date().toISOString()
+          });
+          
+          console.log('[UpdateStatus] 📡 Emitted real-time update via Socket.IO to rooms:', [notifRoom, customerRoom]);
+        } else {
+          console.warn('[UpdateStatus] ⚠️ Socket not connected, update broadcast skipped');
+        }
+        
+        // Fallback: Broadcast update event ให้ pharmacy detail page ทราบเพื่อให้อัพเดตแบบ real-time
         window.dispatchEvent(new CustomEvent('staffStatusUpdated', { 
           detail: { 
             customerDocumentId, 
-            staffStatus: updatedStatus,
-            notificationId: notifIdentifier
+            staffStatus: backendStaffStatus,
+            notificationId: notification.documentId
           } 
         }));
         
         // Also store in localStorage for cross-tab communication
         localStorage.setItem(`staffStatus_${customerDocumentId}`, JSON.stringify({
           updatedAt: new Date().toISOString(),
-          staffStatus: updatedStatus,
-          notificationId: notifIdentifier
+          staffStatus: backendStaffStatus,
+          notificationId: notification.documentId
         }));
         
         // Keep selectedBatches in state so they remain visible after prepare

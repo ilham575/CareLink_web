@@ -88,7 +88,36 @@ function VisitHistory() {
       
       if (notifRes.ok) {
         const notifData = await notifRes.json();
-        setVisits(notifData.data || []);
+        const notifications = notifData.data || [];
+        
+        // Group notifications by visit (customer_assignment + related updates)
+        const visitsMap = new Map();
+        
+        notifications.forEach(notif => {
+          const key = notif.customer_profile?.documentId || customerDocumentId;
+          if (!visitsMap.has(key)) {
+            visitsMap.set(key, []);
+          }
+          visitsMap.get(key).push(notif);
+        });
+        
+        // Convert to visits array, each visit has multiple notifications
+        const visits = Array.from(visitsMap.values()).map(notifs => {
+          // Sort notifications within visit by createdAt desc
+          notifs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          return {
+            id: notifs[0].id, // Use first notification ID as visit ID
+            notifications: notifs,
+            latestNotification: notifs[0], // Most recent
+            createdAt: notifs[0].createdAt,
+            updatedAt: notifs[0].updatedAt
+          };
+        });
+        
+        // Sort visits by latest update desc
+        visits.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        
+        setVisits(visits);
       }
       
     } catch (error) {
@@ -142,171 +171,131 @@ function VisitHistory() {
 
   const user = customer.users_permissions_user;
 
+  // Derived vars for modal details
+  const latestNotifForModal = selectedVisit?.latestNotification || selectedVisit?.notifications?.[0] || null;
+  const modalNotifData = latestNotifForModal?.data || {};
+  const modalSymptoms = modalNotifData?.symptoms?.main || modalNotifData?.symptoms || latestNotifForModal?.customer_profile?.Customers_symptoms || 'ไม่ระบุอาการ';
+  const modalDrugs = modalNotifData?.prescribed_drugs || latestNotifForModal?.customer_profile?.prescribed_drugs || [];
+  const modalStatus = latestNotifForModal?.staff_work_status || selectedVisit?.staff_work_status || {};
+  const modalStaff = selectedVisit?.staff_profile || latestNotifForModal?.staff_profile || null;
+
   return (
     <div className="visit-history-page">
       <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
       
       <main className="visit-history-main">
         {/* Customer Header */}
-        <div className="customer-header" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-          padding: '24px',
-          borderRadius: '12px',
-          marginBottom: '24px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h2 style={{ margin: '0 0 8px 0', fontSize: '24px' }}>
+        <div className="customer-header">
+          <div className="customer-header-content">
+            <div className="customer-header-info">
+              <h2>
                 👤 {user?.full_name || 'ไม่พบชื่อ'}
               </h2>
-              <p style={{ margin: '0', opacity: 0.9 }}>
-                📱 {user?.phone || '-'} | 
-                ⚠️ แพ้ยา: {customer.Allergic_drugs ? 'มี' : 'ไม่มี'} | 
-                🏥 โรคประจำตัว: {customer.congenital_disease || 'ไม่มี'}
-              </p>
+              <div className="customer-header-details">
+                <div className="customer-header-detail-item">
+                  <span>📱</span>
+                  <span>{user?.phone || '-'}</span>
+                </div>
+                <div className="customer-header-detail-item">
+                  <span>⚠️</span>
+                  <span>แพ้ยา: {customer.Allergic_drugs ? 'มี' : 'ไม่มี'}</span>
+                </div>
+                <div className="customer-header-detail-item">
+                  <span>🏥</span>
+                  <span>โรคประจำตัว: {customer.congenital_disease || 'ไม่มี'}</span>
+                </div>
+              </div>
             </div>
-            <button
-              onClick={handleCreateNewVisit}
-              style={{
-                padding: '12px 24px',
-                background: 'rgba(255,255,255,0.2)',
-                border: '2px solid white',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                transition: 'all 0.3s'
-              }}
-              onMouseEnter={(e) => e.target.style.background = 'white' && (e.target.style.color = '#667eea')}
-              onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.2)' && (e.target.style.color = 'white')}
-            >
-              ➕ บันทึกการมาใหม่
-            </button>
+            <div className="customer-header-actions">
+              <button className="customer-header-btn" onClick={handleCreateNewVisit}>
+                ➕ บันทึกการมาใหม่
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Visit History Timeline */}
-        <div className="visits-container" style={{
-          background: 'white',
-          padding: '24px',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-        }}>
-          <h3 style={{ marginBottom: '20px', fontSize: '20px' }}>
-            📋 ประวัติการมาใช้บริการ ({visits.length} ครั้ง)
-          </h3>
+        <div className="visits-container">
+          <div className="visits-container-header">
+            <h3>
+              📋 ประวัติการมาใช้บริการ
+              <span className="visits-badge">{visits.length} ครั้ง</span>
+            </h3>
+          </div>
           
           {visits.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+            <div className="empty-state">
+              <div className="empty-state-icon">📝</div>
               <p>ยังไม่มีประวัติการมาใช้บริการ</p>
-              <button
-                onClick={handleCreateNewVisit}
-                style={{
-                  marginTop: '16px',
-                  padding: '10px 20px',
-                  background: '#667eea',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer'
-                }}
-              >
+              <button className="empty-state-btn" onClick={handleCreateNewVisit}>
                 บันทึกการมาครั้งแรก
               </button>
             </div>
           ) : (
-            <Timeline mode="left">
-              {visits.map((visit, index) => {
-                const visitData = visit.data || {};
-                const symptoms = visitData.symptoms || visitData.Customers_symptoms || 'ไม่ระบุอาการ';
-                const drugs = visitData.prescribed_drugs || [];
-                const staffWorkStatus = visit.staff_work_status || {};
-                
-                // Determine visit status
-                let statusColor = '#d9d9d9';
-                let statusText = 'รอดำเนินการ';
-                
-                if (staffWorkStatus.cancelled) {
-                  statusColor = '#ff4d4f';
-                  statusText = 'ยกเลิก';
-                } else if (staffWorkStatus.prepared) {
-                  statusColor = '#52c41a';
-                  statusText = 'จัดส่งแล้ว';
-                } else if (staffWorkStatus.received) {
-                  statusColor = '#1890ff';
-                  statusText = 'รับข้อมูลแล้ว';
-                }
-                
-                return (
-                  <Timeline.Item
-                    key={visit.id}
-                    color={statusColor}
-                    label={
-                      <div style={{ fontSize: '12px', color: '#666' }}>
+            <div className="visits-timeline">
+                {visits.map((visit, index) => {
+                  const latestNotif = visit.latestNotification;
+                  const visitData = latestNotif.data || {};
+                  const symptoms = visitData.symptoms || latestNotif.customer_profile?.Customers_symptoms || 'ไม่ระบุอาการ';
+                  const drugs = visitData.prescribed_drugs || latestNotif.customer_profile?.prescribed_drugs || [];
+                  const staffWorkStatus = latestNotif.staff_work_status || {};
+                  
+                  // Determine visit status
+                  let statusColor = '#d9d9d9';
+                  let statusText = 'รอดำเนินการ';
+                  
+                  if (staffWorkStatus.cancelled) {
+                    statusColor = '#ff4d4f';
+                    statusText = 'ยกเลิก';
+                  } else if (staffWorkStatus.prepared) {
+                    statusColor = '#52c41a';
+                    statusText = 'จัดส่งแล้ว';
+                  } else if (staffWorkStatus.received) {
+                    statusColor = '#1890ff';
+                    statusText = 'รับข้อมูลแล้ว';
+                  }
+                  
+                  return (
+                    <div key={visit.id} className="visit-timeline-block">
+                      <div className="visit-time">
                         {formatThaiDate(visit.createdAt)}
                       </div>
-                    }
-                  >
-                    <div style={{
-                      padding: '16px',
-                      background: '#fafafa',
-                      borderRadius: '8px',
-                      border: '1px solid #e8e8e8'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
-                        <div>
-                          <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>
-                            🩺 ครั้งที่ {visits.length - index}
-                          </h4>
-                          <Tag color={statusColor}>{statusText}</Tag>
+                      <div className="visit-card" onClick={() => handleViewDetail(visit)}>
+                        <div className="visit-card-title">
+                          <h4>🩺 การมาใช้บริการครั้งที่ {visits.length - index}</h4>
+                          {symptoms && <p className="visit-card-excerpt">{symptoms}</p>}
                         </div>
-                        <button
-                          onClick={() => handleViewDetail(visit)}
-                          style={{
-                            padding: '6px 12px',
-                            background: '#667eea',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          ดูรายละเอียด
-                        </button>
-                      </div>
-                      
-                      <div style={{ fontSize: '14px', color: '#666' }}>
-                        <div style={{ marginBottom: '4px' }}>
-                          <strong>อาการ:</strong> {symptoms}
-                        </div>
-                        <div style={{ marginBottom: '4px' }}>
-                          <strong>จำนวนยา:</strong> {Array.isArray(drugs) ? drugs.length : 0} รายการ
-                        </div>
-                        {visit.staff_profile && (
-                          <div>
-                            <strong>เจ้าหน้าที่:</strong> {visit.staff_profile.full_name || '-'}
-                          </div>
-                        )}
                       </div>
                     </div>
-                  </Timeline.Item>
-                );
-              })}
-            </Timeline>
-          )}
+                  );
+                })}
+            </div>
+            )}
         </div>
       </main>
+
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0' }}>
+        <button className="btn-back" onClick={() => navigate(-1)}>
+          กลับ
+        </button>
+      </div>
+
+      {/* Floating action button for quick new visit */}
+      <button
+        className="fab-create-visit"
+        onClick={handleCreateNewVisit}
+        aria-label="บันทึกการมาใหม่"
+        title="บันทึกการมาใหม่"
+      >
+        ➕
+      </button>
 
       <Footer />
 
       {/* Visit Detail Modal */}
       <Modal
         title={
-          <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
+          <div style={{ fontSize: '20px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' }}>
             📋 รายละเอียดการมาใช้บริการ
           </div>
         }
@@ -315,14 +304,8 @@ function VisitHistory() {
         footer={[
           <button
             key="close"
+            className="modal-close-btn"
             onClick={() => setDetailModal(false)}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: '1px solid #d9d9d9',
-              background: '#fff',
-              cursor: 'pointer'
-            }}
           >
             ปิด
           </button>
@@ -330,72 +313,80 @@ function VisitHistory() {
         width={700}
       >
         {selectedVisit && (
-          <div style={{ padding: '16px 0' }}>
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '12px', color: '#999', marginBottom: '4px' }}>วันที่มาใช้บริการ</div>
-              <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
+          <div>
+            <div className="modal-info-section">
+              <div className="modal-info-label">วันที่มาใช้บริการ</div>
+              <div className="modal-info-value">
                 {formatThaiDate(selectedVisit.createdAt)}
               </div>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '12px', color: '#999', marginBottom: '4px' }}>อาการ</div>
-              <div style={{ fontSize: '14px', padding: '12px', background: '#f0f5ff', borderRadius: '6px' }}>
-                {selectedVisit.data?.symptoms || selectedVisit.data?.Customers_symptoms || 'ไม่ระบุอาการ'}
+            <div className="modal-info-section">
+              <div className="modal-info-label">อาการ</div>
+              <div className="modal-info-value">{modalSymptoms}</div>
+            </div>
+
+            <div className="modal-info-section">
+              <div className="modal-info-label">ยา</div>
+              <div className="modal-info-value">
+                {Array.isArray(modalDrugs) && modalDrugs.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {modalDrugs.map((drug, i) => (
+                      <div key={i}>
+                        {typeof drug === 'string' ? drug : (drug.name || 'ยา')} {drug.quantity ? `(×${drug.quantity})` : ''}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span>ไม่มี</span>
+                )}
               </div>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px' }}>รายการยา</div>
-              {selectedVisit.data?.prescribed_drugs && selectedVisit.data.prescribed_drugs.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {selectedVisit.data.prescribed_drugs.map((drug, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: '12px',
-                        background: '#fafafa',
-                        borderRadius: '6px',
-                        border: '1px solid #e8e8e8'
-                      }}
-                    >
-                      💊 {typeof drug === 'string' ? drug : `${drug.name || 'ยา'} (จำนวน ${drug.quantity || 1})`}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ padding: '12px', color: '#999', textAlign: 'center' }}>
-                  ไม่มีรายการยา
-                </div>
-              )}
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px' }}>สถานะการทำงาน</div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {selectedVisit.staff_work_status?.received && (
-                  <Tag color="blue">✅ รับข้อมูลแล้ว</Tag>
-                )}
-                {selectedVisit.staff_work_status?.prepared && (
-                  <Tag color="green">📦 จัดส่งแล้ว</Tag>
-                )}
-                {selectedVisit.staff_work_status?.cancelled && (
-                  <Tag color="red">❌ ยกเลิก</Tag>
-                )}
-                {!selectedVisit.staff_work_status?.received && (
+            <div className="modal-info-section">
+              <div className="modal-info-label">สถานะ</div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                {modalStatus?.received && <Tag color="blue">✅ รับข้อมูลแล้ว</Tag>}
+                {modalStatus?.prepared && <Tag color="green">📦 จัดส่งแล้ว</Tag>}
+                {modalStatus?.cancelled && <Tag color="red">❌ ยกเลิก</Tag>}
+                {!modalStatus?.received && !modalStatus?.prepared && !modalStatus?.cancelled && (
                   <Tag color="default">⏳ รอดำเนินการ</Tag>
                 )}
               </div>
             </div>
 
-            {selectedVisit.staff_profile && (
-              <div>
-                <div style={{ fontSize: '12px', color: '#999', marginBottom: '4px' }}>เจ้าหน้าที่</div>
-                <div style={{ fontSize: '14px' }}>
-                  👤 {selectedVisit.staff_profile.full_name || '-'}
-                </div>
+            {modalStaff && (
+              <div className="modal-info-section">
+                <div className="modal-info-label">เจ้าหน้าที่</div>
+                <div className="modal-info-value">👤 {modalStaff.full_name || '-'}</div>
               </div>
             )}
+
+            <div className="modal-info-section">
+              <div className="modal-info-label">ประวัติการอัปเดต ({selectedVisit.notifications.length} รายการ)</div>
+              <div className="modal-timeline-container">
+                {selectedVisit.notifications.map((notif) => (
+                  <div key={notif.id} className="modal-timeline-item">
+                    <div className="modal-timeline-header">
+                      {notif.type === 'customer_assignment' ? '📝 การมอบหมาย' : '🔄 อัปเดต'} — <span style={{ color: '#8c8c8c', fontSize: 12 }}>{formatThaiDate(notif.createdAt)}</span>
+                    </div>
+                    <div className="modal-timeline-content">
+                      {notif.data?.symptoms && (
+                        <div style={{ marginBottom: 6 }}><strong>อาการ:</strong> {notif.data.symptoms.main || notif.data.symptoms}</div>
+                      )}
+                      {notif.data?.prescribed_drugs && notif.data.prescribed_drugs.length > 0 && (
+                        <div style={{ marginBottom: 6 }}>
+                          <strong>ยา:</strong> {notif.data.prescribed_drugs.map((d, i) => (typeof d === 'string' ? d : d.name || 'ยา')).join(', ')}
+                        </div>
+                      )}
+                      {notif.message && (
+                        <div style={{ fontStyle: 'italic', color: '#8c8c8c' }}>{notif.message}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </Modal>

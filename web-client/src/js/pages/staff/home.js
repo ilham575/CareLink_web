@@ -12,6 +12,9 @@ function StaffHome() {
   const location = useLocation();
   const navigate = useNavigate();
   const [pharmacyData, setPharmacyData] = useState([]);
+  // Track expanded state per pharmacy/staff profile for working times
+  const [expandedProfiles, setExpandedProfiles] = useState({});
+  const toggleProfileExpand = (key) => setExpandedProfiles(prev => ({ ...prev, [key]: !prev[key] }));
 
   useEffect(() => {
     if (location.state?.showToast) {
@@ -111,32 +114,56 @@ function StaffHome() {
                     </p>
                     {staffProfile && (
                       <div className="staff-work-info">
-                        <p className="staff-work-time">
-                          <b>เวลาทำงานของคุณ:</b>
-                          {staffProfile.work_schedule && Array.isArray(staffProfile.work_schedule) ? (
-                            <span style={{ marginLeft: '10px' }}>
-                              {staffProfile.work_schedule.map(schedule => 
-                                `${schedule.day}: ${schedule.start_time}-${schedule.end_time}`
-                              ).join(', ')}
-                            </span>
-                          ) : (
-                            <span style={{ marginLeft: '10px' }}>
-                              {formatTime(staffProfile.time_start) || '-'} - {formatTime(staffProfile.time_end) || '-'}
-                              {staffProfile.working_days && (
-                                <span style={{ marginLeft: '15px' }}>
-                                  <b>วันทำงาน:</b> {Array.isArray(staffProfile.working_days) 
-                                    ? staffProfile.working_days.join(', ')
-                                    : staffProfile.working_days
-                                  }
-                                </span>
-                              )}
-                            </span>
-                          )}
-                        </p>
+                        <p className="staff-work-time"><b>เวลาทำงานของคุณ:</b></p>
+
+                        {/* Work schedule array -> pill list with collapse/expand */}
+                        {staffProfile.work_schedule && Array.isArray(staffProfile.work_schedule) ? (
+                          (() => {
+                            const key = staffProfile.id || (ph.documentId || ph.id);
+                            const isExpanded = Boolean(expandedProfiles[key]);
+                            const times = staffProfile.work_schedule || [];
+                            const visible = isExpanded ? times : times.slice(0, 2);
+
+                            return (
+                              <div className="staff-working-times">
+                                {staffProfile.users_permissions_user?.full_name && (
+                                  <div className="working-staff-name">{staffProfile.users_permissions_user.full_name}</div>
+                                )}
+
+                                <ul className={`working-times-list ${isExpanded ? 'expanded' : 'collapsed'}`}>
+                                  {visible.map((s, i) => (
+                                    <li key={i} className="working-time-item">
+                                      <span className="day">{s.day}</span>
+                                      <span className="time">{s.start_time || '-'} - {s.end_time || '-'}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+
+                                {times.length > 2 && (
+                                  <button className="expand-times" onClick={() => toggleProfileExpand(key)}>
+                                    {isExpanded ? 'ย่อ' : `ดูเพิ่มเติม (${times.length - 2})`}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <span style={{ marginLeft: '10px' }}>
+                            {formatTime(staffProfile.time_start) || '-'} - {formatTime(staffProfile.time_end) || '-'}
+                            {staffProfile.working_days && (
+                              <span style={{ marginLeft: '15px' }}>
+                                <b>วันทำงาน:</b> {Array.isArray(staffProfile.working_days) 
+                                  ? staffProfile.working_days.join(', ')
+                                  : staffProfile.working_days
+                                }
+                              </span>
+                            )}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                  <div className="staff-action-buttons">
                     <button
                       className="view-detail-button"
                       onClick={() => navigate(`/drug_store_staff_detail/${ph.documentId}`, { state: { pharmacy: ph, staffProfile } })}

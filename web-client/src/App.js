@@ -44,14 +44,14 @@ import 'antd/dist/reset.css';
 import { API } from './utils/apiConfig';
 
 // Override console.log based on environment/branch
-// const isDevelopBranch = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
-// if (isDevelopBranch) {
-//   console.log('🔗 API Base URL:', API.BASE_URL);
-//   // console.log = () => {};
-// } else {
-//   // console.log('🔗 API Base URL:', API.BASE_URL);
-//   console.log = () => {};
-// }
+const isDevelopBranch = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+if (isDevelopBranch) {
+  console.log('🔗 API Base URL:', API.BASE_URL);
+  // console.log = () => {};
+} else {
+  // console.log('🔗 API Base URL:', API.BASE_URL);
+  console.log = () => {};
+}
 
 function App() {
   return (

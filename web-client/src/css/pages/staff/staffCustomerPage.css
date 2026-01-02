@@ -191,6 +191,174 @@
   margin-bottom: 40px;
 }
 
+/* Responsive Design for Staff Customer Page */
+@media (max-width: 1024px) {
+  .customer-main {
+    padding: 16px;
+  }
+
+  .customer-grid {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .customer-main {
+    padding: 12px;
+  }
+
+  .customer-header {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+    padding: 20px 16px;
+  }
+
+  .customer-header h2 {
+    font-size: 24px;
+    margin: 0;
+  }
+
+  .customer-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-back {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .customer-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .search-bar {
+    margin-bottom: 20px;
+  }
+
+  .search-input {
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .customer-main {
+    padding: 8px;
+  }
+
+  .customer-header {
+    padding: 16px 12px;
+    margin-bottom: 20px;
+  }
+
+  .customer-header h2 {
+    font-size: 20px;
+    gap: 8px;
+  }
+
+  .btn-back {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .search-input {
+    padding: 12px 14px;
+    font-size: 16px;
+  }
+
+  .search-input::placeholder {
+    font-size: 14px;
+  }
+
+  .empty-state {
+    padding: 40px 20px;
+    margin: 20px 0;
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .empty-state h3 {
+    font-size: 20px;
+  }
+
+  .empty-state p {
+    font-size: 14px;
+  }
+
+  .loading-container {
+    padding: 40px 20px;
+    margin: 20px 0;
+  }
+
+  .loading-container p {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 320px) {
+  .customer-main {
+    padding: 4px;
+  }
+
+  .customer-header {
+    padding: 12px 8px;
+    margin-bottom: 16px;
+  }
+
+  .customer-header h2 {
+    font-size: 18px;
+    gap: 6px;
+  }
+
+  .btn-back {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .search-input {
+    padding: 10px 12px;
+    font-size: 15px;
+  }
+
+  .search-input::placeholder {
+    font-size: 13px;
+  }
+
+  .empty-state {
+    padding: 30px 16px;
+    margin: 16px 0;
+  }
+
+  .empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+
+  .empty-state h3 {
+    font-size: 18px;
+  }
+
+  .empty-state p {
+    font-size: 13px;
+  }
+
+  .loading-container {
+    padding: 30px 16px;
+    margin: 16px 0;
+  }
+
+  .loading-container p {
+    font-size: 15px;
+  }
+}
+
 /* Add stagger animation for cards */
 .customer-grid > * {
   animation: fadeInUp 0.6s ease-out;

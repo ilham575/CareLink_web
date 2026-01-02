@@ -308,3 +308,282 @@ body {
     padding: 16px 20px;
   }
 }
+
+/* Additional responsive breakpoints for better mobile experience */
+@media (max-width: 768px) {
+  .dsstaff-image-row {
+    padding: 0 12px;
+    gap: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "front in"
+      "staff staff";
+  }
+
+  .dsstaff-image-box:nth-child(1) {
+    grid-area: front;
+  }
+
+  .dsstaff-image-box:nth-child(2) {
+    grid-area: in;
+  }
+
+  .dsstaff-image-box:nth-child(3) {
+    grid-area: staff;
+  }
+
+  .dsstaff-image-box {
+    height: 140px;
+    border-radius: 12px;
+  }
+
+  .dsstaff-image-box img {
+    border-radius: 10px;
+  }
+
+  .dsstaff-info-service-row {
+    padding: 0 12px;
+    gap: 16px;
+  }
+
+  .dsstaff-left-info {
+    padding: 16px 20px;
+    font-size: 1em;
+    line-height: 2.2;
+  }
+
+  .dsstaff-left-info p {
+    gap: 8px;
+    font-size: 0.95em;
+  }
+
+  .dsstaff-left-info p::before {
+    font-size: 1.1em;
+  }
+
+  .dsstaff-right-service {
+    gap: 16px;
+  }
+
+  .dsstaff-service-box {
+    padding: 16px 20px;
+  }
+
+  .dsstaff-section-title {
+    font-size: 1.1em;
+  }
+
+  .dsstaff-map-placeholder {
+    height: 50px;
+    line-height: 50px;
+    font-size: 1em;
+  }
+
+  .dsstaff-map-placeholder a {
+    font-size: 1em;
+    line-height: 50px;
+  }
+
+  .dsstaff-bottom-button {
+    padding: 16px 12px;
+  }
+
+  .dsstaff-back-button {
+    padding: 14px 24px;
+    font-size: 1em;
+    min-width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dsstaff-image-row {
+    padding: 0 8px;
+    gap: 8px;
+  }
+
+  .dsstaff-image-box {
+    height: 120px;
+    border-radius: 8px;
+  }
+
+  .dsstaff-image-box img {
+    border-radius: 6px;
+  }
+
+  .dsstaff-info-service-row {
+    padding: 0 8px;
+    gap: 12px;
+  }
+
+  .dsstaff-left-info {
+    padding: 12px 16px;
+    font-size: 0.95em;
+    line-height: 2;
+  }
+
+  .dsstaff-left-info p {
+    gap: 6px;
+    font-size: 0.9em;
+    margin-bottom: 12px;
+  }
+
+  .dsstaff-left-info p::before {
+    font-size: 1em;
+  }
+
+  .dsstaff-left-info div {
+    margin-top: 8px;
+  }
+
+  .dsstaff-left-info div p {
+    font-size: 0.9em;
+  }
+
+  .dsstaff-left-info li {
+    font-size: 0.85em;
+    padding: 6px 0;
+  }
+
+  .dsstaff-right-service {
+    gap: 12px;
+  }
+
+  .dsstaff-service-box {
+    padding: 12px 16px;
+    font-size: 0.9em;
+    line-height: 1.8;
+  }
+
+  .dsstaff-service-box li {
+    padding: 6px 0;
+    gap: 8px;
+  }
+
+  .dsstaff-service-box li::before {
+    font-size: 1em;
+  }
+
+  .dsstaff-section-title {
+    font-size: 1em;
+    gap: 6px;
+  }
+
+  .dsstaff-section-title::before {
+    font-size: 1.2em;
+  }
+
+  .dsstaff-map-placeholder {
+    height: 45px;
+    line-height: 45px;
+    font-size: 0.95em;
+    border-radius: 8px;
+  }
+
+  .dsstaff-map-placeholder a {
+    font-size: 0.95em;
+    line-height: 45px;
+  }
+
+  .dsstaff-bottom-button {
+    padding: 12px 8px;
+    gap: 8px;
+  }
+
+  .dsstaff-back-button {
+    padding: 12px 20px;
+    font-size: 0.95em;
+    min-width: 80px;
+    border-radius: 8px;
+  }
+}
+
+@media (max-width: 320px) {
+  .dsstaff-image-row {
+    padding: 0 4px;
+    gap: 4px;
+  }
+
+  .dsstaff-image-box {
+    height: 100px;
+    border-radius: 6px;
+  }
+
+  .dsstaff-image-box img {
+    border-radius: 4px;
+  }
+
+  .dsstaff-info-service-row {
+    padding: 0 4px;
+    gap: 8px;
+  }
+
+  .dsstaff-left-info {
+    padding: 8px 12px;
+    font-size: 0.9em;
+    line-height: 1.8;
+  }
+
+  .dsstaff-left-info p {
+    gap: 4px;
+    font-size: 0.85em;
+    margin-bottom: 8px;
+  }
+
+  .dsstaff-left-info p::before {
+    font-size: 0.9em;
+  }
+
+  .dsstaff-right-service {
+    gap: 8px;
+  }
+
+  .dsstaff-service-box {
+    padding: 8px 12px;
+    font-size: 0.85em;
+    line-height: 1.6;
+  }
+
+  .dsstaff-service-box li {
+    padding: 4px 0;
+    gap: 6px;
+  }
+
+  .dsstaff-service-box li::before {
+    font-size: 0.9em;
+  }
+
+  .dsstaff-section-title {
+    font-size: 0.95em;
+    gap: 4px;
+  }
+
+  .dsstaff-section-title::before {
+    font-size: 1.1em;
+  }
+
+  .dsstaff-map-placeholder {
+    height: 40px;
+    line-height: 40px;
+    font-size: 0.9em;
+    border-radius: 6px;
+  }
+
+  .dsstaff-map-placeholder a {
+    font-size: 0.9em;
+    line-height: 40px;
+  }
+
+  .dsstaff-bottom-button {
+    padding: 8px 4px;
+    gap: 6px;
+  }
+
+  .dsstaff-back-button {
+    padding: 10px 16px;
+    font-size: 0.9em;
+    min-width: 70px;
+    border-radius: 6px;
+  }
+}

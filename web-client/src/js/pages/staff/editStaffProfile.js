@@ -238,11 +238,76 @@ function EditStaffProfile() {
     return timeString.substring(0, 5);
   };
 
+  // 💡 รวบรวมเวลาทำงานทั้งหมดจาก profile (รวมจากทุก field และ nested attributes) และจัดเรียง/ลบซ้ำ
+  const getAggregatedWorkingTimesFromProfile = (profile) => {
+    if (!profile) return [];
+    const collected = [];
+
+    // normalize source into array of entries
+    const entriesFrom = (src) => {
+      if (!src) return [];
+      if (Array.isArray(src)) return src;
+      if (Array.isArray(src.data)) return src.data;
+      return [];
+    };
+
+    const pushIfValid = (day, time_in, time_out) => {
+      if (!day || !time_in || !time_out) return;
+      const d = typeof day === "string" ? day.trim() : day;
+      collected.push({ day: d, start_time: time_in, end_time: time_out });
+    };
+
+    const addFrom = (src) => {
+      const arr = entriesFrom(src);
+      arr.forEach((entry) => {
+        const wt = entry?.attributes ? entry.attributes : entry;
+        // support common variants
+        const day = wt?.day || wt?.weekday || wt?.name;
+        const time_in = wt?.time_in || wt?.timeIn || wt?.open || wt?.start_time;
+        const time_out = wt?.time_out || wt?.timeOut || wt?.close || wt?.end_time;
+        pushIfValid(day, time_in, time_out);
+      });
+    };
+
+    // gather from multiple possible fields/shapes
+    addFrom(profile.work_schedule);
+    addFrom(profile.attributes?.work_schedule);
+    addFrom(profile.attributes?.work_schedule?.data);
+    addFrom(profile.working_days); // legacy field
+    addFrom(profile.attributes?.working_days);
+
+    if (collected.length === 0) return [];
+
+    // dedupe by day/time
+    const keySet = new Set();
+    const unique = [];
+    collected.forEach((t) => {
+      const key = `${t.day}|${t.start_time}|${t.end_time}`;
+      if (!keySet.has(key)) {
+        keySet.add(key);
+        unique.push(t);
+      }
+    });
+
+    const dayOrder = ["จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์","อาทิตย์"];
+    unique.sort((a,b) => {
+      const da = dayOrder.indexOf(a.day);
+      const db = dayOrder.indexOf(b.day);
+      if (da !== db) return da - db;
+      if (a.start_time !== b.start_time) return a.start_time.localeCompare(b.start_time);
+      return a.end_time.localeCompare(b.end_time);
+    });
+
+    return unique;
+  };
+
   const handleEditStaff = (profile) => {
     setModalStaffId(profile.documentId);
+    // ใช้ aggregated times สำหรับ modal
+    const aggregatedTimes = getAggregatedWorkingTimesFromProfile(profile);
     setModalData({
       position: profile.position || '',
-      workSchedule: profile.work_schedule && Array.isArray(profile.work_schedule) ? profile.work_schedule : (profile.working_days || [])
+      workSchedule: aggregatedTimes.length > 0 ? aggregatedTimes : (profile.work_schedule || [])
     });
     setShowModal(true);
   };
@@ -468,19 +533,14 @@ function EditStaffProfile() {
                       console.log('Work schedule:', profile.work_schedule);
                       console.log('Working days:', profile.working_days);
                       
+                      // ใช้ฟังก์ชันรวบรวมเวลาทำงาน
+                      const aggregatedTimes = getAggregatedWorkingTimesFromProfile(profile);
                       let workScheduleText = 'ไม่มีข้อมูลเวลา';
 
-                      if (profile.work_schedule && Array.isArray(profile.work_schedule) && profile.work_schedule.length > 0) {
-                        workScheduleText = profile.work_schedule
-                          .filter(s => s.day && s.start_time && s.end_time)
-                          .map(s => `${s.day}: ${s.start_time} - ${s.end_time}`)
+                      if (aggregatedTimes.length > 0) {
+                        workScheduleText = aggregatedTimes
+                          .map(t => `${t.day}: ${formatTimeForDisplay(t.start_time)} - ${formatTimeForDisplay(t.end_time)}`)
                           .join(', ');
-                      } else if (profile.working_days && Array.isArray(profile.working_days) && profile.working_days.length > 0) {
-                        const startTime = profile.time_start ? formatTimeForDisplay(profile.time_start) : '';
-                        const endTime = profile.time_end ? formatTimeForDisplay(profile.time_end) : '';
-                        if (startTime && endTime) {
-                          workScheduleText = profile.working_days.map(day => `${day}: ${startTime} - ${endTime}`).join(', ');
-                        }
                       }
 
                       return (

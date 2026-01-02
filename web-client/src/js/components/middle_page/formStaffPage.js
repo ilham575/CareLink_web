@@ -46,6 +46,9 @@ function FormStaffPage() {
   const [selectedUserStaffInfo, setSelectedUserStaffInfo] = useState([]); // เพิ่ม state สำหรับเก็บข้อมูล staff ของ user ที่เลือก
   const [showStaffInfoPopup, setShowStaffInfoPopup] = useState(false); // เพิ่ม state สำหรับควบคุม popup
   const [originalStaff, setOriginalStaff] = useState(null);
+  const [selectedDays, setSelectedDays] = useState([]); // เพิ่ม state สำหรับเลือกหลายวัน
+  const [bulkTimeIn, setBulkTimeIn] = useState(""); // เพิ่ม state สำหรับเวลาเริ่ม bulk
+  const [bulkTimeOut, setBulkTimeOut] = useState(""); // เพิ่ม state สำหรับเวลาสิ้นสุด bulk
   const fileInputRef = useRef();
   const navigate = useNavigate();
 
@@ -677,6 +680,39 @@ function FormStaffPage() {
     }));
   };
 
+  // 👉 เพิ่มฟังก์ชันสำหรับเพิ่มเวลา bulk (หลายวันพร้อมกัน)
+  const addBulkWorkDay = () => {
+    if (selectedDays.length === 0 || !bulkTimeIn || !bulkTimeOut) {
+      toast.error("กรุณาเลือกวันและเวลาที่ต้องการเพิ่ม");
+      return;
+    }
+
+    const newSchedules = selectedDays.map(day => ({
+      day: day,
+      start_time: bulkTimeIn,
+      end_time: bulkTimeOut,
+    }));
+
+    setForm(prevForm => ({
+      ...prevForm,
+      workSchedule: [...prevForm.workSchedule, ...newSchedules]
+    }));
+
+    // Reset bulk inputs
+    setSelectedDays([]);
+    setBulkTimeIn("");
+    setBulkTimeOut("");
+  };
+
+  // 👉 จัดการ checkbox สำหรับเลือกวัน bulk
+  const handleDaySelection = (day, checked) => {
+    if (checked) {
+      setSelectedDays(prev => [...prev, day]);
+    } else {
+      setSelectedDays(prev => prev.filter(d => d !== day));
+    }
+  };
+
   const removeWorkDay = (index) => {
     if (form.workSchedule.length > 1) {
       setForm(prevForm => ({
@@ -1086,9 +1122,53 @@ function FormStaffPage() {
                 </>
               )}
               <label>ตำแหน่งงาน<span className="required">*</span></label>
-              <input type="text" name="position" value={form.position} onChange={handleChange} required />
               <div className="form-group">
                 <label>ตารางเวลาทำงาน</label>
+                
+                {/* Bulk Add Section */}
+                <div className="bulk-add-section" style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '5px' }}>
+                  <h4 style={{ marginBottom: '10px', fontWeight: 'bold' }}>เพิ่มเวลาเดียวกันสำหรับหลายวัน</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px', marginBottom: '10px' }}>
+                    {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].map(day => (
+                      <label key={day} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '14px' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedDays.includes(day)}
+                          onChange={(e) => handleDaySelection(day, e.target.checked)}
+                          style={{ width: '16px', height: '16px' }}
+                        />
+                        <span>{day.slice(0, 3)}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <input
+                      type="time"
+                      value={bulkTimeIn}
+                      onChange={(e) => setBulkTimeIn(e.target.value)}
+                      style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      placeholder="เวลาเริ่ม"
+                    />
+                    <span>-</span>
+                    <input
+                      type="time"
+                      value={bulkTimeOut}
+                      onChange={(e) => setBulkTimeOut(e.target.value)}
+                      style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      placeholder="เวลาสิ้นสุด"
+                    />
+                    <button
+                      type="button"
+                      onClick={addBulkWorkDay}
+                      style={{ backgroundColor: '#3b82f6', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      onMouseOver={(e) => e.target.style.backgroundColor = '#2563eb'}
+                      onMouseOut={(e) => e.target.style.backgroundColor = '#3b82f6'}
+                    >
+                      เพิ่มช่วงเวลา
+                    </button>
+                  </div>
+                </div>
+
                 <div className="work-schedule-container">
                   {form.workSchedule.length === 0 ? (
                     <div className="no-schedule">
@@ -1145,7 +1225,7 @@ function FormStaffPage() {
                     className="add-day-btn"
                     disabled={form.workSchedule.length >= 7} // จำกัดไม่เกิน 7 วัน
                   >
-                    + เพิ่มวันทำงาน
+                    + เพิ่มวันทำงาน แยก
                   </button>
                 </div>
               </div>
