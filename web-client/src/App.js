@@ -40,6 +40,7 @@ import PrintTransferForm from './js/pages/pharmacy/PrintTransferForm';
 import PrintAllergyCard from './js/pages/pharmacy/PrintAllergyCard';
 import RoleBasedRedirect from './js/utils/rolebasedredirect';
 import VisitHistory from './js/pages/pharmacy/VisitHistory';
+import StaffVisitHistory from './js/pages/staff/StaffVisitHistory';
 import 'antd/dist/reset.css';
 import { API } from './utils/apiConfig';
 
@@ -93,6 +94,10 @@ function App() {
             <Route path="/staffHome" element={<StaffHome />} />
             <Route path="/drug_store_staff_detail/:id" element={<DrugStoresDetailStaff />} />
             <Route path="/drug_store_staff/:id/customers" element={<CustomerPageStaff />} />
+            <Route 
+              path="/drug_store_staff/:pharmacyId/customer/:customerDocumentId/history" 
+              element={<StaffVisitHistory />} 
+            />
             <Route path="/staff/customer_detail/:customerDocumentId" element={<CustomerDetailStaff />} />
             <Route path="/edit_staff_profile" element={<EditStaffProfile />} />
           </Route>

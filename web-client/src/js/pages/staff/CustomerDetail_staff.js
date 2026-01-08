@@ -722,7 +722,10 @@ function CustomerDetailStaff() {
   }, [notification?.documentId, customerDocumentId]);
 
   const handleBack = () => {
-    if (pharmacyId) {
+    if (pharmacyId && customerDocumentId) {
+      // Navigate back to StaffVisitHistory for this customer
+      navigate(`/drug_store_staff/${pharmacyId}/customer/${customerDocumentId}/history`);
+    } else if (pharmacyId) {
       navigate(`/drug_store_staff/${pharmacyId}/customers`);
     } else {
       navigate(-1);

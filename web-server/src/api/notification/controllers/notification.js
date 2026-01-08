@@ -7,6 +7,24 @@
 const { createCoreController } = require('@strapi/strapi').factories;
 
 module.exports = createCoreController('api::notification.notification', ({ strapi }) => ({
+  async create(ctx) {
+    console.log('[Controller] Creating notification:', {
+      body: ctx.request.body,
+      user: ctx.state.user?.id
+    });
+    
+    // call the default core action
+    const response = await super.create(ctx);
+    
+    console.log('[Controller] Notification created successfully:', {
+      id: response.data?.id,
+      documentId: response.data?.documentId,
+      type: response.data?.type
+    });
+
+    return response;
+  },
+
   async find(ctx) {
     // call the default core action
     const response = await super.find(ctx);

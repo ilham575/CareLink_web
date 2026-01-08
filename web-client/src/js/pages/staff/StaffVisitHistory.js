@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Modal, Tabs, Tag, Timeline } from 'antd';
+import { Modal, Tabs, Tag } from 'antd';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
@@ -27,7 +27,7 @@ function formatThaiDate(dateStr) {
   return `${day} ${month} ${year} เวลา ${time} น.`;
 }
 
-function VisitHistory() {
+function StaffVisitHistory() {
   const { customerDocumentId, pharmacyId: paramPharmacyId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,8 +40,6 @@ function VisitHistory() {
   const [detailModal, setDetailModal] = useState(false);
   
   // pharmacyId can come either from the path params or from the query string.
-  // Use path param first (when route is /drug_store_pharmacy/:pharmacyId/customer/:customerDocumentId/history),
-  // otherwise fall back to ?pharmacyId= in the query string.
   const pharmacyId = paramPharmacyId || new URLSearchParams(location.search).get('pharmacyId');
 
   useEffect(() => {
@@ -49,10 +47,9 @@ function VisitHistory() {
   }, [customerDocumentId, paramPharmacyId, location]);
 
   // Reload visits when returning to this page (e.g., after editing in detail page)
-  // This ensures new notifications appear in the list immediately
   useEffect(() => {
     const handleFocus = () => {
-      console.log('[VisitHistory] Window focused - reloading visits');
+      console.log('[StaffVisitHistory] Window focused - reloading visits');
       loadData();
     };
 
@@ -63,6 +60,12 @@ function VisitHistory() {
   const loadData = async () => {
     try {
       const token = localStorage.getItem('jwt');
+      const userDocumentId = localStorage.getItem('user_documentId');
+      
+      if (!userDocumentId) {
+        toast.error('ไม่พบข้อมูลผู้ใช้');
+        return;
+      }
       
       // Load customer profile
       const customerRes = await fetch(
@@ -89,18 +92,38 @@ function VisitHistory() {
         }
       }
       
-      // Load all visits (notifications) for this customer at this pharmacy
+      // Load staff profile for filtering notifications
+      const staffRes = await fetch(
+        API.staffProfiles.list(`filters[users_permissions_user][documentId][$eq]=${userDocumentId}&filters[drug_store][documentId][$eq]=${pharmacyId}`),
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      let staffDocumentId = null;
+      if (staffRes.ok) {
+        const staffData = await staffRes.json();
+        const staffProfile = staffData.data?.[0];
+        staffDocumentId = staffProfile?.documentId;
+      }
+      
+      // Load all visits (notifications) assigned to this staff for this customer
       // รวม type 'message' ด้วยเพื่อแสดงประวัติการบันทึกยา/อาการ
+      let notifUrl = `filters[customer_profile][documentId][$eq]=${customerDocumentId}` +
+                    `&filters[type][$in][0]=customer_assignment` +
+                    `&filters[type][$in][1]=customer_assignment_update` +
+                    `&filters[type][$in][2]=message` +
+                    `&populate=*` +
+                    `&sort[0]=createdAt:desc`;
+      
+      // Filter by staff if we have staff document ID (to show only notifications assigned to this staff)
+      if (staffDocumentId) {
+        notifUrl = `filters[staff_profile][documentId][$eq]=${staffDocumentId}&` + notifUrl;
+      } else if (pharmacyId) {
+        // Fallback: filter by pharmacy if no staff profile
+        notifUrl = `filters[drug_store][documentId][$eq]=${pharmacyId}&` + notifUrl;
+      }
+      
       const notifRes = await fetch(
-        API.notifications.list(
-          `filters[customer_profile][documentId][$eq]=${customerDocumentId}` +
-          `&filters[drug_store][documentId][$eq]=${pharmacyId}` +
-          `&filters[type][$in][0]=customer_assignment` +
-          `&filters[type][$in][1]=customer_assignment_update` +
-          `&filters[type][$in][2]=message` +
-          `&populate=*` +
-          `&sort[0]=createdAt:desc`
-        ),
+        API.notifications.list(notifUrl),
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -108,23 +131,23 @@ function VisitHistory() {
         const notifData = await notifRes.json();
         const notifications = notifData.data || [];
         
-        // แต่ละ notification คือ 1 visit (ไม่ group)
-        // เพราะแต่ละครั้งที่ส่งข้อมูลให้พนักงาน ถือเป็นการมาใหม่
+        // แต่ละ notification คือ 1 visit
         const visits = notifications.map(notif => ({
           id: notif.id,
-          notifications: [notif], // wrap ใน array เพื่อให้ compatible กับ UI
+          notifications: [notif],
           latestNotification: notif,
           createdAt: notif.createdAt,
           updatedAt: notif.updatedAt
         }));
         
-        // Sort visits by createdAt desc (ล่าสุดก่อน)
+        // Sort visits by createdAt desc
         visits.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         
         setVisits(visits);
       }
       
     } catch (error) {
+      console.error('Error loading staff visit history:', error);
       toast.error('เกิดข้อผิดพลาดในการโหลดข้อมูล');
     } finally {
       setLoading(false);
@@ -132,17 +155,15 @@ function VisitHistory() {
   };
 
   const handleViewDetail = (visit) => {
-    // Navigate to CustomerDetail page and pass notifId so detail page can load specific visit
     const latestNotif = visit.latestNotification;
     const notifId = latestNotif?.documentId || latestNotif?.id;
     const targetNotif = notifId ? `&notifId=${encodeURIComponent(notifId)}` : '';
-    // Use the app's CustomerDetail route: /customer_detail/:customerDocumentId
-    navigate(`/customer_detail/${customerDocumentId}?pharmacyId=${pharmacyId}${targetNotif}`);
+    navigate(`/staff/customer_detail/${customerDocumentId}?pharmacyId=${pharmacyId}${targetNotif}`);
   };
 
-  const handleCreateNewVisit = () => {
-    // Navigate to customer detail page to create new visit
-    navigate(`/customer_detail/${customerDocumentId}?pharmacyId=${pharmacyId}&newVisit=1`);
+  const handleCreateNewAssignment = () => {
+    // Redirect back to customer list to create new assignment
+    navigate(`/drug_store_staff/${pharmacyId}/customers`);
   };
 
   if (loading) {
@@ -170,8 +191,8 @@ function VisitHistory() {
             <button
               className="btn-back"
               onClick={() => {
-                if (pharmacy?.documentId || pharmacyId) {
-                  navigate(`/drug_store_pharmacy/${pharmacy?.documentId || pharmacyId}/followup-customers`);
+                if (pharmacyId) {
+                  navigate(`/drug_store_staff/${pharmacyId}/customers`);
                 } else {
                   navigate(-1);
                 }
@@ -191,15 +212,9 @@ function VisitHistory() {
   // Derived vars for modal details
   const latestNotifForModal = selectedVisit?.latestNotification || selectedVisit?.notifications?.[0] || null;
   const modalNotifData = latestNotifForModal?.data || {};
-  
-  // Read from nested snapshot (innerData) first, then fallback to top-level
-  const modalInnerData = modalNotifData?.data || {};
-  const modalSymptoms = modalInnerData?.symptoms?.main || modalInnerData?.symptoms || modalNotifData?.symptoms?.main || modalNotifData?.symptoms || latestNotifForModal?.customer_profile?.Customers_symptoms || 'ไม่ระบุอาการ';
-  const modalDrugs = modalInnerData?.prescribed_drugs || modalNotifData?.prescribed_drugs || latestNotifForModal?.customer_profile?.prescribed_drugs || [];
-  const modalAppointmentDate = modalInnerData?.appointment_date || modalNotifData?.appointment_date || latestNotifForModal?.customer_profile?.Follow_up_appointment_date || null;
-  
+  const modalSymptoms = modalNotifData?.symptoms?.main || modalNotifData?.symptoms || latestNotifForModal?.customer_profile?.Customers_symptoms || 'ไม่ระบุอาการ';
+  const modalDrugs = modalNotifData?.prescribed_drugs || latestNotifForModal?.customer_profile?.prescribed_drugs || [];
   const modalStatus = latestNotifForModal?.staff_work_status || selectedVisit?.staff_work_status || {};
-  const modalStaff = selectedVisit?.staff_profile || latestNotifForModal?.staff_profile || null;
 
   return (
     <div className="visit-history-page">
@@ -228,11 +243,6 @@ function VisitHistory() {
                 </div>
               </div>
             </div>
-            <div className="customer-header-actions">
-              <button className="customer-header-btn" onClick={handleCreateNewVisit}>
-                ➕ บันทึกการมาใหม่
-              </button>
-            </div>
           </div>
         </div>
 
@@ -240,7 +250,7 @@ function VisitHistory() {
         <div className="visits-container">
           <div className="visits-container-header">
             <h3>
-              📋 ประวัติการมาใช้บริการ
+              📋 ประวัติการจัดส่ง
               <span className="visits-badge">{visits.length} ครั้ง</span>
             </h3>
           </div>
@@ -248,9 +258,9 @@ function VisitHistory() {
           {visits.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon">📝</div>
-              <p>ยังไม่มีประวัติการมาใช้บริการ</p>
-              <button className="empty-state-btn" onClick={handleCreateNewVisit}>
-                บันทึกการมาครั้งแรก
+              <p>ยังไม่มีการมอบหมายสำหรับลูกค้านี้</p>
+              <button className="empty-state-btn" onClick={handleCreateNewAssignment}>
+                กลับไปเพื่อสร้างการมอบหมายใหม่
               </button>
             </div>
           ) : (
@@ -260,17 +270,7 @@ function VisitHistory() {
                   const visitData = latestNotif.data || {};
                   // ข้อมูล snapshot อยู่ใน visitData.data (nested อีกชั้น)
                   const innerData = visitData.data || {};
-                  // Normalize symptoms to a display string (handle object/string)
-                  const rawSymptoms = innerData.symptoms || visitData.symptoms || latestNotif.customer_profile?.Customers_symptoms || null;
-                  let symptoms = 'ไม่ระบุอาการ';
-                  if (rawSymptoms) {
-                    if (typeof rawSymptoms === 'string') {
-                      symptoms = rawSymptoms;
-                    } else if (typeof rawSymptoms === 'object') {
-                      symptoms = rawSymptoms.main || rawSymptoms.history || rawSymptoms.note || JSON.stringify(rawSymptoms);
-                    }
-                  }
-                  const drugs = innerData.prescribed_drugs || visitData.prescribed_drugs || latestNotif.customer_profile?.prescribed_drugs || [];
+                  const symptoms = innerData.symptoms || visitData.symptoms || latestNotif.customer_profile?.Customers_symptoms || 'ไม่ระบุอาการ';
                   const staffWorkStatus = latestNotif.staff_work_status || {};
                   
                   // Determine visit status
@@ -295,7 +295,7 @@ function VisitHistory() {
                       </div>
                       <div className="visit-card" onClick={() => handleViewDetail(visit)}>
                         <div className="visit-card-title">
-                          <h4>🩺 การมาใช้บริการครั้งที่ {visits.length - index}</h4>
+                          <h4>📦 การจัดส่งครั้งที่ {visits.length - index}</h4>
                           {symptoms && <p className="visit-card-excerpt">{symptoms}</p>}
                         </div>
                       </div>
@@ -311,8 +311,8 @@ function VisitHistory() {
         <button
           className="btn-back"
           onClick={() => {
-            if (pharmacy?.documentId || pharmacyId) {
-              navigate(`/drug_store_pharmacy/${pharmacy?.documentId || pharmacyId}/followup-customers`);
+            if (pharmacyId) {
+              navigate(`/drug_store_staff/${pharmacyId}/customers`);
             } else {
               navigate(-1);
             }
@@ -322,15 +322,13 @@ function VisitHistory() {
         </button>
       </div>
 
-      {/* Floating action button for quick new visit */}
-
       <Footer />
 
       {/* Visit Detail Modal */}
       <Modal
         title={
           <div style={{ fontSize: '20px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            📋 รายละเอียดการมาใช้บริการ
+            📋 รายละเอียดการจัดส่ง
           </div>
         }
         open={detailModal}
@@ -349,7 +347,7 @@ function VisitHistory() {
         {selectedVisit && (
           <div>
             <div className="modal-info-section">
-              <div className="modal-info-label">วันที่มาใช้บริการ</div>
+              <div className="modal-info-label">วันที่มอบหมาย</div>
               <div className="modal-info-value">
                 {formatThaiDate(selectedVisit.createdAt)}
               </div>
@@ -361,19 +359,11 @@ function VisitHistory() {
             </div>
 
             <div className="modal-info-section">
-              <div className="modal-info-label">วันนัดติดตาม</div>
-              <div className="modal-info-value">
-                {modalAppointmentDate ? formatThaiDate(modalAppointmentDate) : 'ยังไม่มีกำหนด'}
-              </div>
-            </div>
-
-            <div className="modal-info-section">
               <div className="modal-info-label">ยา</div>
               <div className="modal-info-value">
                 {Array.isArray(modalDrugs) && modalDrugs.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {modalDrugs.map((drug, i) => {
-                      // รองรับทั้ง format เก่าและใหม่
                       if (typeof drug === 'string') {
                         return <div key={i}>{drug}</div>;
                       }
@@ -403,46 +393,6 @@ function VisitHistory() {
                 )}
               </div>
             </div>
-
-            {modalStaff && (
-              <div className="modal-info-section">
-                <div className="modal-info-label">เจ้าหน้าที่</div>
-                <div className="modal-info-value">👤 {modalStaff.full_name || '-'}</div>
-              </div>
-            )}
-
-            <div className="modal-info-section">
-              <div className="modal-info-label">ประวัติการอัปเดต ({selectedVisit.notifications.length} รายการ)</div>
-              <div className="modal-timeline-container">
-                {selectedVisit.notifications.map((notif) => (
-                  <div key={notif.id} className="modal-timeline-item">
-                    <div className="modal-timeline-header">
-                      {notif.type === 'customer_assignment' ? '📝 การมอบหมาย' : 
-                       notif.type === 'customer_assignment_update' ? '🔄 อัปเดต' : 
-                       notif.type === 'message' ? '💊 บันทึกข้อมูล' : '📋 บันทึก'} — <span style={{ color: '#8c8c8c', fontSize: 12 }}>{formatThaiDate(notif.createdAt)}</span>
-                    </div>
-                    <div className="modal-timeline-content">
-                      {notif.data?.symptoms && (
-                        <div style={{ marginBottom: 6 }}><strong>อาการ:</strong> {notif.data.symptoms.main || notif.data.symptoms}</div>
-                      )}
-                      {notif.data?.prescribed_drugs && notif.data.prescribed_drugs.length > 0 && (
-                        <div style={{ marginBottom: 6 }}>
-                          <strong>ยา:</strong> {notif.data.prescribed_drugs.map((d, i) => {
-                            // รองรับทั้ง format เก่า (string/object ธรรมดา) และ format ใหม่ (มี drugName, quantity)
-                            if (typeof d === 'string') return d;
-                            if (d.drugName) return `${d.drugName} ${d.quantity ? `×${d.quantity}` : ''}`;
-                            return d.name || 'ยา';
-                          }).join(', ')}
-                        </div>
-                      )}
-                      {notif.message && (
-                        <div style={{ fontStyle: 'italic', color: '#8c8c8c' }}>{notif.message}</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
       </Modal>
@@ -450,4 +400,4 @@ function VisitHistory() {
   );
 }
 
-export default VisitHistory;
+export default StaffVisitHistory;

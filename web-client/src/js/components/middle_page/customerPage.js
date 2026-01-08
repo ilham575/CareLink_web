@@ -510,7 +510,8 @@ function CustomerPage({ id }) {
                           toast.error("ไม่พบข้อมูลลูกค้า ไม่สามารถดูรายละเอียดได้");
                           return;
                         }
-                        navigate(`/customer_detail/${customerDocumentId}?pharmacyId=${documentId}`);
+                        // เปลี่ยน flow: เปิดหน้า VisitHistory ก่อน
+                        navigate(`/drug_store_pharmacy/${documentId}/customer/${customerDocumentId}/history?pharmacyId=${documentId}`);
                       }}
                     >
                       <span className="btn-icon">👁️</span>

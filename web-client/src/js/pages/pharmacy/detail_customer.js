@@ -73,6 +73,9 @@ function CustomerDetail() {
   });
   // Keep latest notification (if any) so we can tell initial assign vs update
   const [latestNotification, setLatestNotification] = useState(null);
+  // Keep current notification being viewed (from notifId) separate from latestNotification
+  // This prevents showing symptoms/appointment from a different sheet that was edited
+  const [currentNotification, setCurrentNotification] = useState(null);
   const userRole = localStorage.getItem('role');
   
   const [outOfStockModal, setOutOfStockModal] = useState({
@@ -108,14 +111,28 @@ function CustomerDetail() {
   // Get pharmacyId from URL params
   const searchParams = new URLSearchParams(location.search);
   const pharmacyId = searchParams.get('pharmacyId');
+  const notifId = searchParams.get('notifId');
+  const newVisit = searchParams.get('newVisit') === '1' || searchParams.get('newVisit') === 'true';
+
+  const defaultStaffStatus = {
+    received: false,
+    prepared: false,
+    received_at: null,
+    prepared_at: null,
+    prepared_note: '',
+    outOfStock: [],
+    cancelled: false,
+    cancelled_at: null,
+    cancelled_note: ''
+  };
 
   useEffect(() => {
-    console.log('useEffect triggered with customerDocumentId:', customerDocumentId, 'pharmacyId:', pharmacyId);
+    console.log('useEffect triggered with customerDocumentId:', customerDocumentId, 'pharmacyId:', pharmacyId, 'notifId:', notifId);
     const loadCustomerData = async () => {
       console.log('loadCustomerData function called');
 
-      if (!customerDocumentId) {
-        console.log('customerDocumentId is null or undefined, skipping load');
+      if (!customerDocumentId && !notifId) {
+        console.log('Neither customerDocumentId nor notifId provided, skipping load');
         setLoading(false);
         return;
       }
@@ -123,11 +140,38 @@ function CustomerDetail() {
       const token = localStorage.getItem('jwt');
       console.log('Token exists:', !!token);
 
+      // Determine which customer documentId to load. If notifId provided, fetch notification first.
+      let targetCustomerDoc = customerDocumentId;
+      let initialNotification = null;
+
+      if (notifId) {
+        try {
+          const nRes = await fetch(API.notifications.getById(notifId), {
+            headers: { Authorization: token ? `Bearer ${token}` : "" }
+          });
+          if (nRes.ok) {
+            const nJson = await nRes.json();
+            initialNotification = nJson.data || nJson;
+            // Try several possible shapes for customer_profile
+            const cp = initialNotification?.customer_profile || initialNotification?.data?.customer_profile;
+            targetCustomerDoc = cp?.documentId || cp?.data?.documentId || targetCustomerDoc;
+            setLatestNotification(initialNotification);
+            // Keep current notification separate from latest to prevent showing another sheet's data
+            setCurrentNotification(initialNotification);
+            console.log('📝 Loaded current notification via notifId:', notifId, 'derived customerDocumentId:', targetCustomerDoc);
+          } else {
+            console.warn('Notification fetch failed for notifId:', notifId, 'status:', nRes.status);
+          }
+        } catch (err) {
+          console.warn('Error fetching notification for notifId:', notifId, err);
+        }
+      }
+
       // helper: try fetching customer by documentId with retries (backend may take a moment to return newly-created item)
       const fetchWithRetry = async (attempts = 4, delay = 300) => {
         for (let i = 0; i < attempts; i++) {
           try {
-            const res = await fetch(API.customerProfiles.getByDocumentId(customerDocumentId), {
+            const res = await fetch(API.customerProfiles.getByDocumentId(targetCustomerDoc), {
               headers: { Authorization: token ? `Bearer ${token}` : "" }
             });
             if (!res.ok) {
@@ -155,15 +199,57 @@ function CustomerDetail() {
         }
 
         console.log('Customer data loaded:', customer);
-        setCustomer(customer);
-
-        // โหลด assigned_by_staff ถ้ามีและมี documentId ให้ถือว่าเป็นข้อมูลที่สมบูรณ์
-        if (customer?.assigned_by_staff && customer.assigned_by_staff.documentId) {
-          console.log('Customer has assigned_by_staff:', customer.assigned_by_staff);
-          setAssignedByStaff(customer.assigned_by_staff);
+        // If newVisit flag is present, clear visit-specific lists (prescribed_drugs)
+        if (newVisit) {
+          const cleared = { ...customer, prescribed_drugs: [] };
+          setCustomer(cleared);
+        } else if (initialNotification?.data) {
+          // ถ้ามี notification snapshot ให้ใช้ยาจาก notification (กระดาษแผ่นนั้นๆ)
+          // แทนที่จะใช้ customer.prescribed_drugs ปัจจุบัน
+          // รองรับทั้ง nested (data.data.prescribed_drugs) และ flat (data.prescribed_drugs) structure
+          console.log('⚠️ initialNotification check:');
+          console.log('  - initialNotification:', initialNotification);
+          console.log('  - initialNotification?.data:', initialNotification?.data);
+          console.log('  - initialNotification?.data?.data:', initialNotification?.data?.data);
+          console.log('  - initialNotification?.data?.data?.prescribed_drugs:', initialNotification?.data?.data?.prescribed_drugs);
+          
+          // ลองหา snapshot จาก nested structure ก่อน (new style)
+          let snapshotDrugs = initialNotification.data?.data?.prescribed_drugs;
+          
+          // ถ้าไม่เจอ ลองหาจาก flat structure (old style)
+          if (!snapshotDrugs) {
+            snapshotDrugs = initialNotification.data?.prescribed_drugs;
+            console.log('⚠️ Using flat structure (old style): initialNotification.data.prescribed_drugs');
+          }
+          
+          if (snapshotDrugs && Array.isArray(snapshotDrugs)) {
+            console.log('✅ Using prescribed_drugs from notification snapshot:', snapshotDrugs);
+            console.log('📝 notifId present:', !!notifId, '- this will prevent database writes during handleSaveAddDrug');
+            const withSnapshotDrugs = {
+              ...customer,
+              prescribed_drugs: snapshotDrugs
+            };
+            setCustomer(withSnapshotDrugs);
+          } else {
+            console.log('❌ No snapshot found, using customer.prescribed_drugs:', customer.prescribed_drugs);
+            setCustomer(customer);
+          }
         } else {
-          console.log('Customer does NOT have assigned_by_staff or it is incomplete');
+          setCustomer(customer);
+        }
+
+        // assigned_by_staff: ถ้าเป็น newVisit ให้เคลียร์ (เริ่มกระดาษใหม่)
+        if (newVisit) {
+          console.log('New visit mode: clearing assigned_by_staff and visit-specific state');
           setAssignedByStaff(null);
+        } else {
+          if (customer?.assigned_by_staff && customer.assigned_by_staff.documentId) {
+            console.log('Customer has assigned_by_staff:', customer.assigned_by_staff);
+            setAssignedByStaff(customer.assigned_by_staff);
+          } else {
+            console.log('Customer does NOT have assigned_by_staff or it is incomplete');
+            setAssignedByStaff(null);
+          }
         }
 
         // Load pharmacy data if pharmacyId exists
@@ -196,8 +282,8 @@ function CustomerDetail() {
             setAddDrugModal(prev => ({ ...prev, availableDrugs: drugsNormalized }));
           }
           
-          // โหลด staff work status จาก latest notification
-          if (customer?.assigned_by_staff?.documentId) {
+          // โหลด staff work status จาก latest notification (ยกเว้น newVisit)
+          if (!newVisit && customer?.assigned_by_staff?.documentId) {
             console.log('Loading staff work status for assigned_by_staff:', customer.assigned_by_staff.documentId);
             try {
               // Query both customer_assignment and customer_assignment_update types using OR
@@ -239,17 +325,7 @@ function CustomerDetail() {
                   // no notification found for this assigned staff
                   console.log('No notification found for this staff assignment');
                   setLatestNotification(null);
-                  setStaffWorkStatus({
-                    received: false,
-                    prepared: false,
-                    received_at: null,
-                    prepared_at: null,
-                    prepared_note: '',
-                    outOfStock: [],
-                    cancelled: false,
-                    cancelled_at: null,
-                    cancelled_note: ''
-                  });
+                  setStaffWorkStatus(defaultStaffStatus);
                 }
               } else {
                 const errorData = await notificationRes.json().catch(() => ({}));
@@ -260,7 +336,23 @@ function CustomerDetail() {
             }
           } else {
             console.log('No assigned_by_staff.documentId found, skipping notification load');
+            // For newVisit we want fresh state; otherwise initialize defaults
             setLatestNotification(null);
+            setStaffWorkStatus(newVisit ? defaultStaffStatus : defaultStaffStatus);
+          }
+
+          // If newVisit, clear visit-related UI state so page looks like a blank form
+          if (newVisit) {
+            setLatestNotification(null);
+            setStaffWorkStatus(defaultStaffStatus);
+            setAssignedByStaff(null);
+            setAddDrugModal(prev => ({ ...prev, selectedDrugs: [] }));
+            setDrugQuantities({});
+            setEditSymptomModal({ open: false, main: '', history: '', note: '' });
+            setAllergyModal(prev => ({ ...prev, allergies: [] }));
+            setAllergyDetailModal({ open: false, allergies: [] });
+            setOutOfStockIds([]);
+            setActiveTab('1');
           }
         }
         
@@ -478,7 +570,7 @@ function CustomerDetail() {
 
   const handleBack = () => {
     if (pharmacy?.documentId || pharmacyId) {
-      navigate(`/drug_store_pharmacy/${pharmacy?.documentId || pharmacyId}/followup-customers`);
+      navigate(`/drug_store_pharmacy/${pharmacy?.documentId || pharmacyId}/customer/${customerDocumentId}/history`);
     } else {
       navigate(-1);
     }
@@ -524,6 +616,41 @@ function CustomerDetail() {
     }
     try {
       const token = localStorage.getItem('jwt');
+      
+      // ถ้าดูอยู่ notification เก่า (notifId มี) บันทึกเข้า snapshot แทน customer profile
+      if (notifId) {
+        console.log('📝 Viewing old notification - updating snapshot only');
+        const updateRes = await fetch(API.notifications.getById(notifId), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            data: {
+              data: {
+                appointment_date: appointmentDate
+              }
+            }
+          })
+        });
+        if (!updateRes.ok) throw new Error('บันทึกวันนัดไม่สำเร็จ');
+        toast.success('บันทึกวันนัดติดตามอาการสำเร็จ (snapshot)');
+        setIsAppointmentModalOpen(false);
+        // Refresh notification and update latestNotification state
+        const notifRes = await fetch(
+          API.notifications.getById(notifId),
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const notifData = await notifRes.json();
+        setLatestNotification(notifData.data);
+        
+        // DON'T refresh customer - this would override snapshot data
+        // The UI reads from latestNotification.data.data.appointment_date
+        return;
+      }
+      
+      // ถ้าสร้างใหม่ (ไม่มี notifId) บันทึกเข้า customer profile
       const res = await fetch(API.customerProfiles.update(customerDocumentId), {
         method: 'PUT',
         headers: {
@@ -539,7 +666,7 @@ function CustomerDetail() {
       if (!res.ok) throw new Error('บันทึกวันนัดไม่สำเร็จ');
       toast.success('บันทึกวันนัดติดตามอาการสำเร็จ');
       setIsAppointmentModalOpen(false);
-      // refresh customer data
+      // refresh customer data และ update state เพื่อให้หน้าแสดงข้อมูล
       const customerRes = await fetch(
         API.customerProfiles.getByIdBasic(customerDocumentId),
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
@@ -689,12 +816,15 @@ function CustomerDetail() {
 
   // Keep assignedByStaff synced with customer data whenever customer changes
   useEffect(() => {
-    if (customer?.assigned_by_staff && customer.assigned_by_staff.documentId) {
+    // Don't sync with customer.assigned_by_staff if newVisit mode (keep null)
+    if (newVisit) {
+      setAssignedByStaff(null);
+    } else if (customer?.assigned_by_staff && customer.assigned_by_staff.documentId) {
       setAssignedByStaff(customer.assigned_by_staff);
     } else {
       setAssignedByStaff(null);
     }
-  }, [customer]);
+  }, [customer, newVisit]);
 
   const handleSaveAddDrug = async () => {
     try {
@@ -708,6 +838,23 @@ function CustomerDetail() {
         return { drugId: item.drugId, quantity: drugQuantities[item.drugId] || item.quantity || 1 };
       });
       
+      // ถ้าเป็นการดู notification เก่า (มี notifId) → ไม่บันทึกลง customer database
+      // เพราะจะทำให้ยาในกระดาษแผ่นอื่นเปลี่ยนไปด้วย
+      // แค่อัปเดต state ในหน้านี้ และจะถูกบันทึกเป็น snapshot ตอนส่งข้อมูลให้พนักงาน
+      if (notifId) {
+        console.log('📝 Viewing old notification - updating local state only, not database');
+        // อัปเดต customer state ในหน้านี้เท่านั้น (ไม่บันทึกลง database)
+        setCustomer(prev => ({
+          ...prev,
+          prescribed_drugs: prescribedDrugs
+        }));
+        toast.success('อัปเดตยาสำเร็จ (จะบันทึกเมื่อส่งข้อมูลให้พนักงาน)');
+        setAddDrugModal(prev => ({ ...prev, open: false }));
+        setDrugQuantities({});
+        return;
+      }
+      
+      // ถ้าไม่มี notifId → บันทึกลง customer database ตามปกติ
       const res = await fetch(API.customerProfiles.update(customerDocumentId), { method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -722,21 +869,25 @@ function CustomerDetail() {
       if (!res.ok) throw new Error('บันทึกยาไม่สำเร็จ');
       
       // สร้าง notification ใหม่สำหรับการบันทึกยา (เพื่อให้มีประวัติการเยี่ยมชม)
+      // ใน newVisit mode สร้าง customer_assignment แบบแรก
+      // สำหรับ update mode สร้าง customer_assignment_update
       if (assignedByStaff && pharmacy) {
         const drugNames = prescribedDrugs.map(item => {
           const drug = addDrugModal.availableDrugs.find(d => d.documentId === item.drugId);
           return drug ? drug.name_th : 'ยาไม่ระบุ';
         }).join(', ');
         
+        // สร้าง notification เพื่อบันทึกประวัติการบันทึกยา (ไม่เกี่ยวกับการ assign)
+        // ใช้ type 'message' เพื่อส่วนแยกจาก customer_assignment
         const notificationData = {
           data: {
-            type: 'customer_assignment_update',
+            type: 'message',
             customer_profile: customerDocumentId,
             staff_profile: assignedByStaff.documentId,
             drug_store: pharmacy.documentId,
             message: `บันทึกยา: ${drugNames}`,
             prescribed_drugs: prescribedDrugs,
-            staff_work_status: staffWorkStatus // คัดลอกสถานะงานปัจจุบัน
+            staff_work_status: staffWorkStatus
           }
         };
         
@@ -751,10 +902,16 @@ function CustomerDetail() {
         
         if (notifRes.ok) {
           const newNotif = await notifRes.json();
-          setLatestNotification(newNotif.data); // อัปเดต latest notification
-          console.log('Created new drug notification:', newNotif.data);
+          console.log('✅ Created new drug notification response:', newNotif);
+          // ไม่ set latestNotification ที่นี่ เพราะมันเป็นแค่ history record
+          // latestNotification ควร point ไปที่ notification ที่ assign ให้พนักงาน (customer_assignment)
+          console.log('📝 Drug notification created but NOT set as latestNotification (only history)');
         } else {
-          console.warn('Failed to create drug notification');
+          const errorData = await notifRes.json().catch(() => ({}));
+          console.warn('Failed to create drug notification:', {
+            status: notifRes.status,
+            error: errorData?.error?.message || notifRes.statusText
+          });
         }
       }
       
@@ -776,24 +933,9 @@ function CustomerDetail() {
         setAssignedByStaff(customer.assigned_by_staff);
       }
       
-      // reload notification ด้วยเพื่อให้ staff work status ทำงานต่อ
-      if (customer?.assigned_by_staff?.documentId) {
-        try {
-          const notifRes = await fetch(
-            API.notifications.list(`filters[staff_profile][documentId][$eq]=${customer.assigned_by_staff.documentId}&filters[customer_profile][documentId][$eq]=${customerDocumentId}&sort=createdAt:desc&pagination[limit]=1`),
-            { headers: { Authorization: token ? `Bearer ${token}` : '' } }
-          );
-          if (notifRes.ok) {
-            const notifData = await notifRes.json();
-            if (notifData.data?.length > 0) {
-              setLatestNotification(notifData.data[0]);
-              // WebSocket จะอัพเดตข้อมูลอัตโนมัติ
-            }
-          }
-        } catch (err) {
-          console.warn('Could not reload notification:', err);
-        }
-      }
+      // Note: ไม่ต้อง reload notification จาก database เพราะเรามี latestNotification แล้ว
+      // การ reload จะทำให้ได้ notification แรกสุด ซึ่งอาจไม่ใช่อันที่เพิ่งสร้าง
+      // latestNotification ได้ถูก set ใน notification creation response ข้างบนแล้ว
     } catch (err) {
       toast.error(err.message || 'เกิดข้อผิดพลาด');
     }
@@ -1022,7 +1164,44 @@ function CustomerDetail() {
     try {
       const token = localStorage.getItem('jwt');
       
-      // บันทึกข้อมูลอาการใน customer profile
+      // ถ้าดูอยู่ notification เก่า (notifId มี) บันทึกเข้า snapshot แทน customer profile
+      if (notifId) {
+        console.log('📝 Viewing old notification - updating snapshot only');
+        const updateRes = await fetch(API.notifications.getById(notifId), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            data: {
+              data: {
+                symptoms: {
+                  main: editSymptomModal.main,
+                  history: editSymptomModal.history,
+                  note: editSymptomModal.note
+                }
+              }
+            }
+          })
+        });
+        if (!updateRes.ok) throw new Error('บันทึกข้อมูลไม่สำเร็จ');
+        toast.success('บันทึกข้อมูลสำเร็จ (snapshot)');
+        setEditSymptomModal({ ...editSymptomModal, open: false });
+        // Refresh notification and update latestNotification state
+        const notifRes = await fetch(
+          API.notifications.getById(notifId),
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const notifData = await notifRes.json();
+        setLatestNotification(notifData.data);
+        
+        // DON'T refresh customer - this would override snapshot data
+        // The UI reads from latestNotification.data.data.symptoms
+        return;
+      }
+      
+      // ถ้าสร้างใหม่ (ไม่มี notifId) บันทึกเข้า customer profile
       const res = await fetch(API.customerProfiles.update(customerDocumentId), { method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1039,10 +1218,14 @@ function CustomerDetail() {
       if (!res.ok) throw new Error('บันทึกข้อมูลไม่สำเร็จ');
       
       // สร้าง notification ใหม่สำหรับการบันทึกอาการ (เพื่อให้มีประวัติการเยี่ยมชม)
+      // ใน newVisit mode สร้าง customer_assignment แบบแรก
+      // สำหรับ update mode สร้าง customer_assignment_update
       if (assignedByStaff && pharmacy) {
+        // สร้าง notification เพื่อบันทึกประวัติการบันทึกอาการ (ไม่เกี่ยวกับการ assign)
+        // ใช้ type 'message' เพื่อส่วนแยกจาก customer_assignment
         const notificationData = {
           data: {
-            type: 'customer_assignment_update',
+            type: 'message',
             customer_profile: customerDocumentId,
             staff_profile: assignedByStaff.documentId,
             drug_store: pharmacy.documentId,
@@ -1052,7 +1235,7 @@ function CustomerDetail() {
               history: editSymptomModal.history,
               note: editSymptomModal.note
             },
-            staff_work_status: staffWorkStatus // คัดลอกสถานะงานปัจจุบัน
+            staff_work_status: staffWorkStatus
           }
         };
         
@@ -1067,17 +1250,23 @@ function CustomerDetail() {
         
         if (notifRes.ok) {
           const newNotif = await notifRes.json();
-          setLatestNotification(newNotif.data); // อัปเดต latest notification
-          console.log('Created new symptom notification:', newNotif.data);
+          console.log('✅ Created new symptom notification response:', newNotif);
+          // ไม่ set latestNotification ที่นี่ เพราะมันเป็นแค่ history record
+          // latestNotification ควร point ไปที่ notification ที่ assign ให้พนักงาน (customer_assignment)
+          console.log('📝 Symptom notification created but NOT set as latestNotification (only history)');
         } else {
-          console.warn('Failed to create symptom notification');
+          const errorData = await notifRes.json().catch(() => ({}));
+          console.warn('Failed to create symptom notification:', {
+            status: notifRes.status,
+            error: errorData?.error?.message || notifRes.statusText
+          });
         }
       }
       
       toast.success('บันทึกข้อมูลสำเร็จ');
       setEditSymptomModal({ ...editSymptomModal, open: false });
       
-      // refresh customer data
+      // refresh customer data และ update state เพื่อให้หน้าแสดงข้อมูล
       const customerRes = await fetch(
         API.customerProfiles.getByIdBasic(customerDocumentId),
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
@@ -1165,8 +1354,8 @@ function CustomerDetail() {
 
   // ฟังก์ชันเปิด modal ส่งข้อมูลให้พนักงาน (หรือส่งอัพเดตถ้าเคยส่งมาก่อน)
   const handleOpenStaffAssignModal = async () => {
-    // If we already have a previous notification for this customer/staff, send update directly
-    if (latestNotification && latestNotification.id) {
+    // If we already have a previous notification for this customer/staff (and NOT in newVisit mode), send update directly
+    if (!newVisit && latestNotification && latestNotification.id) {
       // send update directly to same staff
       const staffDocId = assignedByStaff?.documentId || (latestNotification.staff_profile && latestNotification.staff_profile.documentId);
       await handleAssignToStaff(staffDocId, true);
@@ -1225,6 +1414,21 @@ function CustomerDetail() {
     try {
       const token = localStorage.getItem('jwt');
       
+      // Logic การสร้าง/อัพเดต notification:
+      // 1. ถ้าไม่มี latestNotification → สร้างใหม่ (customer_assignment)
+      // 2. ถ้ามี latestNotification และพนักงานยังไม่ทำเสร็จ (prepared=false) → UPDATE เดิม (customer_assignment_update)
+      // 3. ถ้ามี latestNotification และพนักงานทำเสร็จแล้ว (prepared=true) → สร้างใหม่ (customer_assignment)
+      
+      const hasExistingNotification = !!latestNotification?.documentId;
+      const staffFinished = staffWorkStatus?.prepared === true;
+      
+      // ถ้าพนักงานทำเสร็จแล้ว ให้สร้างใหม่เสมอ (กระดาษแผ่นใหม่)
+      // ถ้ายังไม่เสร็จ ให้อัพเดตเดิม (กระดาษแผ่นเดิม)
+      const shouldUpdate = hasExistingNotification && !staffFinished;
+      const notificationType = shouldUpdate ? 'customer_assignment_update' : 'customer_assignment';
+      
+      console.log('handleAssignToStaff - hasExisting:', hasExistingNotification, 'staffFinished:', staffFinished, 'shouldUpdate:', shouldUpdate, 'type:', notificationType);
+      
       // ดึง pharmacy profile จาก localStorage (ถ้ามี) หรือจากข้อมูลที่โหลดมา
       const userDocumentId = localStorage.getItem('user_documentId');
       let pharmacyProfileId = null;
@@ -1246,41 +1450,99 @@ function CustomerDetail() {
       console.log('Pharmacy Profile ID:', pharmacyProfileId);
       console.log('User Document ID:', userDocumentId);
       
+      // เตรียมข้อมูลยาพร้อมชื่อและรายละเอียด (snapshot ณ ขณะนั้น)
+      // ⚠️ ถ้ามี notifId (viewing notification) ให้ใช้ snapshot จากแผ่นปัจจุบัน
+      // ถ้าไม่มี notifId ให้ใช้ customer.prescribed_drugs ปัจจุบัน
+      const prescribedDrugsSnapshot = await (async () => {
+        try {
+          const token = localStorage.getItem('jwt');
+          const drugsRes = await fetch(
+            API.drugs.list(`filters[drug_store][documentId][$eq]=${pharmacyId}&populate[0]=drug_batches&populate[1]=drug_store`),
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          
+          if (drugsRes.ok) {
+            const drugsData = await drugsRes.json();
+            const allDrugs = drugsData.data || [];
+            
+            // ถ้ามี notifId (viewing notification) ใช้ drugs จาก notification snapshot
+            const drugsToSnapshot = notifId && latestNotification?.data?.data?.prescribed_drugs 
+              ? latestNotification.data.data.prescribed_drugs 
+              : customer.prescribed_drugs || [];
+            
+            console.log('📋 Using drugs from:', notifId ? 'notification snapshot' : 'customer profile');
+            
+            // Map prescribed_drugs เป็น object ที่มีชื่อยาและปริมาณ
+            const snapshot = (drugsToSnapshot || []).map(prescribedItem => {
+              const drugId = typeof prescribedItem === 'string' ? prescribedItem : (prescribedItem.drugId || prescribedItem);
+              const quantity = typeof prescribedItem === 'object' ? prescribedItem.quantity : 1;
+              const drugInfo = allDrugs.find(d => d.documentId === drugId || d.id === drugId);
+              
+              return {
+                drugId: drugId,
+                drugName: drugInfo?.name_th || 'ยาไม่ทราบชื่อ',
+                quantity: quantity || 1,
+                unit: drugInfo?.unit || 'เม็ด'
+              };
+            });
+            console.log('✅ prescribedDrugsSnapshot created:', snapshot);
+            return snapshot;
+          }
+        } catch (err) {
+          console.error('Failed to fetch drug details:', err);
+        }
+        
+        // Fallback: ถ้าดึงข้อมูลไม่สำเร็จ
+        const drugsToSnapshot = notifId && latestNotification?.data?.data?.prescribed_drugs 
+          ? latestNotification.data.data.prescribed_drugs 
+          : customer.prescribed_drugs || [];
+        
+        const fallback = (drugsToSnapshot || []).map(item => ({
+          drugId: typeof item === 'string' ? item : (item.drugId || item),
+          quantity: typeof item === 'object' ? item.quantity : 1,
+          drugName: typeof item === 'object' ? item.drugName : undefined
+        }));
+        console.log('⚠️ Using fallback prescribedDrugsSnapshot:', fallback);
+        return fallback;
+      })();
+      
+      console.log('📦 prescribedDrugsSnapshot final:', prescribedDrugsSnapshot);
+      
       // เตรียมข้อมูลสำหรับ notification
+      // ⚠️ Strapi ไม่ accept relations fields ที่ไม่ระบุแบบ explicit
+      // ✅ วิธีแก้: เก็บ relation IDs เข้า data JSON field แทนการส่งเป็น top-level
       const safeNotificationData = {
         data: {
-          // Relations - ใช้ชื่อ field ตามใน schema.json
-          staff_profile: targetStaffId, // staff-profile documentId
-          pharmacy_profile: pharmacyProfileId, // pharmacy-profile documentId (ถ้าไม่มีจะเป็น null)
-          customer_profile: customerDocumentId, // customer-profile documentId
-          drug_store: pharmacyId, // drug-store documentId
-          
           // Basic fields
-          // Use distinct types: initial assignment vs update (backend enum now includes 'customer_assignment_update')
-          type: isUpdate ? 'customer_assignment_update' : 'customer_assignment',
-          title: isUpdate ? 'อัพเดตข้อมูลผู้ป่วย' : 'ได้รับมอบหมายข้อมูลผู้ป่วย',
-          message: `${isUpdate ? 'ได้รับอัพเดต' : 'ได้รับมอบหมายดูแล'}ผู้ป่วย: ${user?.full_name || 'ผู้ป่วย'}\nอาการ: ${customer.Customers_symptoms || 'ไม่ระบุ'}\n${staffAssignModal.assignNote ? `หมายเหตุ: ${staffAssignModal.assignNote}` : ''}`,
+          type: notificationType,
+          title: notificationType === 'customer_assignment_update' ? 'อัพเดตข้อมูลผู้ป่วย' : 'ได้รับมอบหมายข้อมูลผู้ป่วย',
+          message: `${notificationType === 'customer_assignment_update' ? 'ได้รับอัพเดต' : 'ได้รับมอบหมายดูแล'}ผู้ป่วย: ${user?.full_name || 'ผู้ป่วย'}\nอาการ: ${customer.Customers_symptoms || 'ไม่ระบุ'}\n${staffAssignModal.assignNote ? `หมายเหตุ: ${staffAssignModal.assignNote}` : ''}`,
           
-          // Additional data in JSON
+          // JSON field - เก็บ snapshot + relation IDs ณ ขณะนั้น
           data: {
-            customer_documentId: customerDocumentId, // เพื่อให้พนักงานหน้า dedup ได้ดีขึ้น
+            // Relations IDs - เก็บไว้ใน JSON field
+            staff_profile_id: targetStaffId,
+            pharmacy_profile_id: pharmacyProfileId,
+            customer_profile_id: customerDocumentId,
+            drug_store_id: pharmacyId,
+            
+            customer_documentId: customerDocumentId,
             customer_name: user?.full_name || '',
             customer_phone: user?.phone || '',
             symptoms: customer.Customers_symptoms || '',
-            prescribed_drugs: (customer.prescribed_drugs || []).map(drug => typeof drug === 'string' ? drug : drug.drugId || drug),
-            assigned_at: isUpdate ? new Date().toISOString() : undefined,
-            updated_at: isUpdate ? new Date().toISOString() : undefined,
+            // 🎯 เก็บ snapshot ของยา ณ ขณะที่ส่งข้อมูล
+            prescribed_drugs: Array.isArray(prescribedDrugsSnapshot) ? prescribedDrugsSnapshot : [],
+            assigned_at: notificationType === 'customer_assignment_update' ? new Date().toISOString() : undefined,
+            updated_at: notificationType === 'customer_assignment_update' ? new Date().toISOString() : undefined,
             note: staffAssignModal.assignNote || '',
             allergy: customer.Allergic_drugs || '',
             disease: customer.congenital_disease || ''
           },
           
-          // Initialize staff_work_status.
-          // For normal assignments create fresh defaults. For updates, reset all statuses
-          // except keep any `outOfStock` entries reported by staff.
+          // staff_work_status - JSON field
           staff_work_status: (function() {
             const existingOOS = Array.isArray(staffWorkStatus?.outOfStock) ? [...new Set([...staffWorkStatus.outOfStock])] : [];
-            if (!isUpdate) {
+            if (notificationType === 'customer_assignment') {
               return {
                 received: false,
                 prepared: false,
@@ -1290,7 +1552,6 @@ function CustomerDetail() {
                 outOfStock: existingOOS
               };
             }
-            // For updates: reset actionable flags but preserve outOfStock
             return {
               received: false,
               prepared: false,
@@ -1311,14 +1572,20 @@ function CustomerDetail() {
       };
 
       console.log('Sending notification:', safeNotificationData);
-      console.log('isUpdate:', isUpdate, 'latestNotification?.id:', latestNotification?.id);
+      console.log('notificationType:', notificationType, 'shouldUpdate:', shouldUpdate);
+      console.log('DEBUG: safeNotificationData.data.data.prescribed_drugs =', safeNotificationData.data.data.prescribed_drugs);
 
-      // ถ้าเป็นการอัพเดต ให้อัพเดต notification เดิม ไม่ใช่สร้างใหม่
-      const notificationEndpoint = isUpdate && latestNotification?.id
+      // ถ้า shouldUpdate=true ให้ UPDATE notification เดิม (กระดาษแผ่นเดิม)
+      // ถ้า shouldUpdate=false ให้ CREATE notification ใหม่ (กระดาษแผ่นใหม่)
+      const notificationEndpoint = shouldUpdate
         ? API.notifications.updateByDocumentId(latestNotification.documentId)
         : API.notifications.create();
       
-      const notificationMethod = isUpdate && latestNotification?.id ? 'PUT' : 'POST';
+      const requestBody = JSON.stringify({ data: safeNotificationData.data });
+      console.log('📤 REQUEST BODY that will be sent:', requestBody);
+      console.log('📤 REQUEST BODY PARSED:', JSON.parse(requestBody));
+      
+      const notificationMethod = shouldUpdate ? 'PUT' : 'POST';
 
       const notificationRes = await fetch(
         notificationEndpoint,
@@ -1330,13 +1597,15 @@ function CustomerDetail() {
           },
           body: (() => {
               try {
-                return JSON.stringify(safeNotificationData);
+                const jsonBody = JSON.stringify(safeNotificationData);
+                console.log('📤 Actual JSON body being sent:', jsonBody);
+                return jsonBody;
               } catch (e) {
                 console.error('Error serializing notification data:', e);
                 // Return a safe fallback
                 return JSON.stringify({
                   data: {
-                    type: isUpdate ? 'customer_assignment_update' : 'customer_assignment',
+                    type: notificationType,
                     title: 'Notification',
                     message: 'Error in data serialization',
                     data: {},
@@ -1353,27 +1622,28 @@ function CustomerDetail() {
       let result = null;
       if (notificationRes.ok) {
         result = await notificationRes.json();
-        console.log('Notification ' + (isUpdate ? 'updated' : 'created') + ':', result);
+        console.log('Notification ' + (shouldUpdate ? 'updated' : 'created') + ':', result);
         console.log('✅ Success - documentId:', result.data?.documentId);
         console.log('✅ Type:', result.data?.type);
+        console.log('📦 Returned data.data.prescribed_drugs:', result.data?.data?.prescribed_drugs);
       } else {
         const errorData = await notificationRes.json().catch(() => ({}));
         const errorMsg = errorData.error?.message || notificationRes.statusText;
-        console.error('❌ Notification ' + (isUpdate ? 'update' : 'create') + ' failed:', {
+        console.error('❌ Notification ' + (shouldUpdate ? 'update' : 'create') + ' failed:', {
           status: notificationRes.status,
           method: notificationMethod,
           endpoint: notificationEndpoint,
           error: errorMsg
         });
-        toast.error('❌ ส่งข้อมูล' + (isUpdate ? 'อัพเดต' : '') + 'ไม่สำเร็จ: ' + errorMsg);
+        toast.error('❌ ส่งข้อมูล' + (shouldUpdate ? 'อัพเดต' : '') + 'ไม่สำเร็จ: ' + errorMsg);
         return;
       }
 
       // ใช้ result ที่ได้มาแล้ว ไม่ต้อง read json อีกครั้ง
       console.log('Processing notification result...');
       
-          // Also update customer profile with assigned_by_staff (only on first assign)
-      if (!isUpdate) {
+          // Also update customer profile with assigned_by_staff (สำหรับทุกครั้ง)
+      if (notificationType === 'customer_assignment') {
         try {
           // Fetch the staff profile with populated user relation so we have name/avatar
           const staffRes = await fetch(
@@ -1457,7 +1727,7 @@ function CustomerDetail() {
         console.warn('Could not set latestNotification from response', e);
       }
 
-      toast.success(isUpdate ? '✅ ส่งข้อมูลอัพเดตให้พนักงานสำเร็จ' : '✅ ส่งข้อมูลให้พนักงานสำเร็จ');
+      toast.success(notificationType === 'customer_assignment_update' ? '✅ อัพเดตข้อมูลให้พนักงานสำเร็จ' : '✅ ส่งข้อมูลให้พนักงานสำเร็จ');
       setStaffAssignModal({
         open: false,
         availableStaff: [],
@@ -1537,35 +1807,7 @@ function CustomerDetail() {
             </div>
             <div className="header-right">
               <div className="header-actions" style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                <button
-                  onClick={() => navigate(`/drug_store_pharmacy/${pharmacy?.documentId}/customer/${customerDocumentId}/history?pharmacyId=${pharmacy?.documentId}`)}
-                  style={{
-                    padding: '10px 20px',
-                    background: 'linear-gradient(135deg, #1890ff, #0050b3)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    boxShadow: '0 4px 12px rgba(24, 144, 255, 0.3)',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 6px 16px rgba(24, 144, 255, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(24, 144, 255, 0.3)';
-                  }}
-                  title="ดูประวัติการมาใช้บริการทั้งหมดของลูกค้าคนนี้"
-                >
-                  📋 ดูประวัติการมา
-                </button>
+                {/* 'ดูประวัติการมา' button removed per request */}
               </div>
               <div className="header-stats">
                 <div className="stat-item">
@@ -1885,34 +2127,63 @@ function CustomerDetail() {
                 </div>
                 
                 <div className="symptom-card">
-                  {(customer.Customers_symptoms || customer.symptom_history || customer.symptom_note) ? (
-                    <>
-                      <div className="symptom-main">
-                        <label>อาการหลัก:</label>
-                        <div className="symptom-display">
-                          {customer.Customers_symptoms || '-'}
+                  {(() => {
+                    // Use currentNotification (from notifId) not latestNotification
+                    // to prevent showing symptoms from another sheet that was edited
+                    const displayNotification = currentNotification || latestNotification;
+                    const rawSymptoms = displayNotification?.data?.data?.symptoms || displayNotification?.data?.symptoms || null;
+                    let main = '';
+                    let history = '';
+                    let note = '';
+
+                    if (rawSymptoms) {
+                      if (typeof rawSymptoms === 'string') {
+                        main = rawSymptoms;
+                      } else if (typeof rawSymptoms === 'object') {
+                        main = rawSymptoms.main || '';
+                        history = rawSymptoms.history || '';
+                        note = rawSymptoms.note || '';
+                      }
+                    } else {
+                      // Fallback to customer profile fields
+                      main = typeof customer.Customers_symptoms === 'string' ? customer.Customers_symptoms : '';
+                      history = typeof customer.symptom_history === 'string' ? customer.symptom_history : '';
+                      note = typeof customer.symptom_note === 'string' ? customer.symptom_note : '';
+                    }
+
+                    const hasAny = main || history || note;
+
+                    if (!hasAny) {
+                      return (
+                        <div className="symptom-empty">
+                          <div className="symptom-empty-icon">📝</div>
+                          <h4>ยังไม่มีข้อมูลอาการ</h4>
+                          <p>คลิกปุ่ม "เพิ่มอาการ" เพื่อเริ่มบันทึกข้อมูลอาการของผู้ป่วย</p>
                         </div>
-                      </div>
-                      {customer.symptom_history && (
-                        <div className="symptom-history">
-                          <label>ประวัติการเจ็บป่วย:</label>
-                          <div className="symptom-display">{customer.symptom_history}</div>
+                      );
+                    }
+
+                    return (
+                      <>
+                        <div className="symptom-main">
+                          <label>อาการหลัก:</label>
+                          <div className="symptom-display">{main || '-'}</div>
                         </div>
-                      )}
-                      {customer.symptom_note && (
-                        <div className="symptom-note">
-                          <label>หมายเหตุ:</label>
-                          <div className="symptom-display">{customer.symptom_note}</div>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="symptom-empty">
-                      <div className="symptom-empty-icon">📝</div>
-                      <h4>ยังไม่มีข้อมูลอาการ</h4>
-                      <p>คลิกปุ่ม "เพิ่มอาการ" เพื่อเริ่มบันทึกข้อมูลอาการของผู้ป่วย</p>
-                    </div>
-                  )}
+                        {history && (
+                          <div className="symptom-history">
+                            <label>ประวัติการเจ็บป่วย:</label>
+                            <div className="symptom-display">{history}</div>
+                          </div>
+                        )}
+                        {note && (
+                          <div className="symptom-note">
+                            <label>หมายเหตุ:</label>
+                            <div className="symptom-display">{note}</div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -1924,22 +2195,40 @@ function CustomerDetail() {
                     <div className="appointment-info">
                       <span className="appointment-label">วันนัดติดตามอาการ:</span>
                       <span className="appointment-date">
-                        {customer.Follow_up_appointment_date ? formatThaiDate(customer.Follow_up_appointment_date) : 'ยังไม่ได้กำหนด'}
+                        {(() => {
+                          // Use currentNotification (from notifId) not latestNotification
+                          // to prevent showing appointment from another sheet that was edited
+                          const displayNotification = currentNotification || latestNotification;
+                          const snapshotAppointment = displayNotification?.data?.data?.appointment_date || displayNotification?.data?.appointment_date || null;
+                          const displayDate = snapshotAppointment || customer.Follow_up_appointment_date;
+                          return displayDate ? formatThaiDate(displayDate) : 'ยังไม่ได้กำหนด';
+                        })()}
                       </span>
                     </div>
                     <div className="appointment-actions">
                       <button className="btn-set-appointment" onClick={handleOpenAppointmentModal}>
-                        {customer.Follow_up_appointment_date ? '⚡ แก้ไขวันนัด' : '📅 กำหนดวันนัด'}
+                        {(() => {
+                          const displayNotification = currentNotification || latestNotification;
+                          const snapshotAppointment = displayNotification?.data?.data?.appointment_date || displayNotification?.data?.appointment_date || null;
+                          const displayDate = snapshotAppointment || customer.Follow_up_appointment_date;
+                          return displayDate ? '⚡ แก้ไขวันนัด' : '📅 กำหนดวันนัด';
+                        })()}
                       </button>
                     </div>
                   </div>
-                  {customer.Follow_up_appointment_date && (
-                    <div className="appointment-status">
-                      <div className={`status-badge ${new Date(customer.Follow_up_appointment_date) > new Date() ? 'upcoming' : 'overdue'}`}>
-                        {new Date(customer.Follow_up_appointment_date) > new Date() ? '📋 กำหนดการ' : '⚠️ ครบกำหนด'}
+                  {(() => {
+                    const displayNotification = currentNotification || latestNotification;
+                    const snapshotAppointment = displayNotification?.data?.data?.appointment_date || displayNotification?.data?.appointment_date || null;
+                    const displayDate = snapshotAppointment || customer.Follow_up_appointment_date;
+                    if (!displayDate) return null;
+                    return (
+                      <div className="appointment-status">
+                        <div className={`status-badge ${new Date(displayDate) > new Date() ? 'upcoming' : 'overdue'}`}>
+                          {new Date(displayDate) > new Date() ? '📋 กำหนดการ' : '⚠️ ครบกำหนด'}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -2124,7 +2413,19 @@ function CustomerDetail() {
                                 return itemDrugId !== drugId;
                               });
                               
-                              // อัปเดตข้อมูลในเซิร์ฟเวอร์
+                              // ถ้ากำลังดู notification เก่า (มี notifId) ให้ update แค่ local state
+                              // ไม่ต้อง update database เพราะจะไปกระทบกระดาษอื่น
+                              if (notifId) {
+                                console.log('📝 Viewing old notification - removing drug from local state only');
+                                setCustomer(prev => ({
+                                  ...prev,
+                                  prescribed_drugs: newDrugs
+                                }));
+                                toast.success('ลบยาสำเร็จ (จะบันทึกเมื่อส่งข้อมูลให้พนักงาน)');
+                                return;
+                              }
+                              
+                              // ถ้าไม่มี notifId → บันทึกลง customer database ตามปกติ
                               try {
                                 const token = localStorage.getItem('jwt');
                                 const res = await fetch(API.customerProfiles.update(customerDocumentId), { method: 'PUT',
@@ -2280,13 +2581,19 @@ function CustomerDetail() {
                   className="action-btn green responsive" 
                   onClick={handleOpenStaffAssignModal}
                   disabled={staffWorkStatus.prepared}
-                  title={staffWorkStatus.prepared ? 'ไม่สามารถส่งอัพเดต — พนักงานจัดส่งแล้ว' : 'ส่งข้อมูลให้พนักงาน'}
+                  title={staffWorkStatus.prepared ? 'ไม่สามารถส่งอัพเดต — พนักงานจัดส่งแล้ว' : 
+                         (!newVisit && latestNotification && !staffWorkStatus.prepared) ? 'อัพเดตข้อมูลให้พนักงาน (กระดาษแผ่นเดิม)' : 
+                         'ส่งข้อมูลให้พนักงาน (กระดาษแผ่นใหม่)'}
                   style={{
                     opacity: staffWorkStatus.prepared ? 0.5 : 1,
                     cursor: staffWorkStatus.prepared ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  <span>{latestNotification && latestNotification.id ? 'ส่งข้อมูลอัพเดต' : 'ส่งข้อมูลให้พนักงาน'}</span>
+                  <span>
+                    {staffWorkStatus.prepared ? 'พนักงานจัดส่งแล้ว' : 
+                     (!newVisit && latestNotification && latestNotification.id && !staffWorkStatus.prepared) ? 'อัพเดตข้อมูล' : 
+                     'ส่งข้อมูลให้พนักงาน'}
+                  </span>
                 </button>
 
                 <button 

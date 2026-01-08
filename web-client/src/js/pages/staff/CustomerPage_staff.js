@@ -163,7 +163,8 @@ function CustomerPageStaff() {
   });
 
   const handleViewDetail = (customer) => {
-    navigate(`/staff/customer_detail/${customer.documentId}?pharmacyId=${pharmacyId}`);
+    // Navigate to StaffVisitHistory to see all visits/notifications for this customer
+    navigate(`/drug_store_staff/${pharmacyId}/customer/${customer.documentId}/history`);
   };
 
   const formatThaiDate = (dateStr) => {
@@ -375,13 +376,7 @@ function CustomerPageStaff() {
                   <div className="card-footer">
                     <button
                       className="btn-modern btn-primary"
-                      onClick={() => {
-                        if (!customerDocumentId) {
-                          toast.error('ไม่พบข้อมูลลูกค้า ไม่สามารถดูรายละเอียดได้');
-                          return;
-                        }
-                        navigate(`/staff/customer_detail/${customerDocumentId}?pharmacyId=${pharmacyId}`);
-                      }}
+                      onClick={() => handleViewDetail(customer)}
                     >
                       <span className="btn-icon">👁️</span>
                       <span className="btn-text">ดูรายละเอียด</span>
