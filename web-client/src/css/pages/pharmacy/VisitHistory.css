@@ -197,6 +197,16 @@
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
+/* Ensure action buttons stay clickable above potential overlays */
+.customer-header-btn,
+.empty-state-btn,
+.fab-create-visit,
+.btn-back {
+  position: relative;
+  z-index: 1300;
+  pointer-events: auto;
+}
+
 /* ===== Timeline Styles ===== */
 .visits-timeline {
   display: flex;
@@ -345,6 +355,12 @@
   text-overflow: ellipsis;
 }
 
+.visit-card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
 .visit-card-title h4 {
   margin: 0 0 8px 0 !important;
   font-size: 18px !important;
@@ -353,6 +369,25 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
+}
+
+.visit-delete-btn {
+  background: #ff4d4f;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+.visit-delete-btn:hover {
+  background: #d4380d;
+  transform: scale(1.05);
 }
 
 .visit-card-content {

@@ -38,6 +38,11 @@ function VisitHistory() {
   const [loading, setLoading] = useState(true);
   const [selectedVisit, setSelectedVisit] = useState(null);
   const [detailModal, setDetailModal] = useState(false);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({
+    open: false,
+    visit: null,
+    loading: false
+  });
   
   // pharmacyId can come either from the path params or from the query string.
   // Use path param first (when route is /drug_store_pharmacy/:pharmacyId/customer/:customerDocumentId/history),
@@ -59,6 +64,13 @@ function VisitHistory() {
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [customerDocumentId, pharmacyId]);
+
+  // Also reload data on component mount to catch new visits created in detail page
+  useEffect(() => {
+    console.log('[VisitHistory] Component mounted/remounted - reloading visits');
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadData = async () => {
     try {
@@ -90,14 +102,15 @@ function VisitHistory() {
       }
       
       // Load all visits (notifications) for this customer at this pharmacy
-      // รวม type 'message' ด้วยเพื่อแสดงประวัติการบันทึกยา/อาการ
+      // ⚠️ เฉพาะ customer_assignment (การมอบหมายใหม่) และ message (บันทึกข้อมูล)
+      // ❌ ไม่รวม customer_assignment_update เพราะมันคือการอัพเดตของ visit เดียวกัน
+      // (ถ้าใส่ customer_assignment_update มันจะแสดงสองครั้งในรายการ visit)
       const notifRes = await fetch(
         API.notifications.list(
           `filters[customer_profile][documentId][$eq]=${customerDocumentId}` +
           `&filters[drug_store][documentId][$eq]=${pharmacyId}` +
           `&filters[type][$in][0]=customer_assignment` +
-          `&filters[type][$in][1]=customer_assignment_update` +
-          `&filters[type][$in][2]=message` +
+          `&filters[type][$in][1]=message` +
           `&populate=*` +
           `&sort[0]=createdAt:desc`
         ),
@@ -143,6 +156,42 @@ function VisitHistory() {
   const handleCreateNewVisit = () => {
     // Navigate to customer detail page to create new visit
     navigate(`/customer_detail/${customerDocumentId}?pharmacyId=${pharmacyId}&newVisit=1`);
+  };
+
+  const handleDeleteVisit = (visit) => {
+    setDeleteConfirmModal({
+      open: true,
+      visit: visit,
+      loading: false
+    });
+  };
+
+  const handleConfirmDeleteVisit = async () => {
+    if (!deleteConfirmModal.visit) return;
+
+    setDeleteConfirmModal(prev => ({ ...prev, loading: true }));
+
+    try {
+      const token = localStorage.getItem('jwt');
+      const notifId = deleteConfirmModal.visit.latestNotification.documentId;
+
+      const res = await fetch(API.notifications.delete(notifId), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.ok) throw new Error('ลบข้อมูลไม่สำเร็จ');
+
+      toast.success('ลบประวัติการมาใช้บริการสำเร็จ');
+      setDeleteConfirmModal({ open: false, visit: null, loading: false });
+
+      // Reload data to update the list
+      loadData();
+
+    } catch (error) {
+      toast.error(error.message || 'เกิดข้อผิดพลาดในการลบข้อมูล');
+      setDeleteConfirmModal(prev => ({ ...prev, loading: false }));
+    }
   };
 
   if (loading) {
@@ -295,8 +344,20 @@ function VisitHistory() {
                       </div>
                       <div className="visit-card" onClick={() => handleViewDetail(visit)}>
                         <div className="visit-card-title">
-                          <h4>🩺 การมาใช้บริการครั้งที่ {visits.length - index}</h4>
-                          {symptoms && <p className="visit-card-excerpt">{symptoms}</p>}
+                          <div style={{ flex: 1 }}>
+                            <h4>🩺 การมาใช้บริการครั้งที่ {visits.length - index}</h4>
+                            {symptoms && <p className="visit-card-excerpt">{symptoms}</p>}
+                          </div>
+                          <button
+                            className="visit-delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteVisit(visit);
+                            }}
+                            title="ลบประวัติการมาใช้บริการ"
+                          >
+                            🗑️
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -445,6 +506,87 @@ function VisitHistory() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        title={
+          <div style={{ fontSize: '18px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            ⚠️ ยืนยันการลบประวัติ
+          </div>
+        }
+        open={deleteConfirmModal.open}
+        onCancel={() => setDeleteConfirmModal({ open: false, visit: null, loading: false })}
+        footer={[
+          <button
+            key="cancel"
+            onClick={() => setDeleteConfirmModal({ open: false, visit: null, loading: false })}
+            disabled={deleteConfirmModal.loading}
+            style={{
+              padding: '8px 16px',
+              background: '#f5f5f5',
+              border: '1px solid #d9d9d9',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              marginRight: '8px'
+            }}
+          >
+            ยกเลิก
+          </button>,
+          <button
+            key="confirm"
+            onClick={handleConfirmDeleteVisit}
+            loading={deleteConfirmModal.loading}
+            disabled={deleteConfirmModal.loading}
+            style={{
+              padding: '8px 16px',
+              background: '#ff4d4f',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            {deleteConfirmModal.loading ? 'กำลังลบ...' : 'ลบประวัติ'}
+          </button>
+        ]}
+        width={400}
+      >
+        <div style={{ padding: '16px 0' }}>
+          <p style={{ margin: 0, fontSize: '16px', color: '#262626' }}>
+            คุณต้องการลบประวัติการมาใช้บริการนี้หรือไม่?
+          </p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#8c8c8c' }}>
+            การดำเนินการนี้ไม่สามารถยกเลิกได้
+          </p>
+          {deleteConfirmModal.visit && (
+            <div style={{
+              marginTop: '16px',
+              padding: '12px',
+              background: '#f6ffed',
+              border: '1px solid #b7eb8f',
+              borderRadius: '6px'
+            }}>
+              <strong>วันที่:</strong> {formatThaiDate(deleteConfirmModal.visit.createdAt)}
+              <br />
+              <strong>อาการ:</strong> {(() => {
+                const latestNotif = deleteConfirmModal.visit.latestNotification;
+                const visitData = latestNotif.data || {};
+                const innerData = visitData.data || {};
+                const rawSymptoms = innerData.symptoms || visitData.symptoms || latestNotif.customer_profile?.Customers_symptoms || null;
+                let symptoms = 'ไม่ระบุอาการ';
+                if (rawSymptoms) {
+                  if (typeof rawSymptoms === 'string') {
+                    symptoms = rawSymptoms;
+                  } else if (typeof rawSymptoms === 'object') {
+                    symptoms = rawSymptoms.main || rawSymptoms.history || rawSymptoms.note || JSON.stringify(rawSymptoms);
+                  }
+                }
+                return symptoms;
+              })()}
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );
