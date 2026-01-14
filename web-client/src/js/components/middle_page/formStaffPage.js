@@ -4,8 +4,6 @@ import HomeHeader from "../HomeHeader";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import "../../../css/theme.css";
-import "../../../css/pages/default/middle_page/formStaffPage.css";
 import { API, fetchWithAuth } from "../../../utils/apiConfig";
 
 function FormStaffPage() {
@@ -858,118 +856,136 @@ function FormStaffPage() {
     if (!showStaffInfoPopup) return null;
 
     return (
-      <div className="popup-overlay">
-        <div className="popup-container">
-          {/* ปุ่มปิด */}
-          <button onClick={handleClosePopup} className="popup-close-button">
-            ✕
-          </button>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300 font-prompt">
+        <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-300 border border-slate-100">
+          {/* Header */}
+          <div className="p-8 border-b border-slate-100 bg-indigo-50/30 flex items-center justify-between relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-[0.05] pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-slate-800 tracking-tight">ข้อมูลการทำงานปัจจุบัน</h3>
+                <p className="text-slate-400 font-medium">แสดงรายละเอียดภาระงานในร้านยาอื่นๆ</p>
+              </div>
+            </div>
 
-          {/* หัวข้อ */}
-          <h3 className="popup-header">
-            <span className="icon">👨‍💼</span>
-            ข้อมูลการทำงานปัจจุบัน
-          </h3>
-
-          {/* สรุปจำนวนร้านที่ทำงาน */}
-          <div className="summary-box">
-            <span className="summary-text">
-              📊 พนักงานคนนี้ปัจจุบันทำงานอยู่ {selectedUserStaffInfo.length} ร้าน
-            </span>
+            <button 
+              onClick={handleClosePopup}
+              className="w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all active:scale-90 border border-slate-100"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
           </div>
 
-          {/* รายการร้าน */}
-          <div className="store-list-container">
+          {/* Stats Bar */}
+          <div className="bg-indigo-600 px-8 py-3 flex items-center gap-3">
+             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+             <span className="text-white text-xs font-black uppercase tracking-widest leading-none">
+               พนักงานคนนี้ปัจจุบันทำงานอยู่ {selectedUserStaffInfo.length} ร้าน
+             </span>
+          </div>
+
+          {/* Content */}
+          <div className="flex-grow overflow-y-auto p-8 space-y-6 bg-slate-50/30">
             {selectedUserStaffInfo.map((info, index) => (
-              <div key={info.id} className="store-item">
-                {/* หมายเลขร้าน */}
-                <div className="store-number-badge">
-                  ร้านที่ {index + 1}
-                </div>
-
-                {/* ข้อมูลร้านยา */}
-                <div className="info-section pharmacy-info">
-                  <div className="pharmacy-header">
-                    <span className="icon">🏪</span>
-                    <span className="title">ชื่อร้านยา:</span>
-                  </div>
-                  <div className="pharmacy-name">
-                    {info.pharmacyName}
-                  </div>
-                  {info.pharmacyId && (
-                    <div className="pharmacy-id">
-                      รหัสร้าน: {info.pharmacyId}
+              <div key={info.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-200 group-hover:bg-indigo-600 transition-colors"></div>
+                
+                <div className="flex flex-col gap-5">
+                  <div className="flex items-center justify-between">
+                    <div className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black rounded-lg uppercase tracking-wider">
+                      ร้านที่ {index + 1}
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                {/* ตำแหน่งงาน */}
-                <div className="info-section position-info">
-                  <div className="position-header">
-                    <span className="icon">👔</span>
-                    <span className="title">ตำแหน่งงาน:</span>
-                  </div>
-                  <div className="position-name">
-                    {info.position}
-                  </div>
-                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Pharmacy Info */}
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ชื่อร้านยา</p>
+                          <p className="font-bold text-slate-800">{info.pharmacyName}</p>
+                          {info.pharmacyId && <p className="text-[10px] text-slate-400 font-medium">ID: {info.pharmacyId}</p>}
+                        </div>
+                      </div>
 
-                {/* ตารางเวลาทำงาน */}
-                <div className="info-section schedule-info">
-                  <div className="schedule-header">
-                    <span className="icon">⏰</span>
-                    <span className="title">ตารางเวลาทำงาน:</span>
-                  </div>
-                  <div className="schedule-content">
-                    {info.workSchedule === 'ไม่มีข้อมูลเวลา' ? (
-                      <div className="no-schedule-message">
-                        ⚠️ ไม่มีข้อมูลเวลาทำงาน
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ตำแหน่งงาน</p>
+                          <p className="font-bold text-slate-800">{info.position}</p>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="schedule-items">
-                        {info.workSchedule.split(', ').map((schedule, scheduleIndex) => {
-                          const [day, time] = schedule.split(': ');
-                          return (
-                            <div key={scheduleIndex} className="schedule-item">
-                              <div className="schedule-day">
-                                {day}
-                              </div>
-                              <div className="schedule-time">
-                                {time}
-                              </div>
-                            </div>
-                          );
-                        })}
+                    </div>
+
+                    {/* Schedule Info */}
+                    <div className="bg-slate-50 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">ตารางเวลาทำงาน</span>
                       </div>
-                    )}
+                      <div className="space-y-2">
+                        {info.workSchedule === 'ไม่มีข้อมูลเวลา' ? (
+                          <div className="px-3 py-2 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold border border-rose-100 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            ไม่มีข้อมูลเวลาทำงาน
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-2">
+                            {info.workSchedule.split(', ').map((schedule, scheduleIndex) => {
+                              const [day, time] = schedule.split(': ');
+                              return (
+                                <div key={scheduleIndex} className="flex items-center justify-between px-3 py-1.5 bg-white rounded-lg border border-slate-100 shadow-sm">
+                                  <span className="text-[10px] font-black text-slate-400">{day}</span>
+                                  <span className="text-[10px] font-bold text-slate-800">{time}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
+
+            {/* Warning Section */}
+            <div className="bg-amber-50 rounded-[2rem] p-6 border border-amber-100">
+               <div className="flex items-start gap-4">
+                 <div className="w-10 h-10 rounded-full bg-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 9 4 7H8l4-7Z"/><path d="M12 19v.01"/><path d="M12 2v2"/></svg>
+                 </div>
+                 <div className="space-y-2">
+                   <h4 className="font-black text-amber-800 text-sm italic">หมายเหตุสําคัญ & คำแนะนำ</h4>
+                   <ul className="text-xs font-medium text-amber-700/80 space-y-1.5 list-disc pl-4">
+                     <li><strong>ตรวจสอบเวลา:</strong> กรุณาตรวจสอบตารางเวลาข้างต้นก่อนกำหนดเวลาใหม่</li>
+                     <li><strong>หลีกเลี่ยงการชน:</strong> เลือกเวลาที่ไม่ซ้อนทับกับร้านอื่น</li>
+                     <li><strong>ตรวจสอบอัตโนมัติ:</strong> ระบบจะแจ้งเตือนหากมีเวลาชนกัน</li>
+                   </ul>
+                 </div>
+               </div>
+            </div>
           </div>
 
-          {/* ข้อความเตือน */}
-          <div className="warning-box">
-            <div className="warning-content">
-              <span className="warning-icon">⚠️</span>
-              <div>
-                <div className="warning-title">
-                  ❗ หมายเหตุสำคัญ:
-                </div>
-                <div className="warning-item">
-                  • <strong>ตรวจสอบเวลา:</strong> กรุณาตรวจสอบตารางเวลาข้างต้นก่อนกำหนดเวลาใหม่
-                </div>
-                <div className="warning-item">
-                  • <strong>หลีกเลี่ยงการชน:</strong> เลือกเวลาที่ไม่ซ้อนทับกับร้านอื่น
-                </div>
-                <div className="warning-item">
-                  • <strong>ตรวจสอบอัตโนมัติ:</strong> ระบบจะตรวจสอบความขัดแย้งเมื่อบันทึก
-                </div>
-                <div className="warning-tip">
-                  💡 <strong>คำแนะนำ:</strong> หากมีเวลาทำงานชนกัน ระบบจะแจ้งเตือนและไม่อนุญาตให้บันทึก
-                </div>
-              </div>
-            </div>
+          {/* Footer */}
+          <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-center">
+            <button 
+              onClick={handleClosePopup}
+              className="px-10 py-3 bg-white text-slate-600 font-black rounded-xl border border-slate-200 shadow-sm hover:bg-slate-100 transition-all active:scale-95"
+            >
+              รับทราบและปิดหน้าต่าง
+            </button>
           </div>
         </div>
       </div>
@@ -977,290 +993,435 @@ function FormStaffPage() {
   };
 
   return (
-    <div className="signup-page-container">
+    <div className="min-h-screen bg-slate-50 font-prompt overflow-x-hidden">
       <HomeHeader />
-      <div className="signup-content">
-        <div className="signup-note">
-          <b>{documentId ? "แก้ไขข้อมูลพนักงานร้านยา" : "เพิ่มข้อมูลพนักงานร้านยา"}</b>
-        </div>
-        <form className="signup-form" onSubmit={handleSubmit}>
-          {!documentId && (
-            <div style={{ marginBottom: 12 }}>
-              <label>
-                <input type="radio" checked={isNewUser} onChange={() => setIsNewUser(true)} /> สร้าง user ใหม่
-              </label>
-              <label style={{ marginLeft: 16 }}>
-                <input type="radio" checked={!isNewUser} onChange={() => setIsNewUser(false)} /> เลือก user ที่มีอยู่แล้ว
-              </label>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+          <div className="flex items-center gap-5">
+            <button
+              onClick={handleCancel}
+              className="group flex items-center justify-center w-12 h-12 bg-white rounded-2xl shadow-sm border border-slate-200 text-slate-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all duration-300 active:scale-95"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <div>
+              <h1 className="text-3xl font-black text-slate-800 tracking-tight">
+                {documentId ? "แก้ไขข้อมูลพนักงาน" : "เพิ่มพนักงานร้านยา"}
+              </h1>
+              <p className="text-slate-500 font-medium">จัดการรายละเอียดบัญชี ตารางเวลา และรูปโปรไฟล์</p>
             </div>
-          )}
-          <div className="signup-form-flex">
-            <div className="signup-form-left">
-              {!documentId && !isNewUser && (
-                <div>
-                  <label>เลือก user ที่มีอยู่ในระบบ</label>
-                  <select
-                    name="userId"
-                    value={form.userId}
-                    onChange={handleUserSelection}
-                    required
-                  >
-                    <option value="">-- เลือก user --</option>
-                    {existingUsers.map(u => (
-                      <option key={u.id} value={u.id}>
-                        {u.full_name || u.username} ({u.username})
-                      </option>
-                    ))}
-                  </select>
-                  
-                  {/* ===== ปุ่มแสดงข้อมูลการทำงาน ===== */}
-                  {selectedUserStaffInfo.length > 0 && (
-                    <div className="button-container">
+          </div>
+
+          <div className="flex items-center gap-4">
+             <div className="px-5 py-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
+               <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${documentId ? 'bg-amber-400' : 'bg-emerald-400'}`}></div>
+               <span className="text-sm font-bold text-slate-700">{documentId ? "Editing Mode" : "New Registration"}</span>
+             </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-10 pb-20">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* LEFT COLUMN: Account & Personal Info */}
+            <div className="lg:col-span-8 space-y-8">
+              
+              {/* Card 1: Account Selection / Creation */}
+              <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b border-slate-50 bg-indigo-50/30 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800">จัดการผู้ใช้งาน</h3>
+                      <p className="text-slate-400 text-sm font-medium">เลือกผู้ใช้ที่มีอยู่แล้วหรือกำหนดบัญชีใหม่</p>
+                    </div>
+                  </div>
+
+                  {!documentId && (
+                    <div className="flex bg-slate-100 p-1.5 rounded-2xl">
                       <button
                         type="button"
-                        onClick={handleShowStaffInfo}
-                        className="staff-info-button"
+                        onClick={() => setIsNewUser(false)}
+                        className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${!isNewUser ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                       >
-                        <span className="icon">👁️</span>
-                        ดูข้อมูลการทำงานปัจจุบัน ({selectedUserStaffInfo.length} ร้าน)
+                        บัญชีเดิม
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsNewUser(true)}
+                        className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${isNewUser ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        สร้างใหม่
                       </button>
                     </div>
                   )}
                 </div>
-              )}
-              
-              {(isNewUser || documentId) && (
-                <>
-                  <label>ชื่อ<span className="required">*</span></label>
-                  <input 
-                    type="text" 
-                    name="firstName" 
-                    value={form.firstName} 
-                    onChange={handleChange} 
-                    required 
-                    disabled={!isNewUser && !documentId && form.userId}
-                  />
-                  <label>นามสกุล<span className="required">*</span></label>
-                  <input 
-                    type="text" 
-                    name="lastName" 
-                    value={form.lastName} 
-                    onChange={handleChange} 
-                    required 
-                    disabled={!isNewUser && !documentId && form.userId}
-                  />
-                  <label>เบอร์โทรศัพท์</label>
-                  <input 
-                    type="text" 
-                    name="phone" 
-                    value={form.phone} 
-                    onChange={handleChange} 
-                    disabled={!isNewUser && !documentId && form.userId}
-                  />
-                  <label>USERNAME<span className="required">*</span></label>
-                  <input
-                    type="text"
-                    name="username"
-                    value={form.username}
-                    onChange={handleChange}
-                    required
-                    disabled={!!documentId || (!isNewUser && form.userId)}
-                  />
-                  <label>PASSWORD</label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={form.password}
-                    onChange={handleChange}
-                    required={isNewUser && !documentId}
-                    disabled={!isNewUser && !documentId}
-                  />
-                </>
-              )}
-              {/* แสดงช่องกรอกข้อมูลส่วนตัวเมื่อเลือก user ที่มีอยู่แล้ว */}
-              {!documentId && !isNewUser && form.userId && (
-                <>
-                  <label>ชื่อ<span className="required">*</span></label>
-                  <input 
-                    type="text" 
-                    name="firstName" 
-                    value={form.firstName} 
-                    onChange={handleChange} 
-                    required 
-                    disabled
-                    className="disabled-input"
-                  />
-                  <label>นามสกุล<span className="required">*</span></label>
-                  <input 
-                    type="text" 
-                    name="lastName" 
-                    value={form.lastName} 
-                    onChange={handleChange} 
-                    required 
-                    disabled
-                    className="disabled-input"
-                  />
-                  <label>เบอร์โทรศัพท์</label>
-                  <input 
-                    type="text" 
-                    name="phone" 
-                    value={form.phone} 
-                    onChange={handleChange} 
-                    disabled
-                    className="disabled-input"
-                  />
-                  <label>USERNAME<span className="required">*</span></label>
-                  <input
-                    type="text"
-                    name="username"
-                    value={form.username}
-                    onChange={handleChange}
-                    required
-                    disabled
-                    className="disabled-input"
-                  />
-                </>
-              )}
-              <label>ตำแหน่งงาน<span className="required">*</span></label>
-              <div className="form-group">
-                <label>ตารางเวลาทำงาน</label>
-                
-                {/* Bulk Add Section */}
-                <div className="bulk-add-section" style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '5px' }}>
-                  <h4 style={{ marginBottom: '10px', fontWeight: 'bold' }}>เพิ่มเวลาเดียวกันสำหรับหลายวัน</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px', marginBottom: '10px' }}>
-                    {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].map(day => (
-                      <label key={day} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '14px' }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedDays.includes(day)}
-                          onChange={(e) => handleDaySelection(day, e.target.checked)}
-                          style={{ width: '16px', height: '16px' }}
+
+                <div className="p-8 space-y-8">
+                   {/* User Selection (Existing) */}
+                   {!documentId && !isNewUser && (
+                     <div className="space-y-4">
+                       <label className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] ml-1">
+                         ค้นหาพนักงานในระบบ CareLink
+                       </label>
+                       <div className="relative group">
+                         <select
+                           name="userId"
+                           value={form.userId}
+                           onChange={handleUserSelection}
+                           required
+                           className="w-full pl-12 pr-12 py-5 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-700 appearance-none cursor-pointer"
+                         >
+                           <option value="">-- กรุณาเลือกบัญชีผู้ใช้ --</option>
+                           {existingUsers.map(u => (
+                             <option key={u.id} value={u.id}>
+                               {u.full_name || u.username} ({u.username})
+                             </option>
+                           ))}
+                         </select>
+                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                         </div>
+                         <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                         </div>
+                       </div>
+
+                       {selectedUserStaffInfo.length > 0 && (
+                         <button
+                           type="button"
+                           onClick={handleShowStaffInfo}
+                           className="flex items-center gap-3 px-6 py-4 bg-emerald-50 text-emerald-700 rounded-2xl border-2 border-emerald-100/50 hover:bg-emerald-100 transition-all group w-full"
+                         >
+                           <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>
+                           </div>
+                           <div className="text-left">
+                             <p className="text-xs font-black uppercase tracking-wider leading-none mb-1">สถานะภาระงาน</p>
+                             <p className="font-bold text-sm">ปัจจุบันทำงานอยู่ {selectedUserStaffInfo.length} ร้าน (คลิกเพื่อดูรายละเอียด)</p>
+                           </div>
+                         </button>
+                       )}
+                     </div>
+                   )}
+
+                   {/* Personal Details Form */}
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">ชื่อจริง <span className="text-rose-500">*</span></label>
+                        <input 
+                          type="text" 
+                          name="firstName" 
+                          value={form.firstName} 
+                          onChange={handleChange} 
+                          required 
+                          disabled={!isNewUser && !documentId && form.userId}
+                          className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-700 disabled:opacity-60 disabled:bg-slate-100"
+                          placeholder="ภาษาไทย หรือ อังกฤษ"
                         />
-                        <span>{day.slice(0, 3)}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <input
-                      type="time"
-                      value={bulkTimeIn}
-                      onChange={(e) => setBulkTimeIn(e.target.value)}
-                      style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                      placeholder="เวลาเริ่ม"
-                    />
-                    <span>-</span>
-                    <input
-                      type="time"
-                      value={bulkTimeOut}
-                      onChange={(e) => setBulkTimeOut(e.target.value)}
-                      style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                      placeholder="เวลาสิ้นสุด"
-                    />
-                    <button
-                      type="button"
-                      onClick={addBulkWorkDay}
-                      style={{ backgroundColor: '#3b82f6', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                      onMouseOver={(e) => e.target.style.backgroundColor = '#2563eb'}
-                      onMouseOut={(e) => e.target.style.backgroundColor = '#3b82f6'}
-                    >
-                      เพิ่มช่วงเวลา
-                    </button>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">นามสกุล <span className="text-rose-500">*</span></label>
+                        <input 
+                          type="text" 
+                          name="lastName" 
+                          value={form.lastName} 
+                          onChange={handleChange} 
+                          required 
+                          disabled={!isNewUser && !documentId && form.userId}
+                          className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-700 disabled:opacity-60 disabled:bg-slate-100"
+                          placeholder="นามสกุล"
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">เบอร์โทรศัพท์ติดต่อ</label>
+                        <input 
+                          type="text" 
+                          name="phone" 
+                          value={form.phone} 
+                          onChange={handleChange} 
+                          disabled={!isNewUser && !documentId && form.userId}
+                          className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-700 disabled:opacity-60 disabled:bg-slate-100"
+                          placeholder="08X-XXX-XXXX"
+                        />
+                      </div>
+                      
+                      {/* Account Info (New or Edit) */}
+                      {(isNewUser || documentId) && (
+                        <>
+                          <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">USERNAME <span className="text-rose-500">*</span></label>
+                            <input
+                              type="text"
+                              name="username"
+                              value={form.username}
+                              onChange={handleChange}
+                              required
+                              disabled={!!documentId}
+                              className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-700 disabled:opacity-60 disabled:bg-slate-100"
+                              placeholder="ระบุ username สำหรับเข้าระบบ"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">PASSWORD {isNewUser && !documentId && <span className="text-rose-500">*</span>}</label>
+                            <input
+                              type="password"
+                              name="password"
+                              value={form.password}
+                              onChange={handleChange}
+                              required={isNewUser && !documentId}
+                              disabled={!isNewUser && !documentId}
+                              className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-700 disabled:opacity-60 disabled:bg-slate-100"
+                              placeholder="••••••••"
+                            />
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* Display Info when searching existing */}
+                      {!documentId && !isNewUser && form.userId && (
+                        <div className="md:col-span-2 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-4 text-emerald-800 animate-in slide-in-from-left duration-300">
+                          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-emerald-600 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                          </div>
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-wider opacity-60">Verified Account</p>
+                            <p className="font-bold text-sm">ระบบตรวจสอบข้อมูลผู้ใช้ "{form.username}" เรียบร้อยแล้ว</p>
+                          </div>
+                        </div>
+                      )}
+                   </div>
+                </div>
+              </div>
+
+              {/* Card 2: Work Schedule */}
+              <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b border-slate-50 bg-emerald-50/30">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-100">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800">ตารางเวลาทำงาน</h3>
+                      <p className="text-slate-400 text-sm font-medium">กำหนดวันและเวลาทำงานที่แน่นอนในแต่ละสัปดาห์</p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="work-schedule-container">
-                  {form.workSchedule.length === 0 ? (
-                    <div className="no-schedule">
-                      <p>ยังไม่มีตารางเวลาทำงาน</p>
+                <div className="p-8 space-y-8">
+                  {/* Bulk Add Section */}
+                  <div className="bg-slate-50 rounded-[2rem] p-8 border-2 border-dashed border-slate-200 group hover:border-emerald-300 transition-all">
+                    <div className="flex items-center gap-3 mb-6">
+                       <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 21 1.9-1.9"/><path d="m3.5 14.5 2.8-2.8"/><path d="m4.8 5.8 2.1-2.1"/><path d="m2 2 20 20"/><path d="M21 15.5c0-4.1-3.4-7.5-7.5-7.5s-7.5 3.4-7.5 7.5 3.4 7.5 7.5 7.5c1.1 0 2.1-.2 3.1-.7"/></svg>
+                       </div>
+                       <h4 className="font-black text-slate-800 tracking-tight">เพิ่มช่วงเวลาด่วน (Bulk Add)</h4>
                     </div>
-                  ) : (
-                    form.workSchedule.map((schedule, index) => (
-                      <div key={index} className="work-schedule-row">
-                        <select
-                          value={schedule.day || ""}
-                          onChange={(e) => handleWorkScheduleChange(index, 'day', e.target.value)}
-                          className="day-select"
-                          required
-                        >
-                          <option value="">เลือกวัน</option>
-                          {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"]
-                            .filter(day => 
-                              // แสดงเฉพาะวันที่ยังไม่ถูกเลือก หรือวันที่เลือกอยู่ในแถวนี้
-                              !form.workSchedule.some((s, i) => s.day === day && i !== index) || schedule.day === day
-                            )
-                            .map((day) => (
-                              <option key={day} value={day}>{day}</option>
-                            ))
-                          }
-                        </select>
-                        <input
-                          type="time"
-                          value={schedule.start_time || ""}
-                          onChange={(e) => handleWorkScheduleChange(index, 'start_time', e.target.value)}
-                          className="time-input"
-                          required={!!schedule.day}
-                        />
-                        <span className="time-separator">-</span>
-                        <input
-                          type="time"
-                          value={schedule.end_time || ""}
-                          onChange={(e) => handleWorkScheduleChange(index, 'end_time', e.target.value)}
-                          className="time-input"
-                          required={!!schedule.day}
-                        />
+                    
+                    <div className="space-y-6">
+                      <div className="flex flex-wrap gap-2">
+                        {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].map(day => (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => handleDaySelection(day, !selectedDays.includes(day))}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all border-2 ${
+                              selectedDays.includes(day) 
+                                ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100' 
+                                : 'bg-white border-slate-100 text-slate-400 hover:border-emerald-200'
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <div className="flex-grow grid grid-cols-2 gap-4 w-full">
+                           <div className="relative">
+                             <input
+                              type="time"
+                              value={bulkTimeIn}
+                              onChange={(e) => setBulkTimeIn(e.target.value)}
+                              className="w-full px-5 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-slate-700"
+                            />
+                            <span className="absolute -top-2.5 left-4 px-2 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">เริ่ม</span>
+                           </div>
+                           <div className="relative">
+                             <input
+                              type="time"
+                              value={bulkTimeOut}
+                              onChange={(e) => setBulkTimeOut(e.target.value)}
+                              className="w-full px-5 py-3.5 bg-white border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-slate-700"
+                            />
+                            <span className="absolute -top-2.5 left-4 px-2 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">เลิกงาน</span>
+                           </div>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => removeWorkDay(index)}
-                          className="remove-day-btn"
+                          onClick={addBulkWorkDay}
+                          className="w-full sm:w-auto px-8 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-600 transition-all active:scale-95 flex items-center justify-center gap-2"
                         >
-                          ลบ
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                          เพิ่มช่วงเวลา
                         </button>
                       </div>
-                    ))
-                  )}
-                  <button
-                    type="button"
-                    onClick={addWorkDay}
-                    className="add-day-btn"
-                    disabled={form.workSchedule.length >= 7} // จำกัดไม่เกิน 7 วัน
-                  >
-                    + เพิ่มวันทำงาน แยก
-                  </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {form.workSchedule.length === 0 ? (
+                      <div className="py-12 flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-[2rem] border-2 border-dotted border-slate-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mb-3 opacity-20"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <p className="font-bold tracking-tight">ยังไม่ได้กำหนดตารางเวลาทำงาน</p>
+                        <p className="text-xs font-medium">กรุณากดเพิ่มเวลา หรือใช้วิธี Bulk Add ด้านบน</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
+                        {form.workSchedule.map((schedule, index) => (
+                          <div key={index} className="flex flex-col sm:flex-row items-center gap-4 p-5 bg-white rounded-3xl border-2 border-slate-50 hover:border-indigo-100 shadow-sm transition-all group">
+                            <div className="flex-grow grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+                              <div className="relative">
+                                <select
+                                  value={schedule.day || ""}
+                                  onChange={(e) => handleWorkScheduleChange(index, 'day', e.target.value)}
+                                  className="w-full pl-5 pr-10 py-3.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-black text-slate-700 appearance-none cursor-pointer transition-all"
+                                  required
+                                >
+                                  <option value="">เลือกวัน</option>
+                                  {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"]
+                                    .filter(day => 
+                                      !form.workSchedule.some((s, i) => s.day === day && i !== index) || schedule.day === day
+                                    )
+                                    .map((day) => (
+                                      <option key={day} value={day}>{day}</option>
+                                    ))
+                                  }
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                </div>
+                              </div>
+                              <input
+                                type="time"
+                                value={schedule.start_time || ""}
+                                onChange={(e) => handleWorkScheduleChange(index, 'start_time', e.target.value)}
+                                className="w-full px-5 py-3.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-bold text-slate-700 transition-all"
+                                required={!!schedule.day}
+                              />
+                              <div className="relative">
+                                <input
+                                  type="time"
+                                  value={schedule.end_time || ""}
+                                  onChange={(e) => handleWorkScheduleChange(index, 'end_time', e.target.value)}
+                                  className="w-full px-5 py-3.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-bold text-slate-700 transition-all"
+                                  required={!!schedule.day}
+                                />
+                                <span className="absolute -left-2 top-1/2 -translate-y-1/2 text-slate-300 hidden sm:block font-bold">ถึง</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeWorkDay(index)}
+                              className="p-3.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <button
+                      type="button"
+                      onClick={addWorkDay}
+                      disabled={form.workSchedule.length >= 7}
+                      className="w-full py-4 border-2 border-dashed border-slate-200 rounded-[1.5rem] text-slate-400 font-extrabold hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 mt-4"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                      เพิ่มวันทำงาน แยก
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-            
-            <div className="signup-form-right">
-              <label>เพิ่มรูปภาพพนักงาน</label>
-              <div className="signup-upload-box" onClick={handleUploadClick}>
-                {imagePreviewUrl ? (
-                  <img src={imagePreviewUrl} alt="profile" className="signup-profile-preview" />
-                ) : uploadedImageUrl ? (
-                  <img src={uploadedImageUrl} alt="profile" className="signup-profile-preview" />
-                ) : (
-                  <span className="signup-upload-icon">&#8682;</span>
-                )}
-                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleImageChange} />
-              </div>
+
+            {/* RIGHT COLUMN: Profile Image & Position */}
+            <div className="lg:col-span-4 space-y-8">
+               {/* Card 3: Profile Image */}
+               <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b border-slate-50 bg-slate-50/50">
+                   <h3 className="text-xl font-black text-slate-800">รูปภาพโปรไฟล์</h3>
+                   <p className="text-slate-400 text-sm font-medium">รูปพนักงานสำหรับแสดงผลในระบบ</p>
+                </div>
+                <div className="p-10 flex flex-col items-center">
+                  <div 
+                    onClick={handleUploadClick}
+                    className="relative group cursor-pointer"
+                  >
+                    <div className="w-56 h-56 rounded-[3rem] overflow-hidden ring-8 ring-slate-50 shadow-inner bg-slate-100 flex items-center justify-center transition-all group-hover:scale-105">
+                       {imagePreviewUrl ? (
+                         <img src={imagePreviewUrl} alt="profile" className="w-full h-full object-cover" />
+                       ) : uploadedImageUrl ? (
+                         <img src={uploadedImageUrl} alt="profile" className="w-full h-full object-cover" />
+                       ) : (
+                         <div className="flex flex-col items-center text-slate-300">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><line x1="16" y1="5" x2="22" y2="5"/><line x1="19" y1="2" x2="19" y2="8"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                         </div>
+                       )}
+                    </div>
+                    
+                    <div className="absolute -right-2 -bottom-2 w-16 h-16 bg-indigo-600 rounded-2xl shadow-xl flex items-center justify-center text-white ring-4 ring-white group-hover:rotate-12 transition-all">
+                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><line x1="16" y1="5" x2="22" y2="5"/><line x1="19" y1="2" x2="19" y2="8"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    </div>
+                    <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleImageChange} />
+                  </div>
+                  
+                  <div className="mt-10 w-full space-y-4">
+                    <div className="space-y-2">
+                       <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">ตำแหน่งงาน <span className="text-rose-500">*</span></label>
+                       <input
+                         type="text"
+                         name="position"
+                         value={form.position}
+                         onChange={handleChange}
+                         required
+                         className="w-full px-5 py-5 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black text-slate-700 placeholder:text-slate-300"
+                         placeholder="ระบุตำแหน่งงาน (เช่น เภสัชกร, พนักงานทั่วไป)"
+                       />
+                    </div>
+                  </div>
+                </div>
+               </div>
+
+               {/* Action Buttons */}
+               <div className="space-y-4 pt-10">
+                  <button 
+                    type="submit" 
+                    className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-3xl shadow-xl shadow-indigo-200 transition-all active:scale-95 flex items-center justify-center gap-3 text-lg"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    {documentId ? "ยืนยันการแก้ไขข้อมูล" : "เสร็จสิ้นการเพิ่มพนักงาน"}
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={handleCancel}
+                    className="w-full py-5 bg-white text-slate-500 font-extrabold rounded-3xl border-2 border-slate-100 hover:bg-slate-50 hover:text-slate-700 transition-all active:scale-95"
+                  >
+                    ยกเลิกและย้อนกลับ
+                  </button>
+               </div>
+
+               <div className="text-center">
+                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">CareLink Pharmacy Network</span>
+               </div>
             </div>
           </div>
-          <div className="form-buttons">
-            <button type="submit" className="signup-submit-btn">
-              {documentId ? "บันทึกการแก้ไข" : "เพิ่มพนักงาน"}
-            </button>
-            <button 
-              type="button" 
-              className="signup-cancel-btn"
-              onClick={handleCancel}
-            >
-              ← กลับ
-            </button>
-          </div>
         </form>
-        <div className="signup-footer-note">
-          <span>" * " หมายถึง จำเป็นต้องใส่</span>
-        </div>
       </div>
       <Footer />
       

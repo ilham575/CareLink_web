@@ -5,6 +5,7 @@ import { io } from 'socket.io-client';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
 import '../../../css/pages/pharmacy/detail_customer.css';
+import '../../../css/pages/staff/CustomerDetail_staff.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { Modal, Tabs } from 'antd';
 import dayjs from 'dayjs';
@@ -64,10 +65,18 @@ function CustomerDetailStaff() {
   const [activeTab, setActiveTab] = useState('1');
   // Track selected batch (lot) for each drug: { drugId: batchDocumentId }
   const [selectedBatches, setSelectedBatches] = useState({});
+
+  // Refs to avoid stale closures in polling and event handlers
+  const notificationRef = useRef(notification);
+  const selectedBatchesRef = useRef(selectedBatches);
+  
+  useEffect(() => { notificationRef.current = notification; }, [notification]);
+  useEffect(() => { selectedBatchesRef.current = selectedBatches; }, [selectedBatches]);
   
   // Get pharmacyId from URL params
   const searchParams = new URLSearchParams(location.search);
   const pharmacyId = searchParams.get('pharmacyId');
+  const queryNotifId = searchParams.get('notifId');
 
   // Helper: get pharmacist name from pharmacy object
   const getPharmacistName = (pharmacyObj) => {
@@ -156,7 +165,9 @@ function CustomerDetailStaff() {
 
           // สร้าง customer data จาก notification
           const d = notif.data || {};
-          let full_name = d.full_name || d.name || d.patient_name || d.patient_full_name || 'ไม่ระบุ';
+          const innerData = d.data || {}; // Snapshot nested data
+          
+          let full_name = innerData.full_name || d.full_name || d.name || d.patient_name || d.patient_full_name || 'ไม่ระบุ';
           if (full_name === 'ไม่ระบุ' && notif.message) {
             const match = notif.message.match(/ได้รับมอบหมายดูแลผู้ป่วย:\s*([^\n]+)/);
             if (match) {
@@ -166,18 +177,20 @@ function CustomerDetailStaff() {
 
           const userObj = {
             full_name: full_name,
-            phone: d.phone || d.tel || d.mobile || '',
-            email: d.email || ''
+            phone: innerData.phone || d.phone || d.tel || d.mobile || '',
+            email: innerData.email || d.email || ''
           };
 
           const tempCustomer = {
             documentId: customerDocumentId,
             users_permissions_user: userObj,
-            Customers_symptoms: d.symptoms || '',
-            Allergic_drugs: d.allergy ? { allergy: d.allergy } : null,
-            congenital_disease: d.disease || '',
-            Follow_up_appointment_date: d.follow_up_date || d.appointment_date || null,
-            prescribed_drugs: d.prescribed_drugs || [],
+            Customers_symptoms: innerData.symptoms || d.symptoms || '',
+            symptom_history: innerData.symptom_history || d.symptom_history || innerData.history || d.history || (typeof (innerData.symptoms || d.symptoms) === 'object' ? (innerData.symptoms || d.symptoms)?.history : ''),
+            symptom_note: innerData.symptom_note || d.symptom_note || innerData.note || d.note || (typeof (innerData.symptoms || d.symptoms) === 'object' ? (innerData.symptoms || d.symptoms)?.note : ''),
+            Allergic_drugs: (innerData.allergy || d.allergy) ? { allergy: innerData.allergy || d.allergy } : null,
+            congenital_disease: innerData.disease || d.disease || '',
+            Follow_up_appointment_date: innerData.follow_up_date || d.follow_up_date || innerData.appointment_date || d.appointment_date || null,
+            prescribed_drugs: innerData.prescribed_drugs || d.prescribed_drugs || [],
             _fromNotificationOnly: true
           };
 
@@ -277,10 +290,18 @@ function CustomerDetailStaff() {
                 console.log('[LoadData] All notifications:', notifData.data);
                 
                 // หา notification ที่ตรงกับ customer นี้
-                // ลองหาจาก customer_profile relation ก่อน
-                let notif = notifData.data?.find(n => n.customer_profile?.documentId === customerDocumentId);
+                // 1. ถ้ามี queryNotifId ให้หาที่ตรงกันก่อน (จากประวัติการเข้าพบ)
+                let notif = null;
+                if (queryNotifId) {
+                  notif = notifData.data?.find(n => n.documentId === queryNotifId || String(n.id) === String(queryNotifId));
+                }
                 
-                // ถ้าไม่เจอ ลองหาจาก customer name/phone ใน notification.data
+                // 2. ถ้าไม่เจอ ลองหาจาก customer_profile relation
+                if (!notif) {
+                  notif = notifData.data?.find(n => n.customer_profile?.documentId === customerDocumentId);
+                }
+                
+                // 3. ถ้ายังไม่เจอ ลองหาจาก customer name/phone ใน notification.data
                 if (!notif && customerData?.data?.users_permissions_user) {
                   const customerName = customerData.data.users_permissions_user.full_name;
                   const customerPhone = customerData.data.users_permissions_user.phone;
@@ -288,11 +309,11 @@ function CustomerDetailStaff() {
                   
                   notif = notifData.data?.find(n => {
                     const d = n.data || {};
-                    return d.customer_name === customerName || d.customer_phone === customerPhone;
+                    return (d.customer_name && d.customer_name === customerName) || (d.customer_phone && d.customer_phone === customerPhone);
                   });
                 }
                 
-                // ถ้ายังไม่เจอ ใช้ตัวล่าสุด
+                // 4. ถ้ายังไม่เจอ ใช้ตัวล่าสุด
                 if (!notif) {
                   notif = notifData.data?.[0];
                   console.log('[LoadData] Using latest notification:', notif?.documentId);
@@ -301,6 +322,27 @@ function CustomerDetailStaff() {
                 console.log('[LoadData] Found notification:', notif);
                 console.log('[LoadData] notification.staff_work_status:', notif?.staff_work_status);
                 setNotification(notif);
+
+                // 🎉 NEW: Update customer state from notification snapshot if available
+                if (notif && notif.data) {
+                  const d = notif.data;
+                  const innerData = d.data || {};
+                  
+                  setCustomer(prev => {
+                    if (!prev) return prev;
+                    const symptomsVal = innerData.symptoms || d.symptoms;
+                    return {
+                      ...prev,
+                      Customers_symptoms: symptomsVal || prev.Customers_symptoms,
+                      symptom_history: innerData.symptom_history || d.symptom_history || innerData.history || d.history || (typeof symptomsVal === 'object' ? symptomsVal?.history : prev.symptom_history),
+                      symptom_note: innerData.symptom_note || d.symptom_note || innerData.note || d.note || (typeof symptomsVal === 'object' ? symptomsVal?.note : prev.symptom_note),
+                      prescribed_drugs: innerData.prescribed_drugs || d.prescribed_drugs || prev.prescribed_drugs,
+                      congenital_disease: innerData.disease || d.disease || prev.congenital_disease,
+                      Allergic_drugs: (innerData.allergy || d.allergy) ? { allergy: innerData.allergy || d.allergy } : prev.Allergic_drugs,
+                      Follow_up_appointment_date: innerData.follow_up_date || d.follow_up_date || innerData.appointment_date || d.appointment_date || prev.Follow_up_appointment_date
+                    };
+                  });
+                }
 
                 // อ่านสถานะจาก notification staff_work_status
                 if (notif?.staff_work_status) {
@@ -445,10 +487,29 @@ function CustomerDetailStaff() {
       console.log('[EffectSync] 🔄 Syncing staffStatus from notification:', notification.staff_work_status);
       setStaffStatus(notification.staff_work_status);
       
-      // Also sync batches_selected if available
-      if (notification.staff_work_status.batches_selected) {
-        console.log('[EffectSync] ✅ Syncing batches_selected:', notification.staff_work_status.batches_selected);
-        setSelectedBatches(notification.staff_work_status.batches_selected);
+      // Also sync batches_selected if available, but NOT if user has local changes
+      const serverBatches = notification.staff_work_status.batches_selected;
+      if (serverBatches) {
+        // Here, notification IS the source of truth we're comparing AGAINST, 
+        // but this effect is triggered WHEN notification changes.
+        // Usually, if this effect runs, it's either an initial load or a poll/socket update finished.
+        // We still want to avoid overwriting if the user is in the middle of something.
+        // However, if the notification *itself* just changed, we might have to be careful.
+        
+        // Let's use the same "isDirty" principle but we'll have to check against the PREVIOUS notification value?
+        // Actually, just checking if the server value is different from local is enough to ATTEMPT an update,
+        // but we only DO it if we are sure the user isn't mid-click.
+        
+        // Simplest: only auto-sync if local is currently empty OR user isn't focusing the tab? 
+        // No, let's stick to the "Dirty" check against what we already have.
+        setSelectedBatches(prev => {
+          const isCurrentlyEmpty = Object.keys(prev || {}).length === 0;
+          if (isCurrentlyEmpty) return serverBatches;
+          
+          // If not empty, only overwrite if we trust the new server value (not yet implemented fully)
+          // For now, if notification just changed, we'll allow it if it's the first time for THIS notification
+          return prev; 
+        });
       }
     }
   }, [notification?.staff_work_status, notification?.documentId]);
@@ -475,9 +536,16 @@ function CustomerDetailStaff() {
               setNotification(updatedNotif);
               setStaffStatus(updatedNotif.staff_work_status);
               
-              // Sync batches_selected if available
+              // Sync batches_selected if available, only if not dirty
               if (updatedNotif.staff_work_status.batches_selected) {
-                setSelectedBatches(updatedNotif.staff_work_status.batches_selected);
+                const serverBatches = updatedNotif.staff_work_status.batches_selected;
+                const currentBatches = notificationRef.current?.staff_work_status?.batches_selected || {};
+                const localBatches = selectedBatchesRef.current || {};
+                
+                const isDirty = JSON.stringify(localBatches) !== JSON.stringify(currentBatches);
+                if (!isDirty) {
+                  setSelectedBatches(serverBatches);
+                }
               }
             }
           }
@@ -496,6 +564,7 @@ function CustomerDetailStaff() {
 
   // Effect: Reload notification every 5 seconds to catch updates from pharmacy
   // This ensures we subscribe to the latest notification (e.g., after update creates new one)
+  // MODIFIED: Respect queryNotifId to prevent overwriting past rounds with latest
   useEffect(() => {
     if (!customerDocumentId) return;
 
@@ -504,40 +573,64 @@ function CustomerDetailStaff() {
         const token = localStorage.getItem('jwt') || '';
         const staffProfile = JSON.parse(localStorage.getItem('staff_profile') || '{}');
         
-        if (!staffProfile?.documentId) return;
+        let latestNotif = null;
 
-        const notifRes = await fetch(
-          API.notifications.getStaffAssignments(staffProfile.documentId, customerDocumentId),
-          { headers: { Authorization: token ? `Bearer ${token}` : '' } }
-        );
-
-        if (notifRes.ok) {
-          const notifData = await notifRes.json();
-          const latestNotif = notifData.data?.[0];
+        if (queryNotifId) {
+           // Case 1: Specific Round - Reload specific notification
+           const notifRes = await fetch(
+             API.notifications.getById(queryNotifId),
+             { headers: { Authorization: token ? `Bearer ${token}` : '' } }
+           );
+           if (notifRes.ok) {
+              const resData = await notifRes.json();
+              latestNotif = resData.data;
+           }
+        } else {
+           // Case 2: Live View - Reload latest assignment
+           if (!staffProfile?.documentId) return;
+           const notifRes = await fetch(
+             API.notifications.getStaffAssignments(staffProfile.documentId, customerDocumentId),
+             { headers: { Authorization: token ? `Bearer ${token}` : '' } }
+           );
+           if (notifRes.ok) {
+             const notifData = await notifRes.json();
+             latestNotif = notifData.data?.[0];
+           }
+        }
           
-          if (latestNotif) {
-            // Always update status from the latest notification data
+        if (latestNotif) {
+            // Always update status from the reloaded notification data
             if (latestNotif.staff_work_status) {
-              console.log('[AutoReload] 📊 Updating staff status from latest notification');
-              console.log('[AutoReload] staff_work_status:', latestNotif.staff_work_status);
-              console.log('[AutoReload] batches_selected:', latestNotif.staff_work_status.batches_selected);
+              console.log('[AutoReload] 📊 Updating staff status from reloaded notification');
+              // console.log('[AutoReload] staff_work_status:', latestNotif.staff_work_status);
               
               setStaffStatus(latestNotif.staff_work_status);
               
-              // 🔑 IMPORTANT: Always sync batches_selected from latest notification
-              if (latestNotif.staff_work_status.batches_selected) {
-                console.log('[AutoReload] ✅ Found batches_selected, updating selectedBatches:', latestNotif.staff_work_status.batches_selected);
-                setSelectedBatches(latestNotif.staff_work_status.batches_selected);
-              } else {
-                console.warn('[AutoReload] ⚠️ No batches_selected in response');
+              // 🔑 Sync batches_selected from notification, but ONLY if the user is not currently editing
+              // Check if local selectedBatches matches the current notification's batches
+              const currentNotifBatches = notificationRef.current?.staff_work_status?.batches_selected || {};
+              const localBatches = selectedBatchesRef.current || {};
+              const serverBatches = latestNotif.staff_work_status.batches_selected || {};
+              
+              const isDirty = JSON.stringify(localBatches) !== JSON.stringify(currentNotifBatches);
+              
+              if (serverBatches && !isDirty) {
+                // If not dirty (user hasn't changed anything since last sync), ok to update from server
+                if (JSON.stringify(localBatches) !== JSON.stringify(serverBatches)) {
+                   console.log('[AutoReload] ✅ Update selectedBatches from server (not dirty)');
+                   setSelectedBatches(serverBatches);
+                }
+              } else if (isDirty) {
+                 console.log('[AutoReload] ⚠️ User has unsaved Lot changes, skipping sync for selectedBatches');
               }
             }
             
-            if (latestNotif.documentId !== notification?.documentId) {
-              console.log('[AutoReload] 🔄 Notification changed from', notification?.documentId, 'to', latestNotif.documentId);
+            // Only update main notification state if ID changed (e.g. switch to newer notification in live mode)
+            // or if we are forcing a deep reload
+            if (latestNotif.documentId !== notificationRef.current?.documentId) {
+              console.log('[AutoReload] 🔄 Notification changed from', notificationRef.current?.documentId, 'to', latestNotif.documentId);
               setNotification(latestNotif);
             }
-          }
         }
       } catch (err) {
         console.error('[AutoReload] Error reloading notification:', err);
@@ -547,7 +640,7 @@ function CustomerDetailStaff() {
     // Poll faster to reduce time-to-update (2 seconds)
     const interval = setInterval(reloadNotification, 2000);
     return () => clearInterval(interval);
-  }, [customerDocumentId]);
+  }, [customerDocumentId, queryNotifId]);
 
   useEffect(() => {
     if (!notification?.documentId) return;
@@ -676,15 +769,23 @@ function CustomerDetailStaff() {
           console.log('[Socket] 📊 Updating staff status from notification:', updatedNotif.staff_work_status);
           setStaffStatus(updatedNotif.staff_work_status);
           // Only show toast if there's a real change (not initial load)
-          if (notification?.documentId === updatedNotif.documentId) {
+          if (notificationRef.current?.documentId === updatedNotif.documentId) {
             toast.info('🔄 ข้อมูลถูกอัพเดท');
           }
         }
       }
 
       if (updatedNotif.staff_work_status?.batches_selected) {
-        console.log('[Socket] Setting selected batches:', updatedNotif.staff_work_status.batches_selected);
-        setSelectedBatches(updatedNotif.staff_work_status.batches_selected);
+        console.log('[Socket] Setting selected batches (if not dirty):', updatedNotif.staff_work_status.batches_selected);
+        const serverBatches = updatedNotif.staff_work_status.batches_selected;
+        const currentBatches = notificationRef.current?.staff_work_status?.batches_selected || {};
+        const localBatches = selectedBatchesRef.current || {};
+        
+        const isDirty = JSON.stringify(localBatches) !== JSON.stringify(currentBatches);
+        if (!isDirty || (updatedNotif.documentId !== notificationRef.current?.documentId)) {
+          // If not dirty, or if this is a completely different notification round, update it
+          setSelectedBatches(serverBatches);
+        }
       }
     });
 
@@ -1258,104 +1359,24 @@ function CustomerDetailStaff() {
       
       <main className="customer-detail-main">
         {/* Header summary: patient info only */}
-        <div className="detail-header-summary" style={{
-          background: 'linear-gradient(135deg, #f8f9ff 0%, #f0f3ff 100%)',
-          borderRadius: '16px',
-          padding: '24px 32px',
-          marginBottom: '24px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          boxShadow: '0 4px 20px rgba(102, 126, 234, 0.08)',
-          border: '1px solid rgba(102, 126, 234, 0.15)',
-          transition: 'all 0.3s ease',
-          backdropFilter: 'blur(10px)',
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: '-50%',
-            right: '-50%',
-            width: '400px',
-            height: '400px',
-            background: 'radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%)',
-            borderRadius: '50%',
-            pointerEvents: 'none'
-          }
-        }}>
-          <div className="detail-header-left" style={{ flex: 1 }}>
-            <div className="detail-header-name" style={{
-              fontSize: '28px',
-              fontWeight: '700',
-              color: '#1f2937',
-              marginBottom: '12px',
-              letterSpacing: '-0.5px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
+        <div className="detail-header-summary">
+          <div className="detail-header-left">
+            <div className="detail-header-name">
               👤 {user?.full_name || 'ไม่พบชื่อ'}
             </div>
-            <div className="detail-header-meta" style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              flexWrap: 'wrap'
-            }}>
-              <span style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 12px',
-                background: 'rgba(59, 130, 246, 0.08)',
-                borderRadius: '8px',
-                color: '#3b82f6',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}>
+            <div className="detail-header-meta">
+              <span className="meta-item meta-phone">
                 📱 {user?.phone || '-'}
               </span>
-              <span className="dot" style={{ color: '#d1d5db', fontSize: '20px' }}>•</span>
-              <span style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 12px',
-                background: 'rgba(132, 204, 22, 0.08)',
-                borderRadius: '8px',
-                color: '#84cc16',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}>
+              <span className="dot">•</span>
+              <span className="meta-item meta-date">
                 📅 {customer.Follow_up_appointment_date ? formatThaiDate(customer.Follow_up_appointment_date) : 'ไม่มีวันนัด'}
               </span>
             </div>
           </div>
-          <div className="detail-header-right" style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px'
-          }}>
-            <div className="detail-header-badges" style={{
-              display: 'flex',
-              gap: '12px',
-              flexWrap: 'wrap'
-            }}>
-              <div className="pill-badge" style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                padding: '12px 20px',
-                borderRadius: '24px',
-                fontSize: '15px',
-                fontWeight: '600',
-                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.3s ease'
-              }}>
+          <div className="detail-header-right">
+            <div className="detail-header-badges">
+              <div className="pill-badge">
                 💊 {customer.prescribed_drugs ? customer.prescribed_drugs.length : 0} รายการ
               </div>
             </div>
@@ -1363,34 +1384,19 @@ function CustomerDetailStaff() {
         </div>
 
         {/* สถานะการทำงานของ Staff */}
-        <div className="staff-status-panel" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          padding: '20px',
-          borderRadius: '12px',
-          marginBottom: '20px',
-          color: 'white'
-        }}>
-          <h3 style={{ marginBottom: '15px', fontSize: '18px' }}>📊 สถานะการดำเนินการ</h3>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <div className="staff-status-panel">
+          <h3>📊 สถานะการดำเนินการ</h3>
+          <div className="status-btn-group">
             <button
               onClick={() => setStatusModal({ open: true, type: 'received', note: '' })}
               disabled={staffStatus.received}
-              style={{
-                padding: '10px 20px',
-                borderRadius: '8px',
-                border: 'none',
-                background: staffStatus.received ? '#52c41a' : 'rgba(255,255,255,0.2)',
-                color: 'white',
-                cursor: staffStatus.received ? 'default' : 'pointer',
-                fontSize: '14px',
-                fontWeight: 'bold'
-              }}
+              className={`status-btn received ${staffStatus.received ? 'active' : ''}`}
             >
               {staffStatus.received ? (
                 <>
                   ✅ ได้รับข้อมูล
                   {staffStatus.received_at && (
-                    <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.9 }}>
+                    <div className="btn-time">
                       {formatThaiDate(staffStatus.received_at)}
                     </div>
                   )}
@@ -1401,24 +1407,15 @@ function CustomerDetailStaff() {
             <button
               onClick={() => setStatusModal({ open: true, type: 'prepared', note: '' })}
               disabled={staffStatus.prepared || !staffStatus.received || !lotsSaved}
-              style={{
-                padding: '10px 20px',
-                borderRadius: '8px',
-                border: 'none',
-                background: staffStatus.prepared ? '#52c41a' : (staffStatus.received && lotsSaved) ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
-                color: 'white',
-                cursor: staffStatus.prepared || !staffStatus.received || !lotsSaved ? 'default' : 'pointer',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                opacity: (!staffStatus.received || !lotsSaved) ? 0.5 : 1
-              }}
+              className={`status-btn prepared ${staffStatus.prepared ? 'active' : ''}`}
+              style={{ opacity: (!staffStatus.received || !lotsSaved) ? 0.5 : 1 }}
               title={!lotsSaved ? 'กรุณาบันทึก Lot ยาก่อน' : staffStatus.prepared ? 'จัดยาส่งแล้ว' : ''}
             >
               {staffStatus.prepared ? (
                 <>
                   ✅ จัดยาสำเร็จ
                   {staffStatus.prepared_at && (
-                    <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.9 }}>
+                    <div className="btn-time">
                       {formatThaiDate(staffStatus.prepared_at)}
                     </div>
                   )}
@@ -1429,23 +1426,7 @@ function CustomerDetailStaff() {
             {staffStatus.prepared && (
               <button
                 onClick={() => setStatusModal({ open: true, type: 'cancelDelivery', note: '' })}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  border: '2px solid #ff4d4f',
-                  background: 'transparent',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = 'rgba(255, 77, 79, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = 'transparent';
-                }}
+                className="status-btn cancel"
                 title="ยกเลิกการจัดส่งและกู้คืนสต็อกยา"
               >
                 ⏮️ ยกเลิกการจัดส่ง
@@ -1455,17 +1436,8 @@ function CustomerDetailStaff() {
             <button
               onClick={() => setStatusModal({ open: true, type: 'outOfStock', note: '', selectedDrugs: [] })}
               disabled={staffStatus.prepared}
-              style={{
-                padding: '10px 20px',
-                borderRadius: '8px',
-                border: 'none',
-                background: staffStatus.prepared ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)',
-                color: 'white',
-                cursor: staffStatus.prepared ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                opacity: staffStatus.prepared ? 0.5 : 1
-              }}
+              className="status-btn out-of-stock"
+              style={{ opacity: staffStatus.prepared ? 0.5 : 1 }}
               title={staffStatus.prepared ? 'ปิดปุ่มนี้หลังจากจัดส่งยา' : ''}
             >
               🚨 แจ้งยาหมดสต็อก
@@ -1473,13 +1445,13 @@ function CustomerDetailStaff() {
           </div>
           
           {notifData.staff_note && (
-            <div style={{ marginTop: '15px', padding: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '6px' }}>
+            <div className="note-box">
               <strong>📝 หมายเหตุ:</strong> {notifData.staff_note}
             </div>
           )}
 
           {notifData.note && (
-            <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(255,255,255,0.15)', borderRadius: '6px' }}>
+            <div className="note-box" style={{ borderColor: 'rgba(255, 255, 255, 0.5)' }}>
               <strong>💬 หมายเหตุจากเภสัชกร:</strong> {notifData.note}
             </div>
           )}
@@ -1536,31 +1508,7 @@ function CustomerDetailStaff() {
                                   allergies: allergies
                                 });
                               }}
-                              style={{
-                                padding: '12px 16px',
-                                backgroundColor: allergies.length > 0 ? '#ff7875' : '#f5f5f5',
-                                border: 'none',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                color: allergies.length > 0 ? 'white' : '#666',
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                width: '100%',
-                                transition: 'all 0.3s ease',
-                                boxShadow: allergies.length > 0 ? '0 4px 12px rgba(255, 120, 117, 0.3)' : 'none'
-                              }}
-                              onMouseEnter={e => {
-                                if (allergies.length > 0) {
-                                  e.target.style.boxShadow = '0 6px 16px rgba(255, 120, 117, 0.4)';
-                                  e.target.style.transform = 'translateY(-2px)';
-                                }
-                              }}
-                              onMouseLeave={e => {
-                                if (allergies.length > 0) {
-                                  e.target.style.boxShadow = '0 4px 12px rgba(255, 120, 117, 0.3)';
-                                  e.target.style.transform = 'translateY(0)';
-                                }
-                              }}
+                              className={`allergy-btn ${allergies.length > 0 ? 'has-allergy' : 'no-allergy'}`}
                             >
                               {allergies.length > 0 
                                 ? `👀 ดูรายละเอียด (${allergies.length} รายการ)` 
@@ -1572,17 +1520,7 @@ function CustomerDetailStaff() {
                       ) : (
                         <button
                           disabled
-                          style={{
-                            padding: '12px 16px',
-                            backgroundColor: '#f5f5f5',
-                            border: 'none',
-                            borderRadius: '8px',
-                            cursor: 'not-allowed',
-                            color: '#666',
-                            fontSize: '14px',
-                            fontWeight: '500',
-                            width: '100%'
-                          }}
+                          className="allergy-btn no-allergy"
                         >
                           ✓ ไม่มี
                         </button>
@@ -1615,19 +1553,28 @@ function CustomerDetailStaff() {
                       <div className="symptom-main">
                         <label>อาการหลัก:</label>
                         <div className="symptom-display">
-                          {customer.Customers_symptoms || '-'}
+                          {(() => {
+                            const sym = customer.Customers_symptoms;
+                            if (!sym) return '-';
+                            if (typeof sym === 'object') return sym.main || sym.symptom || 'ไม่ระบุอาการ';
+                            return sym;
+                          })()}
                         </div>
                       </div>
-                      {customer.symptom_history && (
+                      {(customer.symptom_history || (typeof customer.Customers_symptoms === 'object' && customer.Customers_symptoms?.history)) && (
                         <div className="symptom-history">
                           <label>ประวัติการเจ็บป่วย:</label>
-                          <div className="symptom-display">{customer.symptom_history}</div>
+                          <div className="symptom-display">
+                            {customer.symptom_history || customer.Customers_symptoms?.history}
+                          </div>
                         </div>
                       )}
-                      {customer.symptom_note && (
+                      {(customer.symptom_note || (typeof customer.Customers_symptoms === 'object' && customer.Customers_symptoms?.note)) && (
                         <div className="symptom-note">
                           <label>หมายเหตุ:</label>
-                          <div className="symptom-display">{customer.symptom_note}</div>
+                          <div className="symptom-display">
+                            {customer.symptom_note || customer.Customers_symptoms?.note}
+                          </div>
                         </div>
                       )}
                     </>
@@ -1727,6 +1674,15 @@ function CustomerDetailStaff() {
                     </div>
                   </div>
                   
+                  {/* ข้อความเตือนก่อนเลือก Lot */}
+                  {!staffStatus.received && (
+                    <div style={{ marginBottom: '20px', padding: '15px', background: '#fff7e6', border: '2px solid #ffc53d', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#ad6800' }}>
+                        ⚠️ กรุณากด "ยืนยันรับข้อมูล" ก่อนเลือก Lot ยา
+                      </div>
+                    </div>
+                  )}
+
                   {/* Grid Layout สำหรับยา */}
                   <div className="prescribed-drugs-grid">
                     {customer.prescribed_drugs.map((drugItem, index) => {
@@ -1743,17 +1699,7 @@ function CustomerDetailStaff() {
                           position: 'relative'
                         }}>
                           {staffStatus.prepared && (
-                            <div style={{
-                              position: 'absolute',
-                              top: '10px',
-                              left: '10px',
-                              background: '#0050b3',
-                              color: 'white',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: 'bold'
-                            }}>
+                            <div className="drug-lock-badge">
                               🔒 ล็อก
                             </div>
                           )}
@@ -1763,17 +1709,7 @@ function CustomerDetailStaff() {
                           </div>
 
                           {isOutOfStock && (
-                            <div style={{
-                              position: 'absolute',
-                              top: '10px',
-                              right: '10px',
-                              background: '#ff4d4f',
-                              color: 'white',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: 'bold'
-                            }}>
+                            <div className="drug-out-of-stock-badge">
                               หมดสต็อก
                             </div>
                           )}
@@ -1791,7 +1727,7 @@ function CustomerDetailStaff() {
                                 {drug ? drug.name_en : '-'}
                               </p>
                               {drug && drug.manufacturer && (
-                                <div className="prescribed-drug-manufacturer" style={{ fontSize: '12px', color: '#0050b3', fontWeight: '500', marginTop: '4px' }}>
+                                <div className="manufacturer-tag">
                                   📦 {drug.manufacturer}
                                 </div>
                               )}
@@ -1814,12 +1750,12 @@ function CustomerDetailStaff() {
 
                           {/* Batch Selection - Lots for Staff */}
                           {drug && drug.drug_batches && drug.drug_batches.length > 0 && (
-                            <div className="prescribed-drug-meta" style={{ marginTop: '12px', opacity: staffStatus.prepared ? 0.6 : 1 }}>
+                            <div className="lot-selection-box" style={{ opacity: staffStatus.prepared ? 0.6 : 1 }}>
                               <div style={{ marginBottom: '8px', fontSize: '12px', fontWeight: '600', color: '#0050b3' }}>
                                 🏷️ เลือก Lot ที่ใช้:
                               </div>
                               <select
-                                disabled={staffStatus.prepared}
+                                disabled={staffStatus.prepared || !staffStatus.received}
                                 value={selectedBatches[drugId] || ''}
                                 onChange={(e) => {
                                   setSelectedBatches(prev => ({
@@ -1827,15 +1763,9 @@ function CustomerDetailStaff() {
                                     [drugId]: e.target.value
                                   }));
                                 }}
+                                className="lot-select"
                                 style={{
-                                  width: '100%',
-                                  padding: '8px',
-                                  borderRadius: '4px',
-                                  border: '1px solid #d9d9d9',
-                                  fontSize: '12px',
-                                  cursor: staffStatus.prepared ? 'not-allowed' : 'pointer',
-                                  background: staffStatus.prepared ? '#f5f5f5' : 'white',
-                                  color: '#000'
+                                  background: (staffStatus.prepared || !staffStatus.received) ? '#f5f5f5' : 'white',
                                 }}
                               >
                                 {!selectedBatches[drugId] && <option value="">-- เลือก Lot --</option>}
@@ -1847,7 +1777,7 @@ function CustomerDetailStaff() {
                               </select>
                               
                               {selectedBatches[drugId] && (
-                                <div style={{ marginTop: '8px', padding: '8px 12px', background: '#f6ffed', borderRadius: '4px', fontSize: '12px', color: '#52c41a', border: staffStatus.prepared ? '2px solid #52c41a' : 'none', fontWeight: staffStatus.prepared ? 'bold' : 'normal', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                <div className="selected-lot-info" style={{ border: staffStatus.prepared ? '2px solid #52c41a' : '1px solid #b7eb8f', fontWeight: staffStatus.prepared ? 'bold' : 'normal' }}>
                                   <span>
                                     {staffStatus.prepared ? '🔒 ล็อกแล้ว - ' : '✅ '}เลือก Lot: <strong>{drug.drug_batches.find(b => b.documentId === selectedBatches[drugId] || b.id === selectedBatches[drugId])?.lot_number}</strong>
                                   </span>
@@ -1859,26 +1789,9 @@ function CustomerDetailStaff() {
                                           [drugId]: ''
                                         }));
                                       }}
-                                      style={{
-                                        background: 'rgba(255, 77, 79, 0.1)',
-                                        border: '1px solid #ff4d4f',
-                                        color: '#ff4d4f',
-                                        padding: '4px 8px',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontSize: '12px',
-                                        fontWeight: 'bold',
-                                        transition: 'all 0.3s ease'
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        e.target.style.background = '#ff4d4f';
-                                        e.target.style.color = 'white';
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.target.style.background = 'rgba(255, 77, 79, 0.1)';
-                                        e.target.style.color = '#ff4d4f';
-                                      }}
-                                      title="ยกเลิกการเลือก Lot นี้"
+                                      disabled={!staffStatus.received}
+                                      className="cancel-lot-btn"
+                                      title={!staffStatus.received ? 'กรุณายืนยันรับข้อมูลก่อน' : 'ยกเลิกการเลือก Lot นี้'}
                                     >
                                       ✕ ยกเลิก
                                     </button>
@@ -2000,65 +1913,56 @@ function CustomerDetailStaff() {
                 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
                   {/* Step 1: Received */}
-                  <div style={{
-                    padding: '15px',
-                    borderRadius: '8px',
+                  <div className="process-step-card" style={{
                     border: staffStatus.received ? '2px solid #52c41a' : '2px solid #d9d9d9',
                     background: staffStatus.received ? '#f6ffed' : '#fafafa',
-                    transition: 'all 0.3s ease'
                   }}>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: staffStatus.received ? '#274e0a' : '#8c8c8c', marginBottom: '5px' }}>
+                    <div className="step-number" style={{ color: staffStatus.received ? '#274e0a' : '#8c8c8c' }}>
                       ขั้นตอนที่ 1
                     </div>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: staffStatus.received ? '#52c41a' : '#262626', marginBottom: '5px' }}>
+                    <div className="step-title" style={{ color: staffStatus.received ? '#52c41a' : '#262626' }}>
                       {staffStatus.received ? '✅ ได้รับข้อมูล' : '⏳ รอยืนยัน'}
                     </div>
                     {staffStatus.received && staffStatus.received_at && (
-                      <div style={{ fontSize: '11px', color: '#666' }}>
+                      <div className="step-time">
                         {new Date(staffStatus.received_at).toLocaleString('th-TH')}
                       </div>
                     )}
                   </div>
 
                   {/* Step 2: Lots Selected */}
-                  <div style={{
-                    padding: '15px',
-                    borderRadius: '8px',
+                  <div className="process-step-card" style={{
                     border: lotsSaved ? '2px solid #52c41a' : '2px solid #d9d9d9',
                     background: lotsSaved ? '#f6ffed' : '#fafafa',
                     opacity: !staffStatus.received ? 0.6 : 1,
-                    transition: 'all 0.3s ease'
                   }}>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: lotsSaved ? '#274e0a' : '#8c8c8c', marginBottom: '5px' }}>
+                    <div className="step-number" style={{ color: lotsSaved ? '#274e0a' : '#8c8c8c' }}>
                       ขั้นตอนที่ 2
                     </div>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: lotsSaved ? '#52c41a' : '#262626', marginBottom: '5px' }}>
+                    <div className="step-title" style={{ color: lotsSaved ? '#52c41a' : '#262626' }}>
                       {lotsSaved ? '✅ บันทึก Lot' : '⏳ รอบันทึก'}
                     </div>
                     {lotsSaved && (
-                      <div style={{ fontSize: '11px', color: '#666' }}>
+                      <div className="step-time">
                         {Object.keys(selectedBatches).filter(k => selectedBatches[k]).length} รายการ
                       </div>
                     )}
                   </div>
 
                   {/* Step 3: Prepared */}
-                  <div style={{
-                    padding: '15px',
-                    borderRadius: '8px',
+                  <div className="process-step-card" style={{
                     border: staffStatus.prepared ? '2px solid #52c41a' : '2px solid #d9d9d9',
                     background: staffStatus.prepared ? '#f6ffed' : '#fafafa',
                     opacity: !lotsSaved ? 0.6 : 1,
-                    transition: 'all 0.3s ease'
                   }}>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: staffStatus.prepared ? '#274e0a' : '#8c8c8c', marginBottom: '5px' }}>
+                    <div className="step-number" style={{ color: staffStatus.prepared ? '#274e0a' : '#8c8c8c' }}>
                       ขั้นตอนที่ 3
                     </div>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: staffStatus.prepared ? '#52c41a' : '#262626', marginBottom: '5px' }}>
+                    <div className="step-title" style={{ color: staffStatus.prepared ? '#52c41a' : '#262626' }}>
                       {staffStatus.prepared ? '✅ จัดส่งแล้ว' : '⏳ รอจัดส่ง'}
                     </div>
                     {staffStatus.prepared && staffStatus.prepared_at && (
-                      <div style={{ fontSize: '11px', color: '#666' }}>
+                      <div className="step-time">
                         {new Date(staffStatus.prepared_at).toLocaleString('th-TH')}
                       </div>
                     )}
@@ -2066,19 +1970,19 @@ function CustomerDetailStaff() {
                 </div>
 
                 {/* Progress Bar */}
-                <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: '#666' }}>
+                <div className="progress-container" style={{ marginBottom: '20px' }}>
+                  <div className="progress-label" style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: '#666' }}>
                     ความคืบหน้า
                   </div>
-                  <div style={{ width: '100%', height: '8px', background: '#e8e8e8', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%',
+                  <div className="progress-track" style={{ width: '100%', height: '100%', background: '#e8e8e8', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div className="progress-bar" style={{
+                      height: '8px',
                       width: staffStatus.prepared ? '100%' : lotsSaved ? '66%' : staffStatus.received ? '33%' : '0%',
                       background: 'linear-gradient(90deg, #52c41a 0%, #73d13d 100%)',
                       transition: 'width 0.3s ease'
                     }}></div>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                  <div className="progress-text" style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
                     {staffStatus.prepared ? '100% เสร็จสิ้น' : lotsSaved ? '66% ระหว่างจัดส่ง' : staffStatus.received ? '33% รับข้อมูลแล้ว' : '0% ยังไม่เริ่ม'}
                   </div>
                 </div>
@@ -2098,14 +2002,6 @@ function CustomerDetailStaff() {
                       fontSize: '14px',
                       fontWeight: 'bold',
                       transition: 'all 0.3s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = '#0050b3';
-                      e.target.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = '#1890ff';
-                      e.target.style.transform = 'translateY(0)';
                     }}
                   >
                     ← กลับไปยังรายการ
@@ -2362,24 +2258,8 @@ function CustomerDetailStaff() {
           <button
             key="close"
             onClick={() => setAllergyDetailModal({ open: false, allergies: [] })}
-            style={{
-              padding: '8px 24px',
-              backgroundColor: '#f5f5f5',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={e => {
-              e.target.style.backgroundColor = '#e6e6e6';
-              e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-            }}
-            onMouseLeave={e => {
-              e.target.style.backgroundColor = '#f5f5f5';
-              e.target.style.boxShadow = 'none';
-            }}
+            className="allergy-btn no-allergy"
+            style={{ width: 'auto', padding: '8px 24px' }}
           >
             ปิด
           </button>
@@ -2393,22 +2273,14 @@ function CustomerDetailStaff() {
             {allergyDetailModal.allergies.map((allergy, idx) => (
               <div
                 key={idx}
+                className="info-card"
                 style={{
                   background: 'linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%)',
                   border: '1px solid #ffb3b3',
                   borderRadius: '12px',
                   padding: '16px',
                   boxShadow: '0 4px 12px rgba(255, 120, 117, 0.15)',
-                  transition: 'all 0.3s ease',
                   cursor: 'pointer'
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 120, 117, 0.25)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 120, 117, 0.15)';
-                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>

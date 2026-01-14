@@ -69,22 +69,53 @@
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.customer-header-details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin: 0 !important;
-  opacity: 0.95;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.customer-header-detail-item {
+.customer-header-title-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  white-space: nowrap;
+  gap: 20px;
+  margin-bottom: 20px;
 }
+
+.customer-avatar-large {
+  width: 64px;
+  height: 64px;
+  background: white;
+  color: #667eea;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border: 3px solid rgba(255,255,255,0.3);
+}
+
+.customer-header-subtitle {
+  font-size: 14px;
+  opacity: 0.8;
+  margin-top: -4px;
+}
+
+.customer-name-text {
+  margin: 0 !important;
+  font-size: 28px !important;
+}
+
+.customer-header-details {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 12px 20px;
+  border-radius: 12px;
+  display: inline-flex !important;
+  gap: 24px !important;
+  backdrop-filter: blur(5px);
+}
+
+.customer-header-detail-item .icon {
+  font-size: 16px;
+  margin-right: 4px;
+}
+
 
 .customer-header-actions {
   display: flex;
@@ -271,76 +302,111 @@
 /* Timeline Item Card - enhanced visuals & markers */
 .visits-timeline {
   position: relative;
-  padding-left: 40px; /* space for the vertical line and markers */
+  padding-top: 20px;
 }
 
 .visits-timeline::before {
   content: '';
   position: absolute;
-  left: 16px;
-  top: 8px;
-  bottom: 8px;
+  left: 160px; /* Aligned with standard label width */
+  top: 0;
+  bottom: 0;
   width: 2px;
-  background: linear-gradient(to bottom, rgba(102,126,234,0.4), rgba(118,75,162,0.4));
-  border-radius: 2px;
-  opacity: 0.35;
+  background: linear-gradient(to bottom, #667eea, #764ba2);
+  opacity: 0.15;
 }
 
 .visit-timeline-block {
   display: flex;
-  gap: 16px;
-  margin-bottom: 18px;
+  gap: 32px;
+  margin-bottom: 24px;
   position: relative;
 }
 
 .visit-time {
-  width: 160px;
+  width: 140px;
   text-align: right;
   font-size: 13px;
-  font-weight: 500;
-  color: #595959;
-  padding-right: 12px;
+  font-weight: 600;
+  color: #8c8c8c;
+  padding-right: 0;
   position: relative;
+  flex-shrink: 0;
+  padding-top: 10px;
 }
 
-/* create circular marker aligned to the vertical line */
 .visit-time::after {
   content: '';
   position: absolute;
-  right: -18px;
-  top: 8px;
+  right: -25px; /* Aligned to the 160px vertical line */
+  top: 14px;
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  box-shadow: 0 2px 8px rgba(102,126,234,0.25);
+  background: white;
+  border: 3px solid #667eea;
+  box-shadow: 0 2px 6px rgba(102,126,234,0.2);
+  z-index: 2;
 }
 
 .visit-card {
-  background: linear-gradient(90deg, #ffffff 0%, #fbfdff 100%);
-  border: 1px solid #e8eef8;
+  flex: 1;
+  background: white;
+  border: 1px solid #edf2f7;
   border-radius: 12px;
   padding: 20px;
-  transition: transform 0.22s cubic-bezier(0.2,0.8,0.2,1), box-shadow 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
-  box-shadow: 0 6px 18px rgba(13,38,76,0.04);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
-.visit-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  background: linear-gradient(180deg, #667eea, #764ba2);
-  opacity: 0.9;
+.visit-card.clickable {
+  cursor: pointer;
 }
 
 .visit-card:hover {
-  transform: translateX(4px) scale(1.003);
-  box-shadow: 0 18px 40px rgba(15,40,90,0.08);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(102, 126, 234, 0.1);
+  border-color: #e2e8f0;
+}
+
+.visit-card-header {
+  display: flex;
+  flex-direction: column;
+}
+
+.visit-card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.visit-card-title-row h4 {
+  margin: 0 !important;
+  font-size: 17px !important;
+  color: #1a202c !important;
+}
+
+.visit-status-tag {
+  margin: 0 !important;
+  font-weight: 600;
+  padding: 2px 10px !important;
+}
+
+.visit-card-footer-info {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed #edf2f7;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.view-detail-hint {
+  font-size: 12px;
+  color: #3182ce;
+  font-weight: 500;
 }
 
 /* Allow excerpt to wrap but clamp to 2 lines */
@@ -466,19 +532,22 @@
 
 /* Responsive tweaks for markers & layout */
 @media (max-width: 768px) {
-  .visits-timeline::before { left: 12px; }
-  .visit-time { width: 110px; text-align: left; padding-right: 0; padding-left: 12px; }
-  .visit-time::after { right: -10px; top: 10px; }
+  .visits-timeline::before { left: 24px; }
+  .visit-timeline-block { gap: 20px; flex-direction: column; padding-left: 48px; }
+  .visit-time { width: auto; text-align: left; padding-top: 0; font-size: 12px; }
+  .visit-time::after { left: -30px; top: 4px; right: auto; }
   .ant-timeline-item-content { margin-left: 140px !important; }
+  
+  .customer-header { padding: 20px !important; }
+  .customer-header h2 { font-size: 22px !important; }
 }
 
 @media (max-width: 480px) {
-  .visits-timeline { padding-left: 28px; }
-  .visit-time { width: 86px; font-size: 12px; padding-left: 8px; }
-  .visit-time::after { right: -8px; width: 10px; height: 10px; }
-  .visit-card { padding: 14px; }
-  .visit-card-title h4 { font-size: 16px !important; }
-  .fab-create-visit { right: 16px; bottom: 16px; width: 48px; height: 48px; font-size: 24px; }
+  .visits-timeline { padding-top: 10px; }
+  .visit-timeline-block { padding-left: 40px; margin-bottom: 20px; }
+  .visit-time::after { left: -24px; width: 10px; height: 10px; }
+  .visit-card { padding: 16px; }
+  .visit-card-title-row h4 { font-size: 15px !important; }
 }
 
 /* ===== Modal Styles ===== */
@@ -909,10 +978,28 @@ button {
   .modal-close-btn { width: 100%; padding: 10px; }
 
   .loading-container, .error-container { min-height: 280px; padding: 40px 16px; }
-  .loading-spinner { width: 44px; height: 44px; border-width: 3px; }
-  .error-container h2 { font-size: 18px; }
+  .btn-back {
+  padding: 10px 24px;
+  background: white;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  color: #606266;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 
-  /* FAB adjustments */
+.btn-back:hover {
+  background: #f5f7fa;
+  color: #409eff;
+  border-color: #c6e2ff;
+  transform: translateY(-1px);
+}
+
   .fab-create-visit { right: 14px; bottom: 14px; width: 52px; height: 52px; font-size: 22px; }
 }
 

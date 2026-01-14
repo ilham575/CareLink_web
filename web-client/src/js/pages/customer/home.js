@@ -54,21 +54,20 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
       <div className="pharmacy-actions">
         <button
           className="detail-button"
-          style={{ background: '#4CAF50', width: '120px' }}
+          style={{ background: '#4CAF50', width: '130px' }}
           onClick={handleClick}
         >
-          ดู<br />ข้อมูลของร้าน
+          🏥 ดูข้อมูลร้าน
         </button>
         <button
           className="detail-button"
-          style={{ background: '#2196F3', width: '120px' }}
+          style={{ background: '#2196F3', width: '130px' }}
           onClick={() => {
-            if (customerProfileDoc && onViewProfile) {
-              onViewProfile();
-            }
+            const profileDoc = customerProfileDoc.attributes || customerProfileDoc;
+            navigate(`/customer/visit-history/${profileDoc.documentId}?pharmacyId=${documentId || id}`);
           }}
         >
-          ดู<br />ข้อมูลของฉัน
+          📜 ประวัติการรักษา
         </button>
       </div>
     </div>

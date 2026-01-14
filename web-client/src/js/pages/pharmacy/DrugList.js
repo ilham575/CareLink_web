@@ -3,7 +3,6 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { API } from '../../../utils/apiConfig';
-import '../../../css/pages/default/drugsPage.css';
 
 /* eslint-disable no-undef */
 
@@ -1153,457 +1152,608 @@ export default function DrugList() {
   };
 
   return (
-    <div className="app-container drugs-page">
+    <div className="min-h-screen bg-slate-50 pb-20">
       <HomeHeader pharmacyName={store?.attributes?.name_th || store?.name_th} onSearch={() => {}} isLoggedIn={true} />
-      <main className="main-content drugs-main">
-        <div className="drugs-header">
-          <h2 className="store-title">{store?.attributes?.name_th || 'รายการยา'}</h2>
-          <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>
-            💡 <strong>วิธีใช้:</strong> เพิ่มชื่อยา (พร้อมชื่อยี่ห้อ ราคา) → เพิ่ม Lot (จำนวน วันผลิต วันหมดอายุ)
+      
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        {/* Page Header */}
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 mb-8 overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-8 opacity-5">
+            <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="m14.7 18.8 5.8-5.9a3.5 3.5 0 0 0-4.9-5l-5.9 5.9a3.5 3.5 0 0 0 4.9 5Z"/><path d="M8.8 14.7 3 20.5"/><path d="M10.6 12.8 15.5 17.7"/><path d="m11.8 10.2 5.6 5.6"/><path d="m16.2 8.4 5.6 5.6"/><path d="M21 21v.01"/><path d="M18 18v.01"/></svg>
           </div>
-          <div className="drugs-actions">
-            <button className="btn small primary" onClick={() => navigate(-1)}>กลับ</button>
-            <button className="btn small" onClick={handleDeleteSelected} disabled={selectedIds.length===0} style={{ marginLeft: 8 }}>{selectedIds.length>0?`ลบที่เลือก (${selectedIds.length})`:'ลบที่เลือก'}</button>
-            <button className="btn small primary" onClick={() => handleOpenModal()} style={{ marginLeft: 8 }}>เพิ่มรายการยาใหม่</button>
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            <div>
+              <h2 className="text-3xl font-bold text-slate-800 tracking-tight">
+                {store?.attributes?.name_th || 'รายการยา'}
+              </h2>
+              <div className="mt-2 flex items-center text-slate-500 bg-blue-50 w-fit px-3 py-1.5 rounded-full border border-blue-100">
+                <span className="text-blue-500 mr-2">💡</span>
+                <span className="text-sm font-medium italic">วิธีใช้: เพิ่มชื่อยา (ยี่ห้อ ราคา) → เพิ่ม Lot (จำนวน วันผลิต วันหมดอายุ)</span>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              <button 
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition-all duration-200"
+                onClick={() => navigate(-1)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                กลับ
+              </button>
+              
+              <button 
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all duration-200 ${
+                  selectedIds.length > 0 
+                    ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 shadow-sm shadow-rose-100' 
+                    : 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
+                }`}
+                onClick={handleDeleteSelected} 
+                disabled={selectedIds.length === 0}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                {selectedIds.length > 0 ? `ลบที่เลือก (${selectedIds.length})` : 'ลบที่เลือก'}
+              </button>
+              
+              <button 
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all duration-200 transform hover:-translate-y-0.5"
+                onClick={() => handleOpenModal()}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                เพิ่มรายการยาใหม่
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="drugs-controls">
-          <div className="tabs" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        {/* Controls Section */}
+        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200 mb-8 overflow-visible flex flex-col lg:flex-row items-center gap-6">
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full lg:w-fit">
             <button
-              className={`pill ${activeTab === 'expiry' ? 'active' : ''}`}
+              className={`flex-1 lg:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                activeTab === 'expiry' 
+                  ? 'bg-white text-indigo-600 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
               onClick={() => setActiveTab('expiry')}
             >
-              ยาหมดอายุ
+              📅 ยาหมดอายุ
             </button>
             <button
-              className={`pill ${activeTab === 'import' ? 'active' : ''}`}
+              className={`flex-1 lg:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                activeTab === 'import' 
+                  ? 'bg-white text-indigo-600 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
               onClick={() => setActiveTab('import')}
             >
-              นำเข้า / เทมเพลต
+              📤 นำเข้า / เทมเพลต
             </button>
-          </div>
-          <div style={{ marginLeft: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
-              className={`pill ${activeTab === 'search' ? 'active' : ''}`}
+              className={`flex-1 lg:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                activeTab === 'search' 
+                  ? 'bg-white text-indigo-600 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
               onClick={() => setActiveTab('search')}
             >
-              ค้นหา
+              🔍 ค้นหา
             </button>
           </div>
 
-          {activeTab === 'search' && (
-            <div style={{ marginLeft: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ position: 'relative', flex: 1, maxWidth: 400 }}>
-                <input
-                  type="search"
-                  placeholder="ค้นหา ชื่อยา หรือ ชื่อยี่ห้อ"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') setSearchTerm('');
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 1rem 0.6rem 2.8rem',
-                    borderRadius: 12,
-                    border: '2px solid #e0e0e0',
-                    backgroundColor: '#f5f5f5',
-                    fontSize: '14px',
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
-                    WebkitAppearance: 'none',
-                    MozAppearance: 'none',
-                    appearance: 'none'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#4CAF50';
-                    e.target.style.backgroundColor = '#fff';
-                    e.target.style.boxShadow = '0 4px 12px rgba(76,175,80,0.15)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = '#e0e0e0';
-                    e.target.style.backgroundColor = '#f5f5f5';
-                    e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.04)';
-                  }}
-                />
-                <div style={{ 
-                  position: 'absolute', 
-                  left: 10, 
-                  top: '50%', 
-                  transform: 'translateY(-50%)', 
-                  pointerEvents: 'none', 
-                  fontSize: '18px',
-                  opacity: 0.7
-                }}>🔎</div>
-                {searchTerm && (
-                  <div style={{
-                    position: 'absolute',
-                    right: 10,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    fontSize: '12px',
-                    color: '#999',
-                    pointerEvents: 'none'
-                  }}>
-                    Esc ล้าง
+          <div className="flex-1 w-full relative">
+            {activeTab === 'search' && (
+              <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-300">
+                <div className="relative flex-1 group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                   </div>
-                )}
+                  <input
+                    type="search"
+                    placeholder="ค้นหาชื่อยา หรือ ยี่ห้อ..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') setSearchTerm('');
+                    }}
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
+                  />
+                  {searchTerm && (
+                    <button 
+                      onClick={() => setSearchTerm('')}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-rose-500 transition-colors"
+                      title="ล้าง"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                    </button>
+                  )}
+                </div>
               </div>
-              <button 
-                className="btn small" 
-                onClick={() => setSearchTerm('')}
-                style={{
-                  padding: '0.6rem 1.2rem',
-                  backgroundColor: searchTerm ? '#ff6b6b' : '#e0e0e0',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 10,
-                  fontWeight: 'bold',
-                  cursor: searchTerm ? 'pointer' : 'not-allowed',
-                  transition: 'all 0.3s ease',
-                  opacity: searchTerm ? 1 : 0.6,
-                  fontSize: '13px',
-                  boxShadow: searchTerm ? '0 2px 6px rgba(255,107,107,0.3)' : 'none'
-                }}
-                disabled={!searchTerm}
-                title="ล้างการค้นหา"
-              >
-                ✕ ล้าง
-              </button>
-            </div>
-          )}
+            )}
 
-          {activeTab === 'expiry' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 12 }}>
-              <span className="label">กรอง</span>
-              <button className={`pill ${expiryFilterMonths===3? 'active':''}`} onClick={() => setExpiryFilterMonths(expiryFilterMonths===3? null:3)}>3 เดือน</button>
-              <button className={`pill ${expiryFilterMonths===6? 'active':''}`} onClick={() => setExpiryFilterMonths(expiryFilterMonths===6? null:6)}>6 เดือน</button>
-            </div>
-          )}
+            {activeTab === 'expiry' && (
+              <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-300">
+                <span className="text-sm font-bold text-slate-500 uppercase tracking-wider pl-2">กรองระยะเวลา:</span>
+                <div className="flex gap-2">
+                  <button 
+                    className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all duration-200 ${
+                      expiryFilterMonths === 3 
+                        ? 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-100' 
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}
+                    onClick={() => setExpiryFilterMonths(expiryFilterMonths === 3 ? null : 3)}
+                  >
+                    3 เดือน
+                  </button>
+                  <button 
+                    className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all duration-200 ${
+                      expiryFilterMonths === 6 
+                        ? 'bg-rose-500 text-white border-rose-500 shadow-md shadow-rose-100' 
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}
+                    onClick={() => setExpiryFilterMonths(expiryFilterMonths === 6 ? null : 6)}
+                  >
+                    6 เดือน
+                  </button>
+                </div>
+              </div>
+            )}
 
-          {activeTab === 'import' && (
-            <div className="import-controls" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button 
-                className="btn small" 
-                onClick={() => { setImportTourStep(0); setImportTourClosing(false); setImportTourOpen(true); }}
-                style={{ 
-                  backgroundColor: '#4CAF50', 
-                  color: '#fff', 
-                  fontWeight: 'bold',
-                  boxShadow: '0 2px 4px rgba(76,175,80,0.3)',
-                  marginRight: 8
-                }}
-              >
-                📝 คำแนะนำการนำเข้า
-              </button>
-              <label htmlFor="csvFileInput" className="btn small">เลือกไฟล์ CSV</label>
-              {csvFileName ? <span style={{ marginLeft: 8, color: '#444', fontSize: 13, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{csvFileName}</span> : null}
-              <button className="btn small" onClick={handleImportCSV} disabled={!csvFile || importing} style={{ marginLeft: 8 }}>{importing ? `กำลังนำเข้า (${importProgress.done}/${importProgress.total || '?'})` : 'นำเข้า CSV'}</button>
+            {activeTab === 'import' && (
+              <div className="flex flex-wrap items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-300">
+                <button 
+                  className="px-4 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-sm font-bold hover:bg-emerald-100 transition-all flex items-center gap-2"
+                  onClick={() => { setImportTourStep(0); setImportTourClosing(false); setImportTourOpen(true); }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8h.01"/><path d="M11 12h1v4h1"/><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/></svg>
+                  คำแนะนำ
+                </button>
+                
+                <div className="h-8 w-px bg-slate-100 mx-1"></div>
 
-              <input id="xlsxFileInput" type="file" accept=".xlsx,.xls" onChange={handleFileChangeAdvanced} style={{ display: 'none' }} />
-              <label htmlFor="xlsxFileInput" className="btn small">เลือกไฟล์ Excel</label>
-              {xlsxFileName ? <span style={{ marginLeft: 8, color: '#444', fontSize: 13, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{xlsxFileName}</span> : null}
-              <button className="btn small" onClick={handleImportXLSX} disabled={!xlsxRecords || importing} style={{ marginLeft: 8 }}>{importing ? `กำลังนำเข้า (${importProgress.done}/${importProgress.total || '?'})` : 'นำเข้า Excel'}</button>
+                <div className="flex items-center gap-2">
+                  <input id="csvFileInput" type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+                  <label 
+                    htmlFor="csvFileInput" 
+                    className="px-4 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-slate-900 transition-all shadow-sm"
+                  >
+                    {csvFileName ? 'เปลี่ยนไฟล์ CSV' : 'เลือกไฟล์ CSV'}
+                  </label>
+                  {csvFileName && (
+                    <span className="text-xs font-semibold text-slate-500 max-w-[120px] truncate bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                      {csvFileName}
+                    </span>
+                  )}
+                  <button 
+                    className="p-2.5 bg-indigo-600 disabled:bg-slate-200 text-white rounded-xl transition-all shadow-sm"
+                    onClick={handleImportCSV} 
+                    disabled={!csvFile || importing}
+                    title="นำเข้า CSV"
+                  >
+                    {importing ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    )}
+                  </button>
+                </div>
 
-              <button className="btn small" onClick={() => downloadTemplateAs('csv')}>ดาวน์โหลดเทมเพลต (CSV)</button>
-              <button className="btn small" onClick={() => downloadTemplateAs('xlsx')}>ดาวน์โหลดเทมเพลต (Excel)</button>
-            </div>
-          )}
+                <div className="flex items-center gap-2">
+                  <input id="xlsxFileInput" type="file" accept=".xlsx,.xls" onChange={handleFileChangeAdvanced} className="hidden" />
+                  <label 
+                    htmlFor="xlsxFileInput" 
+                    className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-emerald-700 transition-all shadow-sm"
+                  >
+                    {xlsxFileName ? 'เปลี่ยนไฟล์ Excel' : 'เลือกไฟล์ Excel'}
+                  </label>
+                  {xlsxFileName && (
+                    <span className="text-xs font-semibold text-slate-500 max-w-[120px] truncate bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                      {xlsxFileName}
+                    </span>
+                  )}
+                  <button 
+                    className="p-2.5 bg-emerald-600 disabled:bg-slate-200 text-white rounded-xl transition-all shadow-sm"
+                    onClick={handleImportXLSX} 
+                    disabled={!xlsxRecords || importing}
+                    title="นำเข้า Excel"
+                  >
+                    {importing ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex gap-2">
+                  <button 
+                    className="px-3 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                    onClick={() => downloadTemplateAs('csv')}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    เทมเพลต (CSV)
+                  </button>
+                  <button 
+                    className="px-3 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                    onClick={() => downloadTemplateAs('xlsx')}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    เทมเพลต (Excel)
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="drugs-table-wrap">
+        {/* Table Section */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           {loading ? (
-            <div className="empty">กำลังโหลดรายการยา...</div>
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-500 rounded-full animate-spin"></div>
+              <p className="mt-4 text-slate-500 font-medium">กำลังโหลดรายการยา...</p>
+            </div>
           ) : filteredDrugs.length === 0 ? (
-            <div className="empty">ไม่พบรายการยา</div>
+            <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-slate-300">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
+              </div>
+              <h3 className="text-lg font-bold text-slate-800">ไม่พบรายการยา</h3>
+              <p className="text-slate-500 mt-1">ลองเปลี่ยนคำค้นหา หรือกรองข้อมูลใหม่</p>
+              <button 
+                className="mt-6 text-indigo-600 font-bold hover:text-indigo-700 underline underline-offset-4"
+                onClick={() => { setSearchTerm(''); setExpiryFilterMonths(null); }}
+              >
+                ล้างตัวกรองทั้งหมด
+              </button>
+            </div>
           ) : (
-            <table className="drugs-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 40 }}>
-                    <input type="checkbox" onChange={toggleSelectAll} checked={filteredDrugs.length>0 && selectedIds.length===filteredDrugs.map(d=>getDrugKey(d)).filter(Boolean).length} />
-                  </th>
-                  <th>ชื่อยี่ห้อ</th>
-                  <th>ชื่อยา</th>
-                  <th>ข้อบ่งใช้</th>
-                  <th>ราคา</th>
-                  <th>Lot & สต็อก</th>
-                  <th>การดำเนินการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                        {filteredDrugs.map((drug, idx) => {
-                          const drugKey = getDrugKey(drug);
-                          const isHighlighted = highlightDrugId && drugKey === highlightDrugId;
-                          
-                          return (
-                          <React.Fragment key={drugKey || idx}>
-                            <tr 
-                              ref={isHighlighted ? highlightRef : null}
-                              style={{
-                                backgroundColor: isHighlighted ? '#fff3cd' : undefined,
-                                border: isHighlighted ? '3px solid #ffc107' : undefined,
-                                transition: 'all 0.3s ease',
-                                animation: isHighlighted ? 'pulse 2s infinite' : undefined
-                              }}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-6 py-5 w-[60px]">
+                      <div className="flex items-center justify-center">
+                        <input 
+                          type="checkbox" 
+                          className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                          onChange={toggleSelectAll} 
+                          checked={filteredDrugs.length > 0 && selectedIds.length === filteredDrugs.map(d => getDrugKey(d)).filter(Boolean).length} 
+                        />
+                      </div>
+                    </th>
+                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none">ชื่อยี่ห้อ</th>
+                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none">ชื่อยา</th>
+                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none">ข้อบ่งใช้</th>
+                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none">ราคา</th>
+                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none text-center">คลังสินค้า</th>
+                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none text-right">การจัดการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredDrugs.map((drug, idx) => {
+                    const drugKey = getDrugKey(drug);
+                    const isHighlighted = highlightDrugId && drugKey === highlightDrugId;
+                    const stockCount = drug.drug_batches?.reduce((acc, b) => acc + (b.attributes?.quantity || b.quantity || 0), 0) || 0;
+                    
+                    return (
+                      <tr 
+                        key={drugKey || idx}
+                        ref={isHighlighted ? highlightRef : null}
+                        className={`group transition-all duration-200 hover:bg-slate-50/80 ${
+                          isHighlighted ? 'bg-amber-50 ring-2 ring-amber-200 ring-inset' : ''
+                        }`}
+                      >
+                        <td className="px-6 py-5">
+                          <div className="flex items-center justify-center">
+                            <input 
+                              type="checkbox" 
+                              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                              checked={selectedIds.includes(drugKey)} 
+                              onChange={() => toggleSelection(drugKey)} 
+                            />
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <span className="inline-flex items-center px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold ring-1 ring-slate-200 group-hover:bg-white group-hover:ring-slate-300 transition-all">
+                            {drug.manufacturer || '(ไม่ระบุ)'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-bold text-slate-800 text-[15px] leading-tight">
+                              {drug.name_th || drug.name_en || '-'}
+                            </span>
+                            {drug.name_en && drug.name_th && (
+                              <span className="text-xs text-slate-400 font-medium leading-none">{drug.name_en}</span>
+                            )}
+                            {isHighlighted && (
+                              <span className="mt-1 inline-flex items-center text-[10px] font-black bg-rose-500 text-white uppercase px-1.5 py-0.5 rounded shadow-sm animate-pulse w-fit leading-none">
+                                ⚠️ สต๊อกหมด
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-5 leading-normal">
+                          <p className="text-sm text-slate-500 line-clamp-2 max-w-[200px] leading-relaxed">
+                            {drug.description || '-'}
+                          </p>
+                        </td>
+                        <td className="px-6 py-5 leading-none">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-lg font-black text-rose-500 tracking-tight">
+                              {drug.price ? `${drug.price.toLocaleString()} ฿` : '-'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">ต่อชิ้น/ชุด</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5 leading-none">
+                          <div className="flex justify-center">
+                            <button 
+                              className={`group/btn relative flex items-center gap-2 pr-4 pl-3 py-2 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md ${
+                                stockCount === 0 
+                                  ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200' 
+                                  : stockCount < 10
+                                    ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200'
+                                    : 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200'
+                              }`}
+                              onClick={() => { setBatchDetailsModalDrug(drug); setBatchDetailsModalOpen(true); }}
                             >
-                              <td>
-                                <input type="checkbox" checked={selectedIds.includes(drugKey)} onChange={() => toggleSelection(drugKey)} />
-                              </td>
-                              <td data-label="ชื่อยี่ห้อ" style={{ fontWeight: 'bold', color: '#2c3e50' }}>
-                                {drug.manufacturer || '(ไม่ระบุ)'}
-                              </td>
-                              <td data-label="ชื่อยา" className="drug-name">
-                                {drug.name_th || drug.name_en || '-'}
-                                {isHighlighted && (
-                                  <span style={{ 
-                                    marginLeft: '8px', 
-                                    background: '#ff9800', 
-                                    color: 'white', 
-                                    padding: '2px 8px', 
-                                    borderRadius: '4px', 
-                                    fontSize: '11px',
-                                    fontWeight: 'bold'
-                                  }}>
-                                    ⚠️ สต๊อกหมด
-                                  </span>
-                                )}
-                              </td>
-                              <td data-label="ข้อบ่งใช้" className="drug-use">{drug.description || '-'}</td>
-                              <td data-label="ราคา" style={{ fontWeight: 'bold', color: '#d9534f' }}>
-                                {drug.price ? `${drug.price} ฿` : '(ไม่ระบุ)'}
-                              </td>
-                              <td data-label="Lot & สต็อก">
-                                <button 
-                                  className="btn-batch-details"
-                                  onClick={() => { setBatchDetailsModalDrug(drug); setBatchDetailsModalOpen(true); }}
-                                  title={
-                                    drug.drug_batches && drug.drug_batches.length > 0
-                                      ? drug.drug_batches
-                                          .map(b => {
-                                            const bData = b.attributes ? { id: b.id, ...b.attributes } : b;
-                                            return `${bData.lot_number}`;
-                                          })
-                                          .join('\n')
-                                      : 'ไม่มี Lot'
-                                  }
-                                >
-                                  📦 {drug.drug_batches?.length || 0} lot
-                                </button>
-                              </td>
-                              <td data-label="การดำเนินการ">
-                                <div className="action-buttons">
-                                  <button className="btn-action edit" onClick={() => handleOpenModal(drug)}>แก้ไข</button>
-                                  <button className="btn-action delete" onClick={() => handleDelete(drugKey)}>ลบ</button>
-                                </div>
-                              </td>
-                            </tr>
-                          </React.Fragment>
-                        );
-                        })}
-              </tbody>
-            </table>
+                              <div className={`p-1.5 rounded-xl ${
+                                stockCount === 0 ? 'bg-rose-500/10' : stockCount < 10 ? 'bg-amber-500/10' : 'bg-indigo-500/10'
+                              }`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
+                              </div>
+                              <div className="flex flex-col items-start leading-none">
+                                <span className="text-sm font-black">{stockCount}</span>
+                                <span className="text-[10px] font-bold opacity-70 uppercase tracking-tighter">{drug.drug_batches?.length || 0} ล็อต</span>
+                              </div>
+                              <div className="absolute -top-1 -right-1 flex h-3 w-3">
+                                {stockCount < 5 && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>}
+                                {stockCount < 5 && <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 border border-white"></span>}
+                              </div>
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5 leading-none">
+                          <div className="flex items-center justify-end gap-2 text-slate-400">
+                            <button 
+                              className="p-2.5 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200"
+                              onClick={() => handleOpenModal(drug)}
+                              title="แก้ไขยา"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                            </button>
+                            <button 
+                              className="p-2.5 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all duration-200"
+                              onClick={() => handleDelete(drugKey)}
+                              title="ลบยา"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
         {(showModal || showModalClosing) && (
-          <div className={`modal-overlay ${showModalClosing ? 'closing' : 'show'}`} onClick={handleCloseModal}>
-            <div className={`modal-content ${showModalClosing ? 'closing' : 'show'}`} onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3>{editingDrug ? 'แก้ไขรายการยา' : 'เพิ่มรายการยาใหม่'}</h3>
-                <button className="modal-close" onClick={handleCloseModal}>×</button>
+          <div 
+            className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-all duration-300 ${
+              showModalClosing ? 'opacity-0' : 'opacity-100'
+            }`} 
+            onClick={handleCloseModal}
+          >
+            <div 
+              className={`bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 transition-all duration-300 ${
+                showModalClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
+              }`} 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative px-8 pt-8 pb-6 border-b border-slate-50">
+                <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                  {editingDrug ? 'แก้ไขรายการยา' : 'เพิ่มรายการยาใหม่'}
+                </h3>
+                <p className="text-sm text-slate-400 font-medium">ระบุข้อมูลพื้นฐานของยาและยี่ห้อ</p>
+                <button 
+                  className="absolute top-8 right-8 w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all duration-200"
+                  onClick={handleCloseModal}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
               </div>
-              <form onSubmit={handleSubmit} className="drug-form">
-                <div style={{ padding: '0.75rem', backgroundColor: '#e3f2fd', borderRadius: 4, marginBottom: '1rem', fontSize: 12, color: '#1565c0', borderLeft: '3px solid #1976d2' }}>
-                  <strong>💡 หมายเหตุ:</strong> ยาที่มีชื่อเดียวกันแต่ยี่ห้อต่างกันจะถูกบันทึกเป็นรายการยาแยกต่างหาก (เช่น พาราเซตามอล ยา ดี VS พาราเซตามอล ยา สุข = รายการยาต่างกัน)
+
+              <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-hide">
+                <div className="flex items-start gap-4 p-4 bg-indigo-50/50 rounded-3xl border border-indigo-100/50">
+                  <div className="p-2 bg-indigo-500 rounded-xl text-white shadow-lg shadow-indigo-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-black text-indigo-600 uppercase tracking-wider leading-none">💡 หมายเหตุสำคัญ</span>
+                    <p className="text-xs text-indigo-900/70 font-medium leading-relaxed">
+                      ยาที่มีชื่อเดียวกันแต่ยี่ห้อต่างกันจะถูกบันทึกเป็นรายการแยกต่างหาก เพื่อให้คุณจัดการราคาและสต็อกแต่ละยี่ห้อได้แม่นยำ
+                    </p>
+                  </div>
                 </div>
 
                 {!editingDrug && (
-                  <div className="form-group" style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: 4 }}>
-                    <label style={{ marginBottom: '0.5rem', display: 'block', fontWeight: 'bold' }}>🔍 เลือกประเภทการเพิ่มยา</label>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                        <input
-                          type="radio"
-                          name="drug-mode"
-                          value="existing"
-                          checked={drugMode === 'existing'}
-                          onChange={(e) => {
-                            setDrugMode(e.target.value);
-                            setFormData({ name_th: '', name_en: '', description: '', manufacturer: '', price: '' });
-                            setSelectedExistingDrugId(null);
-                          }}
-                        />
-                        <span>เลือกยาจากรายการที่มี</span>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                        <input
-                          type="radio"
-                          name="drug-mode"
-                          value="new"
-                          checked={drugMode === 'new'}
-                          onChange={(e) => {
-                            setDrugMode(e.target.value);
-                            setFormData({ name_th: '', name_en: '', description: '', manufacturer: '', price: '' });
-                            setSelectedExistingDrugId(null);
-                          }}
-                        />
-                        <span>เพิ่มยาใหม่</span>
-                      </label>
+                  <div className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100 space-y-4">
+                    <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                      ประเภทการบันทึก
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDrugMode('existing');
+                          setFormData({ name_th: '', name_en: '', description: '', manufacturer: '', price: '' });
+                          setSelectedExistingDrugId(null);
+                        }}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 ${
+                          drugMode === 'existing' 
+                            ? 'bg-indigo-50 border-indigo-500 text-indigo-600 shadow-md shadow-indigo-100' 
+                            : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                        }`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        <span className="text-xs font-bold leading-none">เลือกจากที่มีอยู่</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDrugMode('new');
+                          setFormData({ name_th: '', name_en: '', description: '', manufacturer: '', price: '' });
+                          setSelectedExistingDrugId(null);
+                        }}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 ${
+                          drugMode === 'new' 
+                            ? 'bg-indigo-50 border-indigo-500 text-indigo-600 shadow-md shadow-indigo-100' 
+                            : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                        }`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                        <span className="text-xs font-bold leading-none">เพิ่มข้อมูลใหม่</span>
+                      </button>
                     </div>
                   </div>
                 )}
 
                 {drugMode === 'existing' && !editingDrug && (
-                  <div className="form-group">
-                    <label>เลือกรายการยา <span style={{ color: '#d32f2f' }}>*</span></label>
-                    <select
-                      value={selectedExistingDrugId || ''}
-                      onChange={(e) => {
-                        const drugKey = e.target.value;
-                        setSelectedExistingDrugId(drugKey);
-                        if (drugKey) {
-                          const selected = drugs.find(d => getDrugKey(d) === drugKey);
-                          if (selected) {
-                            setFormData({
-                              name_th: selected.name_th || '',
-                              name_en: selected.name_en || '',
-                              description: selected.description || '',
-                              manufacturer: '',
-                              price: ''
-                            });
+                  <div className="space-y-2">
+                    <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none">
+                      เลือกรายการยา <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative group">
+                      <select
+                        value={selectedExistingDrugId || ''}
+                        onChange={(e) => {
+                          const drugKey = e.target.value;
+                          setSelectedExistingDrugId(drugKey);
+                          if (drugKey) {
+                            const selected = drugs.find(d => getDrugKey(d) === drugKey);
+                            if (selected) {
+                              setFormData({
+                                name_th: selected.name_th || '',
+                                name_en: selected.name_en || '',
+                                description: selected.description || '',
+                                manufacturer: '',
+                                price: ''
+                              });
+                            }
                           }
-                        }
-                      }}
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        borderRadius: 4,
-                        border: '1px solid #ddd',
-                        fontSize: '14px'
-                      }}
-                    >
-                      <option value="">-- เลือกยา --</option>
-                      {drugs
-                        .sort((a, b) => (a.name_th || '').localeCompare(b.name_th || '', 'th'))
-                        .map(drug => (
-                          <option key={getDrugKey(drug)} value={getDrugKey(drug)}>
-                            {drug.name_th} {drug.name_en ? `(${drug.name_en})` : ''}
-                          </option>
-                        ))}
-                    </select>
-                    <small style={{ fontSize: '11px', color: '#666', marginTop: '4px', display: 'block' }}>
-                      💬 เลือกยาจากรายการที่มีอยู่แล้ว จากนั้นเพิ่มยี่ห้อและราคาใหม่
-                    </small>
+                        }}
+                        required
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-slate-800 font-bold focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none appearance-none"
+                      >
+                        <option value="">-- ค้นหาหรือเลือกยา --</option>
+                        {drugs
+                          .sort((a, b) => (a.name_th || '').localeCompare(b.name_th || '', 'th'))
+                          .map(drug => (
+                            <option key={getDrugKey(drug)} value={getDrugKey(drug)}>
+                              {drug.name_th} {drug.name_en ? `(${drug.name_en})` : ''}
+                            </option>
+                          ))}
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within:text-indigo-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {drugMode === 'new' && !editingDrug && (
-                  <>
-                    <div className="form-group">
-                      <label>ชื่อยา (ไทย) <span style={{ color: '#d32f2f' }}>*</span></label>
-                      <input
-                        type="text"
-                        name="name_th"
-                        value={formData.name_th}
-                        onChange={handleInputChange}
-                        placeholder="เช่น พาราเซตามอล"
-                        required
-                      />
+                {(drugMode === 'new' || editingDrug) && (
+                  <div className="space-y-4 pt-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none">ชื่อยา (ไทย) <span className="text-rose-500">*</span></label>
+                        <input
+                          type="text"
+                          name="name_th"
+                          value={formData.name_th}
+                          onChange={handleInputChange}
+                          className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-slate-800 font-bold focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                          placeholder="เช่น พาราเซตามอล"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none">ชื่อยา (อังกฤษ)</label>
+                        <input
+                          type="text"
+                          name="name_en"
+                          value={formData.name_en}
+                          onChange={handleInputChange}
+                          className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold text-slate-800 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                          placeholder="เช่น Paracetamol"
+                        />
+                      </div>
                     </div>
-                    <div className="form-group">
-                      <label>ชื่อยา (อังกฤษ)</label>
-                      <input
-                        type="text"
-                        name="name_en"
-                        value={formData.name_en}
-                        onChange={handleInputChange}
-                        placeholder="เช่น Paracetamol"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>ข้อบ่งใช้</label>
+                    <div className="space-y-2">
+                      <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none">ข้อบ่งใช้</label>
                       <textarea
                         name="description"
                         value={formData.description}
                         onChange={handleInputChange}
                         rows="3"
-                        placeholder="เช่น แก้ปวด ลดไข้"
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-medium text-slate-800 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none resize-none"
+                        placeholder="คำอธิบายสั้นๆ เช่น แก้ปวด ลดไข้..."
                       />
                     </div>
-                  </>
+                  </div>
                 )}
 
-                {editingDrug && drugMode === 'edit' && (
-                  <>
-                    <div className="form-group">
-                      <label>ชื่อยา (ไทย) <span style={{ color: '#d32f2f' }}>*</span></label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none">ยี่ห้อ <span className="text-rose-500">*</span></label>
+                    <input
+                      type="text"
+                      name="manufacturer"
+                      value={formData.manufacturer}
+                      onChange={handleInputChange}
+                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-slate-800 font-black focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                      placeholder="เช่น ยา ดี, ตรา งู"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none">ราคา (฿) <span className="text-rose-500">*</span></label>
+                    <div className="relative">
                       <input
-                        type="text"
-                        name="name_th"
-                        value={formData.name_th}
+                        type="number"
+                        name="price"
+                        value={formData.price}
                         onChange={handleInputChange}
-                        placeholder="เช่น พาราเซตามอล"
+                        step="0.01"
+                        min="0"
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 pl-10 text-slate-800 font-black focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                        placeholder="0.00"
                         required
                       />
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">฿</span>
                     </div>
-                    <div className="form-group">
-                      <label>ชื่อยา (อังกฤษ)</label>
-                      <input
-                        type="text"
-                        name="name_en"
-                        value={formData.name_en}
-                        onChange={handleInputChange}
-                        placeholder="เช่น Paracetamol"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>ข้อบ่งใช้</label>
-                      <textarea
-                        name="description"
-                        value={formData.description}
-                        onChange={handleInputChange}
-                        rows="3"
-                        placeholder="เช่น แก้ปวด ลดไข้"
-                      />
-                    </div>
-                  </>
-                )}
+                  </div>
+                </div>
 
-                <div className="form-group">
-                  <label>ชื่อยี่ห้อ <span style={{ color: '#d32f2f' }}>*</span></label>
-                  <input
-                    type="text"
-                    name="manufacturer"
-                    value={formData.manufacturer}
-                    onChange={handleInputChange}
-                    placeholder="เช่น ยา ดี, ยา สุข ฯลฯ (ทำให้ยาชื่อเดียวกันแต่คนละยี่ห้าแตกต่างกัน)"
-                    required
-                  />
-                  <small style={{ fontSize: '11px', color: '#666', marginTop: '4px', display: 'block' }}>
-                    💬 ยี่ห้อนี้ช่วยแยกความแตกต่างของยาที่มีชื่อเดียวกัน
-                  </small>
-                </div>
-                <div className="form-group">
-                  <label>ราคา (฿) <span style={{ color: '#d32f2f' }}>*</span></label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    step="0.01"
-                    min="0"
-                    placeholder="เช่น 150.50"
-                    required
-                  />
-                </div>
-                <div className="form-actions">
-                  <button type="button" className="btn secondary" onClick={handleCloseModal}>ยกเลิก</button>
-                  <button type="submit" className="btn primary">{editingDrug ? 'แก้ไข' : 'เพิ่ม'}</button>
+                <div className="flex gap-3 pt-4">
+                  <button 
+                    type="button" 
+                    className="flex-1 px-8 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all duration-200 active:scale-95" 
+                    onClick={handleCloseModal}
+                  >
+                    ยกเลิก
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="flex-[2] px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-200 hover:bg-indigo-700 hover:shadow-indigo-300 transition-all duration-200 active:scale-95"
+                  >
+                    {editingDrug ? 'บันทึกการแก้ไข' : 'เพิ่มรายการยา'}
+                  </button>
                 </div>
               </form>
             </div>
@@ -1611,57 +1761,93 @@ export default function DrugList() {
         )}
 
         {(confirmDialog.visible || confirmDialog.closing) && (
-          <div className={`modal-overlay ${confirmDialog.closing ? 'closing' : 'show'}`} onClick={closeConfirm}>
-            <div className={`modal-content ${confirmDialog.closing ? 'closing' : 'show'}`} onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3>{confirmDialog.title || 'ยืนยัน'}</h3>
-                <button className="modal-close" onClick={closeConfirm}>×</button>
-              </div>
-              <div style={{ padding: '1rem' }}>
-                <p>{confirmDialog.message || ''}</p>
-              </div>
-              <div className="form-actions" style={{ justifyContent: 'flex-end', padding: '0 1rem 1rem' }}>
-                <button type="button" className="btn secondary" onClick={closeConfirm}>ยกเลิก</button>
-                <button type="button" className="btn danger" onClick={() => { closeConfirm(); if (confirmDialog.onConfirm) confirmDialog.onConfirm(); }} style={{ marginLeft: 8 }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                    <line x1="12" y1="9" x2="12" y2="13" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                  </svg>
-                  ยืนยัน
-                </button>
+          <div 
+            className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 transition-all duration-300 ${
+              confirmDialog.closing ? 'opacity-0' : 'opacity-100'
+            }`} 
+            onClick={closeConfirm}
+          >
+            <div 
+              className={`bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden p-8 transition-all duration-300 ${
+                confirmDialog.closing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
+              }`} 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="w-20 h-20 bg-rose-50 rounded-[2rem] flex items-center justify-center text-rose-500 mb-6 shadow-sm ring-1 ring-rose-100">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </div>
+                <h3 className="text-xl font-black text-slate-800 mb-2">{confirmDialog.title || 'ยืนยันการดำเนินการ'}</h3>
+                <p className="text-slate-500 font-medium leading-relaxed mb-8">
+                  {confirmDialog.message || 'คุณแน่ใจหรือไม่ว่าต้องการดำเนินการนี้? ข้อมูลอาจไม่สามารถกู้คืนได้'}
+                </p>
+                <div className="flex flex-col w-full gap-3">
+                  <button 
+                    className="w-full py-4 bg-rose-500 text-white font-black rounded-2xl shadow-lg shadow-rose-200 hover:bg-rose-600 transition-all active:scale-95" 
+                    onClick={() => { closeConfirm(); if (confirmDialog.onConfirm) confirmDialog.onConfirm(); }}
+                  >
+                    ยืนยันการลบ
+                  </button>
+                  <button 
+                    className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all active:scale-95" 
+                    onClick={closeConfirm}
+                  >
+                    ยกเลิก
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Batch Details Modal - Beautiful Display */}
         {(batchDetailsModalOpen && batchDetailsModalDrug) && (
-          <div className={`modal-overlay batch-details-overlay show`} onClick={() => setBatchDetailsModalOpen(false)}>
-            <div className={`batch-details-modal show`} onClick={(e) => e.stopPropagation()}>
-              <div className="batch-details-header">
-                <div className="batch-details-title-section">
-                  <h2>📦 รายละเอียด Lot</h2>
-                  <p className="batch-drug-name">{batchDetailsModalDrug.name_th || batchDetailsModalDrug.name_en}</p>
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-all duration-300" 
+            onClick={() => setBatchDetailsModalOpen(false)}
+          >
+            <div 
+              className="bg-slate-50 rounded-[3rem] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-300" 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative px-10 pt-10 pb-6 bg-white border-b border-slate-100">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Drug Stock Lots</span>
+                  <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-2">📦 รายละเอียด Lot</h2>
+                  <p className="text-lg font-bold text-slate-400 leading-tight">
+                    {batchDetailsModalDrug.name_th || batchDetailsModalDrug.name_en}
+                  </p>
                 </div>
-                <button className="batch-details-close" onClick={() => setBatchDetailsModalOpen(false)}>×</button>
+                <button 
+                  className="absolute top-10 right-10 w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all duration-200"
+                  onClick={() => setBatchDetailsModalOpen(false)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
               </div>
 
-              <div className="batch-details-content">
+              <div className="p-8 max-h-[60vh] overflow-y-auto scrollbar-hide">
                 {batchDetailsModalDrug.drug_batches && batchDetailsModalDrug.drug_batches.length > 0 ? (
-                  <div className="batch-list">
+                  <div className="grid gap-4">
                     {batchDetailsModalDrug.drug_batches.map((batch, idx) => {
                       const batchData = batch.attributes ? { id: batch.id, ...batch.attributes } : batch;
+                      const isExpired = batchData.expiry_date && new Date(batchData.expiry_date) < new Date();
+                      const isExpiringSoon = !isExpired && batchData.expiry_date && new Date(batchData.expiry_date) < new Date(Date.now() + 90*24*60*60*1000);
+                      
                       return (
-                        <div key={batchData.id || batchData.documentId || idx} className="batch-card">
-                          <div className="batch-card-header">
-                            <div className="batch-lot-info">
-                              <span className="batch-lot-number">{batchData.lot_number}</span>
-                              <span className="batch-quantity">📦 {batchData.quantity || 0} แผง</span>
+                        <div 
+                          key={batchData.id || batchData.documentId || idx} 
+                          className={`relative p-6 rounded-[2rem] border transition-all duration-300 hover:shadow-lg ${
+                            isExpired ? 'bg-rose-50/50 border-rose-100' : isExpiringSoon ? 'bg-amber-50/50 border-amber-100' : 'bg-white border-slate-100'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 leading-none">Lot Number</span>
+                              <span className="text-xl font-black text-slate-800 tracking-tight">{batchData.lot_number}</span>
                             </div>
-                            <div className="batch-card-actions">
+                            <div className="flex items-center gap-2">
                               <button 
-                                className="batch-btn-edit"
+                                className="p-2.5 rounded-xl bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
                                 onClick={() => {
                                   setEditingDrug(batchDetailsModalDrug);
                                   setEditingBatch(batchData);
@@ -1674,33 +1860,40 @@ export default function DrugList() {
                                   setBatchDetailsModalOpen(false);
                                   setBatchModalOpen(true);
                                 }}
-                                title="แก้ไข Lot นี้"
                               >
-                                ✏️
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                               </button>
                               <button 
-                                className="batch-btn-delete"
+                                className="p-2.5 rounded-xl bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-all"
                                 onClick={() => {
                                   setBatchDetailsModalOpen(false);
                                   handleDeleteBatch(getBatchDocumentId(batchData), getDrugKey(batchDetailsModalDrug));
                                 }}
-                                title="ลบ Lot นี้"
                               >
-                                🗑️
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                               </button>
                             </div>
                           </div>
 
-                          <div className="batch-card-dates">
-                            <div className="batch-date-item">
-                              <label>📅 วันที่ผลิต</label>
-                              <span>{formatDate(batchData.date_produced) || '-'}</span>
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="p-4 bg-slate-50 rounded-2xl flex flex-col items-center">
+                              <span className="text-[10px] font-black text-slate-400 uppercase mb-1">คงเหลือ</span>
+                              <span className="text-lg font-black text-slate-800">{batchData.quantity || 0}</span>
+                              <span className="text-[10px] font-bold text-slate-400">หน่วย</span>
                             </div>
-                            <div className="batch-date-item">
-                              <label>⏰ วันหมดอายุ</label>
-                              <span className={`expiry-date ${batchData.expiry_date && new Date(batchData.expiry_date) < new Date() ? 'expired' : batchData.expiry_date && new Date(batchData.expiry_date) < new Date(Date.now() + 90*24*60*60*1000) ? 'expiring-soon' : ''}`}>
-                                {formatDate(batchData.expiry_date) || '-'}
-                              </span>
+                            <div className="p-4 bg-slate-50 rounded-2xl flex flex-col items-center">
+                              <span className="text-[10px] font-black text-slate-400 uppercase mb-1">วันที่ผลิต</span>
+                              <span className="text-xs font-bold text-slate-800">{formatDate(batchData.date_produced) || '-'}</span>
+                            </div>
+                            <div className={`p-4 rounded-2xl flex flex-col items-center ${
+                              isExpired ? 'bg-rose-100/50' : isExpiringSoon ? 'bg-amber-100/50' : 'bg-slate-50'
+                            }`}>
+                              <span className={`text-[10px] font-black uppercase mb-1 ${
+                                isExpired ? 'text-rose-500' : isExpiringSoon ? 'text-amber-600' : 'text-slate-400'
+                              }`}>หมดอายุ</span>
+                              <span className={`text-xs font-black ${
+                                isExpired ? 'text-rose-600' : isExpiringSoon ? 'text-amber-700' : 'text-slate-800'
+                              }`}>{formatDate(batchData.expiry_date) || '-'}</span>
                             </div>
                           </div>
                         </div>
@@ -1708,32 +1901,32 @@ export default function DrugList() {
                     })}
                   </div>
                 ) : (
-                  <div className="batch-empty-state">
-                    <p>📭 ไม่มี Lot สำหรับรายการยานี้</p>
+                  <div className="py-12 flex flex-col items-center justify-center text-slate-300">
+                    <div className="w-20 h-20 rounded-[2rem] bg-white border border-dashed border-slate-200 flex items-center justify-center mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                    </div>
+                    <p className="font-bold">ยังไม่มีข้อมูล Lot สำหรับยานี้</p>
+                    <p className="text-sm font-medium opacity-60">กดปุ่ม "เพิ่ม Lot ใหม่" เพื่อเริ่มบันทึกสต็อก</p>
                   </div>
                 )}
               </div>
 
-              <div className="batch-details-footer">
+              <div className="p-8 bg-white border-t border-slate-100 flex gap-4">
                 <button 
-                  className="btn-add-batch"
+                  className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-95" 
                   onClick={() => {
                     setEditingBatch(null);
-                    setBatchFormData({
-                      lot_number: '',
-                      quantity: '',
-                      date_produced: '',
-                      expiry_date: ''
-                    });
+                    setBatchFormData({ lot_number: '', quantity: '', date_produced: '', expiry_date: '' });
                     setEditingDrug(batchDetailsModalDrug);
                     setBatchDetailsModalOpen(false);
                     setBatchModalOpen(true);
                   }}
                 >
-                  ➕ เพิ่ม Lot ใหม่
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                  เพิ่ม Lot ใหม่
                 </button>
                 <button 
-                  className="btn-close-modal"
+                  className="w-24 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all active:scale-95" 
                   onClick={() => setBatchDetailsModalOpen(false)}
                 >
                   ปิด
@@ -1743,388 +1936,253 @@ export default function DrugList() {
           </div>
         )}
 
-        {/* Batch Add/Edit Modal */}
-        {(batchModalOpen) && (
-          <div className={`modal-overlay show`} onClick={() => setBatchModalOpen(false)}>
-            <div className={`modal-content show`} onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3>{editingBatch ? 'แก้ไข Lot' : 'เพิ่ม Lot ใหม่'}</h3>
-                <button className="modal-close" onClick={() => setBatchModalOpen(false)}>×</button>
+        {batchModalOpen && (
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 transition-all duration-300" 
+            onClick={() => setBatchModalOpen(false)}
+          >
+            <div 
+              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300" 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative px-8 pt-8 pb-4">
+                <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                  {editingBatch ? 'แก้ไข Lot' : 'เพิ่ม Lot ใหม่'}
+                </h3>
+                <p className="text-sm text-slate-400 font-medium">จัดการสต็อกและวันหมดอายุ</p>
+                <button 
+                  className="absolute top-8 right-8 w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all duration-200"
+                  onClick={() => setBatchModalOpen(false)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
               </div>
-              <form onSubmit={handleSaveBatch} className="drug-form">
-                <div style={{ padding: '0.75rem', backgroundColor: '#e8f4f8', borderRadius: 4, marginBottom: '1rem', fontSize: 12, color: '#2c3e50', borderLeft: '3px solid #17a2b8' }}>
-                  <strong>📋 เพิ่มรายละเอียด Lot:</strong> กรุณากรอก Lot Number, จำนวน, และวันหมดอายุ (ชื่อยี่ห้อ & ราคาอยู่ในหน้าเพิ่มยาแล้ว)
-                </div>
-                <div className="form-group">
-                  <label>Lot Number</label>
+
+              <form onSubmit={handleSaveBatch} className="p-8 space-y-5">
+                <div className="space-y-2">
+                  <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none">Lot Number <span className="text-rose-500">*</span></label>
                   <input
                     type="text"
                     value={batchFormData.lot_number}
                     onChange={(e) => setBatchFormData({ ...batchFormData, lot_number: e.target.value })}
-                    placeholder="เช่น LOT2025-001"
+                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-slate-800 font-black focus:bg-white focus:border-indigo-500 transition-all outline-none"
+                    placeholder="เช่น LOT2024-XXX"
                     required
                   />
                 </div>
-                <div className="form-group">
-                  <label>จำนวน (แผง/หลอด)</label>
+                <div className="space-y-2">
+                  <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none">จำนวนคงเหลือ <span className="text-rose-500">*</span></label>
                   <input
                     type="number"
                     value={batchFormData.quantity}
                     onChange={(e) => setBatchFormData({ ...batchFormData, quantity: e.target.value })}
+                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-slate-800 font-black focus:bg-white focus:border-indigo-500 transition-all outline-none"
+                    placeholder="0"
                     min="0"
-                    placeholder="เช่น 100"
                     required
                   />
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>วันที่ผลิต</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none">วันที่ผลิต</label>
                     <input
                       type="text"
                       placeholder="dd/mm/yyyy"
                       value={batchFormData.date_produced}
                       onChange={(e) => setBatchFormData({ ...batchFormData, date_produced: formatDateInputValue(e.target.value) })}
+                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-slate-800 font-bold focus:bg-white focus:border-indigo-500 transition-all outline-none"
                     />
                   </div>
-                  <div className="form-group">
-                    <label>วันหมดอายุ</label>
+                  <div className="space-y-2">
+                    <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none">วันหมดอายุ <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
                       placeholder="dd/mm/yyyy"
                       value={batchFormData.expiry_date}
                       onChange={(e) => setBatchFormData({ ...batchFormData, expiry_date: formatDateInputValue(e.target.value) })}
+                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-slate-800 font-black focus:bg-white focus:border-indigo-500 transition-all outline-none ring-2 ring-rose-500/10"
                       required
                     />
                   </div>
                 </div>
-                <div className="form-actions">
-                  <button type="button" className="btn secondary" onClick={() => setBatchModalOpen(false)}>ยกเลิก</button>
-                  <button type="submit" className="btn primary">{editingBatch ? 'แก้ไข' : 'เพิ่ม'}</button>
+
+                <div className="flex gap-3 pt-4">
+                  <button 
+                    type="button" 
+                    className="flex-1 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all active:scale-95" 
+                    onClick={() => setBatchModalOpen(false)}
+                  >
+                    ยกเลิก
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="flex-[2] py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95"
+                  >
+                    {editingBatch ? 'บันทึกการแก้ไข' : 'ยืนยันเพิ่ม Lot'}
+                  </button>
                 </div>
               </form>
             </div>
           </div>
         )}
 
-          {importTourOpen && (
+        {importTourOpen && (
+          <div 
+            className={`fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4 transition-all duration-500 ${
+              importTourClosing ? 'opacity-0' : 'opacity-100'
+            }`}
+            onClick={() => { setImportTourClosing(true); setTimeout(() => { setImportTourOpen(false); setImportTourClosing(false); }, 300); }}
+          >
             <div 
-              className={`modal-overlay ${importTourClosing ? 'closing' : 'show'}`} 
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 9999,
-                padding: '2rem'
-              }}
-              onClick={() => { setImportTourClosing(true); setTimeout(() => { setImportTourOpen(false); setImportTourClosing(false); }, 300); }}
+              className={`bg-white rounded-[3rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] w-full max-w-2xl overflow-hidden transition-all duration-500 ${
+                importTourClosing ? 'scale-95 opacity-0 translate-y-20' : 'scale-100 opacity-100 translate-y-0'
+              }`}
+              onClick={(e) => e.stopPropagation()}
             >
-              <div 
-                className={`modal-content ${importTourClosing ? 'closing' : 'show'}`}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  backgroundColor: '#fff',
-                  borderRadius: 16,
-                  maxWidth: 800,
-                  width: '100%',
-                  maxHeight: '90vh',
-                  overflow: 'auto',
-                  boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-                  position: 'relative'
-                }}
-              >
-                {/* Header */}
-                <div style={{
-                  padding: '1.5rem 2rem',
-                  borderBottom: '2px solid #4CAF50',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  backgroundColor: '#f8fff9'
-                }}>
-                  <h2 style={{ margin: 0, color: '#2c3e50', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                    📚 คู่มือการนำเข้ายา
-                  </h2>
-                  <button 
-                    onClick={() => { setImportTourClosing(true); setTimeout(() => { setImportTourOpen(false); setImportTourClosing(false); }, 300); }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      fontSize: '2rem',
-                      cursor: 'pointer',
-                      color: '#666',
-                      lineHeight: 1,
-                      padding: 0,
-                      width: 32,
-                      height: 32,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >×</button>
+              <div className="relative h-48 bg-emerald-600 overflow-hidden">
+                <div className="absolute inset-0 opacity-20">
+                  <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <path d="M0 100 C 20 0 50 0 100 100 Z" fill="white"></path>
+                  </svg>
                 </div>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                  <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-md mb-4 animate-bounce">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  </div>
+                  <h2 className="text-3xl font-black tracking-tight">คู่มือการนำเข้ายา</h2>
+                  <p className="text-emerald-100 font-bold opacity-80 uppercase tracking-widest text-xs mt-1">Import Wizard Guide</p>
+                </div>
+                <button 
+                  onClick={() => { setImportTourClosing(true); setTimeout(() => { setImportTourOpen(false); setImportTourClosing(false); }, 300); }}
+                  className="absolute top-6 right-6 w-10 h-10 bg-black/10 hover:bg-black/20 text-white rounded-2xl flex items-center justify-center transition-all"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
 
-                {/* Content */}
-                <div style={{ padding: '2rem' }}>
-                  {/* Step 0: Welcome */}
+              <div className="p-10">
+                <div className="min-h-[300px] flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
                   {importTourStep === 0 && (
-                    <div style={{ textAlign: 'center', animation: 'fadeIn 0.4s ease-in' }}>
-                      <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
-                      <h3 style={{ fontSize: '1.8rem', color: '#2c3e50', marginBottom: '1rem' }}>ยินดีต้อนรับสู่ระบบนำเข้ายา</h3>
-                      <p style={{ fontSize: '1.1rem', color: '#555', lineHeight: 1.8, marginBottom: '2rem' }}>
-                        คุณสามารถนำเข้ารายการยาจาก <strong>CSV</strong> หรือ <strong>Excel (.xlsx)</strong> ได้อย่างง่ายดาย
-                      </p>
-                      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginTop: '2rem' }}>
-                        <div style={{
-                          padding: '1.5rem',
-                          backgroundColor: '#e8f5e9',
-                          borderRadius: 12,
-                          flex: 1,
-                          maxWidth: 200,
-                          boxShadow: '0 4px 12px rgba(76,175,80,0.2)'
-                        }}>
-                          <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>📄</div>
-                          <div style={{ fontWeight: 'bold', color: '#2c3e50' }}>CSV</div>
-                          <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '0.5rem' }}>ไฟล์ข้อมูลแบบตาราง</div>
-                        </div>
-                        <div style={{
-                          padding: '1.5rem',
-                          backgroundColor: '#e8f5e9',
-                          borderRadius: 12,
-                          flex: 1,
-                          maxWidth: 200,
-                          boxShadow: '0 4px 12px rgba(76,175,80,0.2)'
-                        }}>
-                          <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>📊</div>
-                          <div style={{ fontWeight: 'bold', color: '#2c3e50' }}>Excel</div>
-                          <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '0.5rem' }}>ไฟล์ .xlsx หรือ .xls</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 1: Columns */}
-                  {importTourStep === 1 && (
-                    <div style={{ animation: 'fadeIn 0.4s ease-in' }}>
-                      <div style={{ fontSize: '3rem', textAlign: 'center', marginBottom: '1rem' }}>📋</div>
-                      <h3 style={{ fontSize: '1.6rem', color: '#2c3e50', marginBottom: '1.5rem', textAlign: 'center' }}>
-                        คอลัมน์ที่ต้องมี (ลำดับไม่บังคับ)
-                      </h3>
-                      <div style={{ display: 'grid', gap: '1rem' }}>
-                        {[
-                          { icon: '🏷️', title: 'ชื่อยา (ไทย)', example: 'เช่น: พาราเซตามอล' },
-                          { icon: '🔤', title: 'ชื่อยา (อังกฤษ)', example: 'เช่น: Paracetamol' },
-                          { icon: '💊', title: 'ข้อบ่งใช้', example: 'เช่น: แก้ปวด ลดไข้' },
-                          { icon: '🏢', title: 'ชื่อยี่ห้อ (manufacturer)', example: 'เช่น: ยา ดี' },
-                          { icon: '💰', title: 'ราคา', example: 'เช่น: 150.50' }
-                        ].map((col, i) => (
-                          <div key={i} style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '1rem 1.5rem',
-                            backgroundColor: '#f8fff9',
-                            borderRadius: 10,
-                            border: '2px solid #4CAF50',
-                            gap: '1rem'
-                          }}>
-                            <div style={{
-                              backgroundColor: '#4CAF50',
-                              color: '#fff',
-                              width: 32,
-                              height: 32,
-                              borderRadius: '50%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontWeight: 'bold',
-                              flexShrink: 0
-                            }}>{i + 1}</div>
-                            <div style={{ fontSize: '1.5rem', flexShrink: 0 }}>{col.icon}</div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 'bold', color: '#2c3e50', marginBottom: '0.25rem' }}>{col.title}</div>
-                              <div style={{ fontSize: '0.9rem', color: '#666' }}>{col.example}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 2: Brand Differentiation */}
-                  {importTourStep === 2 && (
-                    <div style={{ animation: 'fadeIn 0.4s ease-in' }}>
-                      <div style={{ fontSize: '3rem', textAlign: 'center', marginBottom: '1rem' }}>🏷️</div>
-                      <h3 style={{ fontSize: '1.6rem', color: '#2c3e50', marginBottom: '1.5rem', textAlign: 'center' }}>
-                        ยาชื่อเดียวกัน ยี่ห้อต่างกัน = รายการต่างกัน
-                      </h3>
-                      <p style={{ textAlign: 'center', color: '#666', marginBottom: '2rem', lineHeight: 1.8 }}>
-                        ระบบจะแยกยาตามยี่ห้อ ทำให้คุณสามารถจัดการสต็อกของแต่ละยี่ห้อได้อย่างชัดเจน
-                      </p>
-                      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                        {[
-                          { brand: 'ยา ดี', price: '120 ฿', bg: '#fff3e0' },
-                          { brand: 'ยา สุข', price: '150 ฿', bg: '#e3f2fd' }
-                        ].map((item, i) => (
-                          <div key={i} style={{
-                            padding: '1.5rem',
-                            backgroundColor: item.bg,
-                            borderRadius: 12,
-                            border: '2px solid #4CAF50',
-                            flex: 1,
-                            minWidth: 250,
-                            maxWidth: 300,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                          }}>
-                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💊</div>
-                            <div style={{ fontWeight: 'bold', fontSize: '1.2rem', color: '#2c3e50', marginBottom: '0.5rem' }}>
-                              พาราเซตามอล
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
-                              <div>
-                                <div style={{ fontSize: '0.9rem', color: '#666' }}>ยี่ห้อ</div>
-                                <div style={{ fontWeight: 'bold', color: '#4CAF50' }}>{item.brand}</div>
-                              </div>
-                              <div>
-                                <div style={{ fontSize: '0.9rem', color: '#666' }}>ราคา</div>
-                                <div style={{ fontWeight: 'bold', color: '#d9534f' }}>{item.price}</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 3: Lot Reminder */}
-                  {importTourStep === 3 && (
-                    <div style={{ animation: 'fadeIn 0.4s ease-in' }}>
-                      <div style={{ fontSize: '3rem', textAlign: 'center', marginBottom: '1rem' }}>✅</div>
-                      <h3 style={{ fontSize: '1.6rem', color: '#2c3e50', marginBottom: '1.5rem', textAlign: 'center' }}>
-                        อย่าลืม! เพิ่ม Lot หลังนำเข้า
-                      </h3>
-                      <div style={{
-                        backgroundColor: '#fff9e6',
-                        border: '2px solid #ffc107',
-                        borderRadius: 12,
-                        padding: '1.5rem',
-                        marginBottom: '1.5rem'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                          <div style={{ fontSize: '2rem' }}>⚠️</div>
-                          <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#2c3e50' }}>
-                            สิ่งที่ต้องทำหลังนำเข้า
-                          </div>
-                        </div>
-                        <p style={{ color: '#666', lineHeight: 1.8 }}>
-                          การนำเข้าไฟล์จะสร้างรายการยาเท่านั้น คุณต้องเพิ่ม <strong>Lot</strong> สำหรับแต่ละรายการยาเพื่อระบุ:
+                    <div className="space-y-6">
+                      <div className="text-6xl animate-pulse">🚀</div>
+                      <div className="space-y-2">
+                        <h3 className="text-2xl font-black text-slate-800">ยินดีต้อนรับสู่ระบบนำเข้า</h3>
+                        <p className="text-slate-500 font-medium leading-relaxed max-w-sm mx-auto">
+                          คุณสามารถนำเข้ารายการยาจากไฟล์ <span className="text-emerald-600 font-black">CSV</span> หรือ <span className="text-emerald-600 font-black">Excel</span> ได้ในครั้งเดียว
                         </p>
                       </div>
-                      <div style={{ display: 'grid', gap: '1rem' }}>
+                      <div className="flex gap-4 justify-center">
+                        <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 flex-1">
+                          <span className="text-3xl block mb-2">📄</span>
+                          <span className="text-xs font-black text-slate-400 uppercase tracking-widest">CSV Format</span>
+                        </div>
+                        <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 flex-1">
+                          <span className="text-3xl block mb-2">📊</span>
+                          <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Excel Format</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {importTourStep === 1 && (
+                    <div className="w-full space-y-6 text-left">
+                      <h3 className="text-2xl font-black text-slate-800 text-center mb-8">โครงสร้างคอลัมน์ที่ต้องการ</h3>
+                      <div className="grid gap-3">
                         {[
-                          { icon: '📦', title: 'จำนวน', desc: 'จำนวนยาที่มีในสต็อก' },
-                          { icon: '📅', title: 'วันผลิต', desc: 'วันที่ผลิตยา (MFG)' },
-                          { icon: '⏰', title: 'วันหมดอายุ', desc: 'วันที่ยาหมดอายุ (EXP)' }
-                        ].map((item, i) => (
-                          <div key={i} style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '1rem 1.5rem',
-                            backgroundColor: '#f8fff9',
-                            borderRadius: 10,
-                            border: '2px solid #4CAF50',
-                            gap: '1rem'
-                          }}>
-                            <div style={{ fontSize: '2rem' }}>{item.icon}</div>
+                          { icon: '🇹🇭', title: 'ชื่อยา (ไทย)', desc: 'เช่น "พาราเซตามอล"' },
+                          { icon: '🇺🇸', title: 'ชื่อยา (อังกฤษ)', desc: 'เช่น "Paracetamol"' },
+                          { icon: '🏢', title: 'ยี่ห้อ (manufacturer)', desc: 'จำเป็นต้องระบุ' },
+                          { icon: '💰', title: 'ราคา', desc: 'ระบุเป็นตัวเลขเท่านั้น' }
+                        ].map((col, i) => (
+                          <div key={i} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:bg-white hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-50 transition-all duration-300">
+                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">{col.icon}</div>
                             <div>
-                              <div style={{ fontWeight: 'bold', color: '#2c3e50', marginBottom: '0.25rem' }}>{item.title}</div>
-                              <div style={{ fontSize: '0.9rem', color: '#666' }}>{item.desc}</div>
+                              <div className="font-black text-slate-800">{col.title}</div>
+                              <div className="text-xs font-bold text-slate-400 opacity-80">{col.desc}</div>
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
+
+                  {importTourStep === 2 && (
+                    <div className="space-y-6">
+                      <div className="text-6xl">💡</div>
+                      <h3 className="text-2xl font-black text-slate-800">จำแนกยาตามยี่ห้อ</h3>
+                      <p className="text-slate-500 font-medium leading-relaxed max-w-md mx-auto">
+                        หากยาชื่อเดียวกันแต่ <span className="text-indigo-600 font-black underline decoration-indigo-200 underline-offset-4">ยี่ห้อต่างกัน</span> ระบบจะสร้างรายการแยกจากกันโดยอัตโนมัติ เพื่อความแม่นยำในการคุมสต็อก
+                      </p>
+                      <div className="p-1 px-8 py-6 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                        <div className="flex items-center justify-between text-left gap-8">
+                          <div>
+                            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">รายการ A</span>
+                            <div className="font-black text-slate-800">พาราเซตามอล</div>
+                            <div className="text-xs font-bold text-slate-400">ยี่ห้อ: ยา ดี</div>
+                          </div>
+                          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md font-black text-slate-300">VS</div>
+                          <div>
+                            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">รายการ B</span>
+                            <div className="font-black text-slate-800">พาราเซตามอล</div>
+                            <div className="text-xs font-bold text-slate-400">ยี่ห้อ: ยา สุข</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {importTourStep === 3 && (
+                    <div className="space-y-6">
+                      <div className="text-6xl animate-bounce">📦</div>
+                      <h3 className="text-2xl font-black text-slate-800">ขั้นตอนสุดท้าย</h3>
+                      <p className="text-slate-500 font-medium leading-relaxed max-w-md mx-auto">
+                        หลังนำเข้าข้อมูลพื้นฐานเสร็จแล้ว <span className="text-rose-500 font-black">อย่าลืม!</span> เข้าไปเพิ่มข้อมูล Lot/สต็อก และวันหมดอายุของแต่ละรายการที่นำเข้า
+                      </p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['ระบุจำนวน', 'ระบุวันผลิต', 'ระบุวันหมดอายุ'].map((t, i) => (
+                          <div key={i} className="p-3 bg-rose-50 rounded-xl border border-rose-100 text-[10px] font-black text-rose-500 uppercase tracking-tight">{t}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Footer: Navigation */}
-                <div style={{
-                  padding: '1.5rem 2rem',
-                  borderTop: '1px solid #e0e0e0',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  backgroundColor: '#fafafa'
-                }}>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className="mt-12 flex items-center justify-between">
+                  <div className="flex gap-1.5">
                     {[0, 1, 2, 3].map(step => (
-                      <div
+                      <button
                         key={step}
                         onClick={() => setImportTourStep(step)}
-                        style={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: '50%',
-                          backgroundColor: importTourStep === step ? '#4CAF50' : '#ddd',
-                          cursor: 'pointer',
-                          transition: 'all 0.3s'
-                        }}
+                        className={`h-2.5 rounded-full transition-all duration-300 ${
+                          importTourStep === step ? 'w-8 bg-emerald-500' : 'w-2.5 bg-slate-200 hover:bg-slate-300'
+                        }`}
                       />
                     ))}
                   </div>
-                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <div className="flex gap-3">
                     {importTourStep > 0 && (
                       <button
                         onClick={() => setImportTourStep(importTourStep - 1)}
-                        style={{
-                          padding: '0.75rem 1.5rem',
-                          backgroundColor: '#fff',
-                          border: '2px solid #4CAF50',
-                          color: '#4CAF50',
-                          borderRadius: 8,
-                          fontWeight: 'bold',
-                          cursor: 'pointer',
-                          fontSize: '1rem'
-                        }}
-                      >← ก่อนหน้า</button>
+                        className="px-6 py-3 text-slate-400 font-black hover:text-slate-600 transition-colors"
+                      >ย้อนกลับ</button>
                     )}
                     {importTourStep < 3 ? (
                       <button
                         onClick={() => setImportTourStep(importTourStep + 1)}
-                        style={{
-                          padding: '0.75rem 1.5rem',
-                          backgroundColor: '#4CAF50',
-                          border: 'none',
-                          color: '#fff',
-                          borderRadius: 8,
-                          fontWeight: 'bold',
-                          cursor: 'pointer',
-                          fontSize: '1rem',
-                          boxShadow: '0 2px 8px rgba(76,175,80,0.3)'
-                        }}
-                      >ถัดไป →</button>
+                        className="px-8 py-3 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 shadow-xl shadow-slate-200 transition-all active:scale-95"
+                      >ถัดไป</button>
                     ) : (
                       <button
                         onClick={() => { setImportTourClosing(true); setTimeout(() => { setImportTourOpen(false); setImportTourClosing(false); }, 300); }}
-                        style={{
-                          padding: '0.75rem 1.5rem',
-                          backgroundColor: '#4CAF50',
-                          border: 'none',
-                          color: '#fff',
-                          borderRadius: 8,
-                          fontWeight: 'bold',
-                          cursor: 'pointer',
-                          fontSize: '1rem',
-                          boxShadow: '0 2px 8px rgba(76,175,80,0.3)'
-                        }}
-                      >เริ่มใช้งาน 🚀</button>
+                        className="px-8 py-3 bg-emerald-600 text-white font-black rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-200 transition-all active:scale-95 animate-pulse"
+                      >เริ่มใช้งานเลย 🚀</button>
                     )}
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
       </main>
     </div>
   );

@@ -4,7 +4,6 @@ import Footer from "../footer";
 import HomeHeader from "../HomeHeader";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import "../../../css/pages/formcustomerPage.css";
 import { API, fetchWithAuth } from "../../../utils/apiConfig";
 
 function FormCustomerPage() {
@@ -504,190 +503,229 @@ function FormCustomerPage() {
   };
 
   return (
-    <div className="customer-form-page">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-prompt">
       <HomeHeader />
-      <div className="customer-form-main">
-        <div className="customer-form-container">
-          <div className="customer-form-header">
-            <h1>
-              {isEditMode ? '✏️ แก้ไขข้อมูลลูกค้า' : '👤 เพิ่มลูกค้าใหม่'}
-            </h1>
-            <p>
-              {isEditMode ? 'อัปเดตข้อมูลลูกค้าของคุณ' : 'กรอกข้อมูลเพื่อเพิ่มลูกค้าใหม่'}
-            </p>
+      
+      <main className="flex-grow container mx-auto px-4 py-8 max-w-4xl">
+        {/* Header Section */}
+        <div className="relative overflow-hidden bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/60 p-8 mb-10 border border-slate-100">
+          <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
+            <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
+          
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 font-prompt">
+            <div className="space-y-2">
+              <div className="inline-flex items-center px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold tracking-wider uppercase">
+                Customer Management
+              </div>
+              <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                  {isEditMode ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
+                  )}
+                </div>
+                {isEditMode ? 'แก้ไขข้อมูลลูกค้า' : 'เพิ่มข้อมูลลูกค้าใหม่'}
+              </h1>
+              <p className="text-slate-400 font-medium font-prompt">
+                {isEditMode ? 'อัปเดตรายละเอียดและข้อมูลประวัติของลูกค้าในระบบของคุณ' : 'กรอกรายละเอียดเพื่อสร้างประวัติลูกค้าใหม่และข้อมูลการติดต่อ'}
+              </p>
+            </div>
+          </div>
+        </div>
 
-          <form onSubmit={handleSubmit} className="customer-form-element">
-            {/* เปลี่ยนจาก div แยกๆ เป็น wrapper div เดียว */}
-            <div className="customer-form-sections">
-              {/* กล่องที่ 1: ข้อมูลส่วนตัว */}
-              <div className="customer-form-section customer-form-section-personal">
-                <h3 style={{marginBottom: '24px', fontSize: '20px', fontWeight: 700, color: '#2563eb'}}>📋 ข้อมูลส่วนตัว</h3>
-                <div className="customer-form-row customer-form-row-one-col">
-                  <div className="customer-form-group">
-                    <label htmlFor="full_name">👤 ชื่อ-นามสกุล *</label>
+        <form onSubmit={handleSubmit} className="space-y-8 font-prompt pb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Column 1: Personal & Account */}
+            <div className="space-y-8">
+              {/* Section 1: ข้อมูลส่วนตัว */}
+              <div className="bg-white rounded-[2.5rem] p-8 shadow-md border border-slate-100 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-2 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight">ข้อมูลส่วนตัว</h3>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ชื่อ-นามสกุล <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
-                      id="full_name"
                       name="full_name"
                       value={formData.full_name}
                       onChange={handleInputChange}
                       required
-                      className="customer-form-input customer-form-input-personal"
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
+                      placeholder="กรอกชื่อ-นามสกุล..."
                     />
                   </div>
-                </div>
-                <div className="customer-form-row customer-form-row-one-col">
-                  <div className="customer-form-group">
-                    <label htmlFor="phone">📞 เบอร์โทรศัพท์ *</label>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">เบอร์โทรศัพท์ <span className="text-rose-500">*</span></label>
                     <input
                       type="tel"
-                      id="phone"
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
                       required
-                      className="customer-form-input customer-form-input-personal"
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
+                      placeholder="08x-xxx-xxxx"
                     />
                   </div>
-                </div>
-                <div className="customer-form-row customer-form-row-one-col">
-                  <div className="customer-form-group">
-                    <label htmlFor="congenital_disease">🏥 โรคประจำตัว</label>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">โรคประจำตัว</label>
                     <input
                       type="text"
-                      id="congenital_disease"
                       name="congenital_disease"
                       value={formData.congenital_disease}
                       onChange={handleInputChange}
-                      className="customer-form-input customer-form-input-personal"
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
+                      placeholder="ระบุโรคประจำตัว (ถ้ามี)..."
                     />
                   </div>
                 </div>
               </div>
 
-              {/* กล่องที่ 2: ข้อมูลบัญชี */}
-              <div className="customer-form-section customer-form-section-account">
-                <h3 style={{marginBottom: '24px', fontSize: '20px', fontWeight: 700, color: '#0ea5e9'}}>🔐 ข้อมูลบัญชี</h3>
-                <div className="customer-form-row customer-form-row-one-col">
-                  <div className="customer-form-group">
-                    <label htmlFor="username">👨‍💻 USERNAME *</label>
+              {/* Section 2: ข้อมูลบัญชี */}
+              <div className="bg-white rounded-[2.5rem] p-8 shadow-md border border-slate-100 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-2 h-full bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight">ข้อมูลเข้าใช้งาน</h3>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Username <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
-                      id="username"
                       name="username"
                       value={formData.username}
                       onChange={handleInputChange}
                       required
-                      className="customer-form-input customer-form-input-account"
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-800 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
+                      placeholder="กำหนดชื่อผู้ใช้งาน..."
                     />
                   </div>
-                </div>
-                <div className="customer-form-row customer-form-row-one-col">
-                  <div className="customer-form-group">
-                    <label htmlFor="password">🔒 PASSWORD {!isEditMode && '(ถ้าไม่ใส่จะใช้เบอร์โทรศัพท์)'}</label>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Password {!isEditMode && '(เว้นเพื่อใช้เบอร์โทร)'}</label>
                     <input
                       type="password"
-                      id="password"
                       name="password"
                       value={formData.password}
                       onChange={handleInputChange}
-                      placeholder={isEditMode ? "เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่าน" : "เว้นว่างเพื่อใช้เบอร์โทรศัพท์เป็นรหัสผ่าน"}
-                      className="customer-form-input customer-form-input-account"
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-800 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
+                      placeholder={isEditMode ? "เว้นว่างไว้หากไม่เปลี่ยน" : "กำหนดรหัสผ่าน..."}
                     />
                   </div>
-                </div>
-                <div className="customer-form-row customer-form-row-one-col">
-                  <div className="customer-form-group">
-                    <label htmlFor="email">✉️ อีเมล</label>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">อีเมล</label>
                     <input
                       type="email"
-                      id="email"
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      placeholder="ถ้าไม่กรอก จะใช้ username@example.com"
-                      className="customer-form-input customer-form-input-account"
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-800 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
+                      placeholder="ระบุอีเมล (ไม่บังคับ)..."
                     />
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* กล่องที่ 3: ข้อมูลทางการแพทย์ */}
-              <div className="customer-form-section customer-form-section-medical">
-                <h3 style={{marginBottom: '24px', fontSize: '20px', fontWeight: 700, color: '#10b981'}}>💊 ข้อมูลทางการแพทย์</h3>
-                <div className="customer-form-row customer-form-row-one-col">
-                  <div className="customer-form-group">
-                    <label htmlFor="Allergic_drugs">⚠️ ยาที่แพ้</label>
-                    <input
-                      type="text"
-                      id="Allergic_drugs"
+            {/* Column 2: Medical Information */}
+            <div className="space-y-8">
+              <div className="bg-white rounded-[2.5rem] p-8 shadow-md border border-slate-100 relative h-full overflow-hidden group">
+                <div className="absolute top-0 left-0 w-2 h-full bg-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="M2 12h20"/></svg>
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight">ข้อมูลทางการแพทย์</h3>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-emerald-600/60 uppercase tracking-widest ml-1">⚠️ ยาที่แพ้</label>
+                    <textarea
                       name="Allergic_drugs"
                       value={formData.Allergic_drugs}
                       onChange={handleInputChange}
-                      className="customer-form-input customer-form-input-medical"
-                    />
+                      rows="3"
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-emerald-500 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner resize-none"
+                      placeholder="ระบุยาที่แพ้ (ถ้ามี)..."
+                    ></textarea>
                   </div>
-                </div>
-                <div className="customer-form-row customer-form-row-one-col">
-                  <div className="customer-form-group">
-                    <label htmlFor="Customers_symptoms">🩺 อาการของลูกค้า</label>
-                    <input
-                      type="text"
-                      id="Customers_symptoms"
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-emerald-600/60 uppercase tracking-widest ml-1">🩺 อาการเบื้องต้น</label>
+                    <textarea
                       name="Customers_symptoms"
                       value={formData.Customers_symptoms}
                       onChange={handleInputChange}
-                      className="customer-form-input customer-form-input-medical"
-                    />
+                      rows="4"
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-emerald-500 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner resize-none"
+                      placeholder="บันทึกอาการเบื้องต้นหรือข้อมูลเพิ่มเติม..."
+                    ></textarea>
                   </div>
-                </div>
-                <div className="customer-form-row customer-form-row-one-col">
-                  <div className="customer-form-group">
-                    <label htmlFor="Follow_up_appointment_date">📅 วันที่นัดติดตาม</label>
-                    <input
-                      type="date"
-                      id="Follow_up_appointment_date"
-                      name="Follow_up_appointment_date"
-                      value={formData.Follow_up_appointment_date}
-                      onChange={handleInputChange}
-                      className="customer-form-input customer-form-input-medical"
-                    />
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-emerald-600/60 uppercase tracking-widest ml-1">📅 วันนัดติดตามผล</label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        name="Follow_up_appointment_date"
+                        value={formData.Follow_up_appointment_date}
+                        onChange={handleInputChange}
+                        className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-emerald-500 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner appearance-none"
+                      />
+                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* ปุ่มอยู่ข้างนอก wrapper */}
-            <div className="customer-form-buttons">
-              <button
+          {/* Action Buttons */}
+          <div className="flex flex-col-reverse md:flex-row items-center justify-end gap-4 mt-12 bg-white rounded-[2rem] p-4 shadow-xl shadow-slate-200/50 border border-slate-100">
+            <button
+              type="button"
+              className="w-full md:w-auto px-10 py-4 bg-slate-50 text-slate-500 font-black rounded-2xl hover:bg-slate-100 hover:text-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
+              onClick={handleCancel}
+              disabled={isLoading}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              ยกเลิกและย้อนกลับ
+            </button>
+            <button
                 type="submit"
-                className="customer-form-btn customer-form-btn-submit"
+                className="w-full md:w-auto px-12 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:shadow-indigo-200 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <>
-                    <div className="customer-form-loading-spinner"></div>
-                    กำลังบันทึก...
-                  </>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                 ) : (
-                  <>
-                    💾 บันทึก
-                  </>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                 )}
+                <span>{isLoading ? 'กำลังบันทึก...' : 'บันทึกข้อมูลลูกค้า'}</span>
               </button>
-              <button
-                type="button"
-                className="customer-form-btn customer-form-btn-cancel"
-                onClick={handleCancel}
-                disabled={isLoading}
-              >
-                ← กลับ
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+          </div>
+        </form>
+      </main>
       <Footer />
     </div>
   );

@@ -61,6 +61,7 @@ function CustomerPageStaff() {
           (notifData.data || []).forEach(notif => {
             const customerProfile = notif.customer_profile;
             const d = notif.data || {};
+            const innerData = d.data || {};
 
             // หา customer ID จาก priority สูงสุด ไปต่ำสุด
             let customerId = null;
@@ -69,10 +70,17 @@ function CustomerPageStaff() {
             // 1. ลองดึงจาก customer_profile relation
             if (customerProfile && customerProfile.documentId) {
               customerId = customerProfile.documentId;
-              full_name = customerProfile.users_permissions_user?.full_name || d.customer_name || 'ไม่ระบุ';
+              full_name = customerProfile.users_permissions_user?.full_name || innerData.full_name || d.customer_name || 'ไม่ระบุ';
               
               customerMap.set(customerId, {
                 ...customerProfile,
+                // Override ด้วย snapshot จาก notification (ตามรอบที่เภสัชกรบันทึก)
+                Customers_symptoms: innerData.symptoms || d.symptoms || customerProfile.Customers_symptoms,
+                symptom_history: innerData.symptom_history || d.symptom_history || innerData.history || d.history || (typeof (innerData.symptoms || d.symptoms) === 'object' ? (innerData.symptoms || d.symptoms)?.history : customerProfile.symptom_history),
+                symptom_note: innerData.symptom_note || d.symptom_note || innerData.note || d.note || (typeof (innerData.symptoms || d.symptoms) === 'object' ? (innerData.symptoms || d.symptoms)?.note : customerProfile.symptom_note),
+                congenital_disease: innerData.disease || d.disease || customerProfile.congenital_disease,
+                Allergic_drugs: (innerData.allergy || d.allergy) ? { allergy: innerData.allergy || d.allergy } : customerProfile.Allergic_drugs,
+                Follow_up_appointment_date: innerData.follow_up_date || d.follow_up_date || innerData.appointment_date || d.appointment_date || customerProfile.Follow_up_appointment_date,
                 notification: notif,
                 _fromRelation: true
               });
@@ -80,14 +88,14 @@ function CustomerPageStaff() {
             }
 
             // 2. ลองดึงจาก notif.data.customer_documentId (stored in notification data)
-            if (d.customer_documentId) {
-              customerId = d.customer_documentId;
-              full_name = d.customer_name || 'ไม่ระบุ';
+            if (d.customer_documentId || innerData.customer_documentId) {
+              customerId = d.customer_documentId || innerData.customer_documentId;
+              full_name = d.customer_name || innerData.full_name || 'ไม่ระบุ';
             }
 
             // 3. ถ้ายังไม่มี documentId ให้ใช้ customer_name เป็น key เพื่อ dedup ตามชื่อ
             if (!customerId) {
-              full_name = d.customer_name || d.full_name || d.name || d.patient_name || d.patient_full_name || 'ไม่ระบุ';
+              full_name = innerData.full_name || d.customer_name || d.full_name || d.name || d.patient_name || d.patient_full_name || 'ไม่ระบุ';
               
               // Parse ชื่อจาก message ถ้าไม่มีใน data
               if (full_name === 'ไม่ระบุ' && notif.message) {
@@ -112,17 +120,19 @@ function CustomerPageStaff() {
 
             const userObj = {
               full_name: full_name,
-              phone: d.customer_phone || d.phone || d.tel || d.mobile || '',
-              email: d.email || ''
+              phone: innerData.phone || d.customer_phone || d.phone || d.tel || d.mobile || '',
+              email: innerData.email || d.email || ''
             };
 
             customerMap.set(customerId, {
               documentId: customerId,
               users_permissions_user: userObj,
-              Customers_symptoms: d.symptoms || '',
-              Allergic_drugs: d.allergy ? { allergy: d.allergy } : null,
-              congenital_disease: d.disease || '',
-              Follow_up_appointment_date: d.follow_up_date || d.appointment_date || null,
+              Customers_symptoms: innerData.symptoms || d.symptoms || '',
+              symptom_history: innerData.symptom_history || d.symptom_history || innerData.history || d.history || (typeof (innerData.symptoms || d.symptoms) === 'object' ? (innerData.symptoms || d.symptoms)?.history : ''),
+              symptom_note: innerData.symptom_note || d.symptom_note || innerData.note || d.note || (typeof (innerData.symptoms || d.symptoms) === 'object' ? (innerData.symptoms || d.symptoms)?.note : ''),
+              Allergic_drugs: (innerData.allergy || d.allergy) ? { allergy: innerData.allergy || d.allergy } : null,
+              congenital_disease: innerData.disease || d.disease || '',
+              Follow_up_appointment_date: innerData.follow_up_date || d.follow_up_date || innerData.appointment_date || d.appointment_date || null,
               notification: notif,
               _fromNotificationOnly: true
             });

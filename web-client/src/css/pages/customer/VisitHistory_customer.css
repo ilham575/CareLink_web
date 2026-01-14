@@ -1,0 +1,247 @@
+/* VisitHistory_customer.css */
+
+.visit-history-page {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+}
+
+.visit-history-main {
+  flex: 1;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+}
+
+/* Header Section */
+.customer-header {
+  background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+  border-radius: 20px;
+  padding: 30px 24px;
+  color: white;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.customer-header::after {
+  content: '';
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 120px;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+.customer-header h2 {
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin-bottom: 20px;
+  opacity: 0.9;
+  color: #fff !important;
+}
+
+.customer-header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.customer-avatar-large {
+  width: 60px;
+  height: 60px;
+  background: white;
+  color: #1e40af;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.customer-header-subtitle {
+  font-size: 0.875rem;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+/* Visits Container */
+.visits-container {
+  margin-bottom: 30px;
+}
+
+.visits-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Visit Card */
+.visit-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+}
+
+.visit-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.1);
+  border-color: #3b82f6;
+}
+
+.visit-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 12px;
+}
+
+.visit-date-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.calendar-icon {
+  font-size: 1.1rem;
+}
+
+/* Ant Design Overrides */
+.visit-card .ant-tag {
+  border-radius: 6px;
+  padding: 2px 12px;
+  font-weight: 600;
+  border: none;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.visit-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.visit-info-row {
+  font-size: 0.95rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.visit-info-row strong {
+  color: #1e293b;
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.visit-card-footer {
+  margin-top: 8px;
+}
+
+.view-detail-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.visit-card:hover .view-detail-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+/* Navigation Section */
+.history-nav-footer {
+  margin-top: 40px;
+  text-align: center;
+}
+
+.back-home-btn {
+  background: #94a3b8;
+  color: white;
+  padding: 12px 40px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.back-home-btn:hover {
+  background: #64748b;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.back-home-btn:active {
+  transform: translateY(0);
+}
+
+/* Empty State */
+.visit-empty-state {
+  text-align: center;
+  padding: 60px 24px;
+  background: white;
+  border-radius: 20px;
+  border: 1px dashed #cbd5e1;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.visit-card {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .visit-history-main {
+    padding: 16px 12px 30px;
+  }
+  
+  .customer-header {
+    padding: 24px 20px;
+  }
+  
+  .customer-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .customer-avatar-large {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+}

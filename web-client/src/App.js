@@ -35,6 +35,7 @@ import FormCustomerPage from './js/components/middle_page/formcustomerPage';
 import CustomerDetail from './js/pages/pharmacy/detail_customer';
 import DrugStoresDetail_customer from './js/pages/customer/DrugStoresDetail_customer';
 import CustomerDetail_customer from './js/pages/customer/CustomerDetail_customer';
+import CustomerVisitHistory from './js/pages/customer/CustomerVisitHistory';
 import EditSymptomsCustomer from './js/pages/customer/EditSymptoms_customer';
 import PrintTransferForm from './js/pages/pharmacy/PrintTransferForm';
 import PrintAllergyCard from './js/pages/pharmacy/PrintAllergyCard';
@@ -107,6 +108,7 @@ function App() {
             <Route path="/customerHome" element={<CustomerHome />} />
             <Route path="/drug_store_customer/:id" element={<DrugStoresDetail_customer />} />
             <Route path="/customer_detail_view/:customerDocumentId" element={<CustomerDetail_customer />} />
+            <Route path="/customer/visit-history/:customerDocumentId" element={<CustomerVisitHistory />} />
             <Route path="/customer/edit_symptoms/:customerDocumentId" element={<EditSymptomsCustomer />} />
           </Route>
 

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import Footer from '../../components/footer';
-import '../../../css/pages/customer/detail_customer_view.css';
 import 'react-toastify/dist/ReactToastify.css';
-import { Tabs, Modal } from 'antd';
+import { Tabs, Modal, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { API } from '../../../utils/apiConfig';
 
@@ -57,9 +56,29 @@ function formatAllergy(val) {
   return allergies.map(a => a.drug || a.allergy || 'ไม่ระบุชื่อยา').join(', ');
 }
 
+// Helper: Safely render text that might be an object
+function renderSafeText(val) {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    // If it's the {main, note, history} structure
+    if (val.main || val.note || val.history) {
+      return val.main || val.note || val.history || '';
+    }
+    // Fallback for other objects
+    try {
+      return JSON.stringify(val);
+    } catch (e) {
+      return String(val);
+    }
+  }
+  return String(val);
+}
+
 function CustomerDetailCustomer() {
   const { customerDocumentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -71,13 +90,35 @@ function CustomerDetailCustomer() {
     open: false, 
     allergies: [] 
   });
-  // temporary state removed; we use antd modal textarea value instead
+  const [notifData, setNotifData] = useState(null);
+
+  const searchParams = new URLSearchParams(location.search);
+  const notifId = searchParams.get('notifId');
 
   useEffect(() => {
     const loadCustomerData = async () => {
       try {
-        // ดึงข้อมูล customer profile
         const token = localStorage.getItem('jwt');
+        
+        let currentNotifData = null;
+        // Load Notification if notifId is present
+        if (notifId) {
+          try {
+            const notifRes = await fetch(
+              API.notifications.getById(notifId),
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (notifRes.ok) {
+              const resJson = await notifRes.json();
+              currentNotifData = resJson.data;
+              setNotifData(currentNotifData);
+            }
+          } catch (err) {
+            console.error('Failed to load notification:', err);
+          }
+        }
+
+        // ดึงข้อมูล customer profile
         const customerRes = await fetch(
           API.customerProfiles.getByIdBasic(customerDocumentId),
           { headers: { Authorization: token ? `Bearer ${token}` : "" } }
@@ -90,25 +131,27 @@ function CustomerDetailCustomer() {
 
         // ดึงชื่อร้านยาและเภสัชกรที่ติดตามอาการ
         const custAttrs = customerData.data?.attributes || customerData.data;
-        console.log('🔍 Customer data:', custAttrs);
         
-        // drug_stores อยู่ที่ custAttrs.drug_stores โดยตรง (ไม่ใช่ .data)
-        if (custAttrs?.drug_stores && custAttrs.drug_stores.length > 0) {
+        // If we have notification, use its pharmacy info
+        if (currentNotifData && currentNotifData.drug_store) {
+          const store = currentNotifData.drug_store;
+          setPharmacyName(store.name_th || '');
+          if (store?.pharmacy_profiles && store.pharmacy_profiles.length > 0) {
+             const profile = store.pharmacy_profiles[0];
+             const user = profile?.users_permissions_user;
+             const name = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : (profile?.full_name || '');
+             setPharmacistName(name);
+          }
+        } else if (custAttrs?.drug_stores && custAttrs.drug_stores.length > 0) {
           const store = custAttrs.drug_stores[0].attributes || custAttrs.drug_stores[0];
-          console.log('🏪 Store data:', store);
           setPharmacyName(store.name_th || '');
 
-          // ดึงชื่อเภสัชกรจาก pharmacy_profiles ของร้าน
           if (store?.pharmacy_profiles && store.pharmacy_profiles.length > 0) {
             const profile = store.pharmacy_profiles[0].attributes || store.pharmacy_profiles[0];
-            console.log('👤 Profile data:', profile);
             const user = profile?.users_permissions_user?.data?.attributes || profile?.users_permissions_user;
             const name = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : (profile?.full_name || '');
             setPharmacistName(name);
-            console.log('✅ Pharmacy name:', store.name_th, 'Pharmacist name:', name);
           }
-        } else {
-          console.log('⚠️ No drug_stores found');
         }
 
         // ดึงรายการยาทั้งหมด
@@ -119,7 +162,6 @@ function CustomerDetailCustomer() {
         
         if (drugsRes.ok) {
           const drugsData = await drugsRes.json();
-          // API returns flat data structure with all properties directly on the object
           const drugs = (drugsData.data || []).map(d => ({
             id: d.id,
             documentId: d.documentId,
@@ -130,14 +172,7 @@ function CustomerDetailCustomer() {
             drug_batches: d.drug_batches,
             drug_store: d.drug_store
           }));
-          console.log('✅ Drugs mapped successfully:', drugs.length, 'items');
-          if (drugs.length > 0) {
-            console.log('✅ First drug:', drugs[0]);
-          }
           setAvailableDrugs(drugs);
-          setDrugsLoaded(true);
-        } else {
-          console.warn('⚠️ Failed to fetch drugs');
           setDrugsLoaded(true);
         }
 
@@ -150,17 +185,28 @@ function CustomerDetailCustomer() {
     };
 
     loadCustomerData();
-  }, [customerDocumentId]);
+  }, [customerDocumentId, notifId]);
 
   const handleBack = () => {
-    navigate('/customerHome');
+    // If we have notification data, it means we came from History
+    if (notifId) {
+      navigate(-1);
+    } else {
+      navigate('/customerHome');
+    }
   };
 
   const handleOpenEditSymptoms = () => {
     // Navigate the user to the Edit Symptoms page for this customer
-    // Pass availableDrugs via state so it can be used in the modal
+    // Pass availableDrugs and notifId (if exists) via state
+    const stateData = { 
+      availableDrugs,
+      notifId,
+      notificationData: notifData // Pass the entire notification data
+    };
+    
     navigate(`/customer/edit_symptoms/${customerDocumentId}`, { 
-      state: { availableDrugs } 
+      state: stateData
     });
   };
 
@@ -168,11 +214,12 @@ function CustomerDetailCustomer() {
 
   if (loading) {
     return (
-      <div className="app-container">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 font-prompt">
         <HomeHeader isLoggedIn={true} pharmacyName={pharmacyName} pharmacistName={pharmacistName} />
-        <main className="main-content">
-          <div style={{ textAlign: 'center', marginTop: '40px' }}>
-            กำลังโหลดข้อมูล...
+        <main className="flex-1 container mx-auto px-4 py-8">
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="animate-spin w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full mb-4"></div>
+            <p className="text-slate-600 text-lg font-medium">กำลังโหลดข้อมูล...</p>
           </div>
         </main>
         <Footer />
@@ -182,11 +229,13 @@ function CustomerDetailCustomer() {
 
   if (!customer) {
     return (
-      <div className="app-container">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 font-prompt">
         <HomeHeader isLoggedIn={true} pharmacyName={pharmacyName} pharmacistName={pharmacistName} />
-        <main className="main-content">
-          <div style={{ textAlign: 'center', marginTop: '40px', color: '#999' }}>
-            ไม่พบข้อมูลลูกค้า
+        <main className="flex-1 container mx-auto px-4 py-8">
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="text-6xl mb-4">😔</div>
+            <h3 className="text-xl font-bold text-slate-700 mb-2">ไม่พบข้อมูลลูกค้า</h3>
+            <p className="text-slate-400">กรุณาตรวจสอบข้อมูลอีกครั้ง</p>
           </div>
         </main>
         <Footer />
@@ -197,158 +246,186 @@ function CustomerDetailCustomer() {
   const customerData = customer.attributes || customer;
   const user = customerData.users_permissions_user;
 
+  // Use data from notification if viewing history
+  const displayData = notifData && notifData.data ? {
+    ...customerData,
+    Customers_symptoms: notifData.data.data?.symptoms || notifData.data.symptoms || notifData.data.Customers_symptoms || customerData.Customers_symptoms,
+    prescribed_drugs: notifData.data.data?.prescribed_drugs || notifData.data.prescribed_drugs || customerData.prescribed_drugs,
+    Follow_up_appointment_date: notifData.data.data?.appointment_date || notifData.data.appointment_date || notifData.data.Follow_up_appointment_date || customerData.Follow_up_appointment_date
+  } : customerData;
+
   return (
-    <div className="cust-detail-container">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 font-prompt">
       {/* Global ToastContainer in App.js */}
       <HomeHeader isLoggedIn={true} pharmacyName={pharmacyName} pharmacistName={pharmacistName} />
-      <main className="cust-main-content">
-        {/* Header Summary - แสดงข้อมูลสำคัญ */}
-        <div className="cust-header-summary">
-          <div className="cust-header-avatar">
-            {user?.full_name?.charAt(0)?.toUpperCase() || customerData.full_name?.charAt(0)?.toUpperCase() || 'C'}
+      <main className="container mx-auto px-4 py-8 max-w-7xl">
+
+        {notifData && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl shadow-lg shadow-amber-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center text-white font-bold shadow-lg">📜</div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Tag color="warning" className="rounded-lg">โหมดประวัติการรักษา</Tag>
+                  </div>
+                  <span className="text-sm text-amber-800 font-medium">
+                    📅 ข้อมูลวันที่: {dayjs(notifData.createdAt).format('DD/MM/YYYY HH:mm')}
+                  </span>
+                </div>
+              </div>
+              <button 
+                onClick={() => navigate(`/customer_detail_view/${customerDocumentId}`)}
+                className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold shadow-lg shadow-amber-200 hover:shadow-xl transition-all"
+              >
+                ดูข้อมูลปัจจุบัน
+              </button>
+            </div>
           </div>
-          <div className="cust-header-info">
-            <h1 className="cust-header-name">{user?.full_name || customerData.full_name || 'ไม่พบชื่อ'}</h1>
-            <div className="cust-header-meta">
-              <span className="cust-meta-item">📞 {user?.phone || customerData.phone || 'ไม่ระบุเบอร์'}</span>
-              {customerData.Follow_up_appointment_date && (
-                <span className="cust-meta-item">📅 นัดถัดไป: {formatThaiDate(customerData.Follow_up_appointment_date)}</span>
+        )}
+
+        {/* Header Summary - แสดงข้อมูลสำคัญ */}
+        <div className="mb-8 p-6 bg-white rounded-[2.5rem] shadow-xl border border-slate-100">
+          <div className="flex items-start gap-6">
+            {/* Avatar */}
+            <div className="relative flex-shrink-0">
+              <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-indigo-200">
+                {user?.full_name?.charAt(0)?.toUpperCase() || displayData.full_name?.charAt(0)?.toUpperCase() || 'C'}
+              </div>
+              <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-emerald-500 rounded-full border-4 border-white shadow-lg"></div>
+            </div>
+            
+            {/* Info */}
+            <div className="flex-1">
+              <h1 className="text-3xl font-black text-slate-800 mb-2">{user?.full_name || displayData.full_name || 'ไม่พบชื่อ'}</h1>
+              <div className="flex flex-wrap items-center gap-4 mb-3">
+                <span className="inline-flex items-center gap-2 text-sm text-slate-600">
+                  <span className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">📞</span>
+                  {user?.phone || displayData.phone || 'ไม่ระบุเบอร์'}
+                </span>
+                {displayData.Follow_up_appointment_date && (
+                  <span className="inline-flex items-center gap-2 text-sm text-slate-600">
+                    <span className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">📅</span>
+                    นัดถัดไป: {formatThaiDate(displayData.Follow_up_appointment_date)}
+                  </span>
+                )}
+              </div>
+              {pharmacyName && (
+                <div className="flex flex-wrap items-center gap-4 text-sm">
+                  <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl text-emerald-700 font-medium">
+                    <span>🏥</span> {pharmacyName}
+                  </span>
+                  {pharmacistName && (
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl text-violet-700 font-medium">
+                      <span>👨‍⚕️</span> {pharmacistName}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
-            {pharmacyName && (
-              <div className="cust-header-pharmacy">
-                <span>🏥 ร้านยา: {pharmacyName}</span>
-                {pharmacistName && <span className="cust-pharmacist">👨‍⚕️ เภสัชกร: {pharmacistName}</span>}
+            
+            {/* Stats */}
+            <div className="flex gap-3">
+              <div 
+                onClick={() => navigate(`/customer/visit-history/${customerDocumentId}`)} 
+                className="cursor-pointer p-4 bg-gradient-to-br from-indigo-50 to-violet-50 rounded-2xl border-2 border-indigo-100 hover:border-indigo-300 transition-all hover:shadow-lg hover:shadow-indigo-100 min-w-[120px]"
+              >
+                <div className="text-3xl mb-2 text-center">📜</div>
+                <div className="text-xs font-bold text-slate-600 text-center">ประวัติการรักษา</div>
               </div>
-            )}
-          </div>
-          <div className="cust-header-stats">
-            <div className="cust-stat-box">
-              <span className="cust-stat-value">{customerData.prescribed_drugs?.length || 0}</span>
-              <span className="cust-stat-label">รายการยา</span>
+              <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl border-2 border-blue-100 min-w-[120px]">
+                <div className="text-3xl font-black text-blue-600 mb-1 text-center">{displayData.prescribed_drugs?.length || 0}</div>
+                <div className="text-xs font-bold text-slate-600 text-center">รายการยา</div>
+              </div>
+              {displayData.Allergic_drugs && (() => {
+                if (typeof displayData.Allergic_drugs === 'object') {
+                  return displayData.Allergic_drugs.allergy || displayData.Allergic_drugs.drug;
+                }
+                return displayData.Allergic_drugs;
+              })() && (
+                <div className="p-4 bg-gradient-to-br from-rose-50 to-red-50 rounded-2xl border-2 border-rose-200 min-w-[120px]">
+                  <div className="text-3xl mb-2 text-center">⚠️</div>
+                  <div className="text-xs font-bold text-rose-600 text-center">มียาที่แพ้</div>
+                </div>
+              )}
             </div>
-            {customerData.Allergic_drugs && (() => {
-              if (typeof customerData.Allergic_drugs === 'object') {
-                return customerData.Allergic_drugs.allergy || customerData.Allergic_drugs.drug;
-              }
-              return customerData.Allergic_drugs;
-            })() && (
-              <div className="cust-stat-box warning">
-                <span className="cust-stat-icon">⚠️</span>
-                <span className="cust-stat-label">มียาที่แพ้</span>
-              </div>
-            )}
           </div>
         </div>
 
         <Tabs
           defaultActiveKey="1"
           type="card"
-          className="cust-detail-tabs"
+          className="[&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:rounded-2xl [&_.ant-tabs-nav]:p-2 [&_.ant-tabs-nav]:shadow-lg [&_.ant-tabs-nav]:border-0 [&_.ant-tabs-tab]:rounded-xl [&_.ant-tabs-tab]:font-bold [&_.ant-tabs-tab]:text-slate-600 [&_.ant-tabs-tab-active]:bg-gradient-to-r [&_.ant-tabs-tab-active]:from-indigo-500 [&_.ant-tabs-tab-active]:to-violet-500 [&_.ant-tabs-tab-active]:text-white [&_.ant-tabs-tab-active]:shadow-lg [&_.ant-tabs-content]:mt-6"
         >
           {/* Tab 1: ข้อมูลพื้นฐาน */}
           <Tabs.TabPane tab={<span>📋 ข้อมูลพื้นฐาน</span>} key="1">
-            <div className="cust-info-form">
-              <div className="cust-info-grid">
-                {/* Card 1: ข้อมูลติดต่อ */}
-                <div className="cust-info-card">
-                  <div className="cust-info-card-header">
-                    <span className="cust-info-card-icon">👤</span>
-                    <h3>ข้อมูลติดต่อ</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Card 1: ข้อมูลติดต่อ */}
+              <div className="p-6 bg-white rounded-2xl shadow-lg border border-slate-100">
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
+                  <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-2xl">👤</div>
+                  <h3 className="text-lg font-black text-slate-800">ข้อมูลติดต่อ</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center py-2">
+                    <label className="text-sm text-slate-500 font-medium">ชื่อ-นามสกุล:</label>
+                    <span className="text-sm font-bold text-slate-700">{displayData.users_permissions_user?.full_name || displayData.full_name || 'ไม่มีข้อมูล'}</span>
                   </div>
-                  <div className="cust-info-card-content">
-                    <div className="cust-info-row">
-                      <label>ชื่อ-นามสกุล:</label>
-                      <span>{customerData.users_permissions_user?.full_name || customerData.full_name || 'ไม่มีข้อมูล'}</span>
-                    </div>
-                    <div className="cust-info-row">
-                      <label>เบอร์โทรศัพท์:</label>
-                      <span>{customerData.users_permissions_user?.phone || customerData.phone || 'ไม่มีข้อมูล'}</span>
-                    </div>
-                    <div className="cust-info-row">
-                      <label>อีเมล:</label>
-                      <span>{customerData.users_permissions_user?.email || customerData.email || 'ไม่มีข้อมูล'}</span>
-                    </div>
+                  <div className="flex justify-between items-center py-2">
+                    <label className="text-sm text-slate-500 font-medium">เบอร์โทรศัพท์:</label>
+                    <span className="text-sm font-bold text-slate-700">{displayData.users_permissions_user?.phone || displayData.phone || 'ไม่มีข้อมูล'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <label className="text-sm text-slate-500 font-medium">อีเมล:</label>
+                    <span className="text-sm font-bold text-slate-700">{displayData.users_permissions_user?.email || displayData.email || 'ไม่มีข้อมูล'}</span>
                   </div>
                 </div>
+              </div>
 
-                {/* Card 2: ข้อมูลสำคัญ */}
-                <div className="cust-info-card">
-                  <div className="cust-info-card-header">
-                    <span className="cust-info-card-icon">⚠️</span>
-                    <h3>ข้อมูลสำคัญ</h3>
-                  </div>
-                  <div className="cust-info-card-content">
-                    <div className="cust-info-row">
-                      <label>ยาที่แพ้:</label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {customerData.Allergic_drugs ? (
-                          (() => {
-                            const allergies = parseAllergies(customerData.Allergic_drugs);
-                            return (
-                              <button
-                                onClick={() => {
-                                  setAllergyDetailModal({
-                                    open: true,
-                                    allergies: allergies
-                                  });
-                                }}
-                                style={{
-                                  padding: '12px 16px',
-                                  backgroundColor: allergies.length > 0 ? '#ff7875' : '#f5f5f5',
-                                  border: 'none',
-                                  borderRadius: '8px',
-                                  cursor: 'pointer',
-                                  color: allergies.length > 0 ? 'white' : '#666',
-                                  fontSize: '14px',
-                                  fontWeight: '500',
-                                  width: '100%',
-                                  transition: 'all 0.3s ease',
-                                  boxShadow: allergies.length > 0 ? '0 4px 12px rgba(255, 120, 117, 0.3)' : 'none'
-                                }}
-                                onMouseEnter={e => {
-                                  if (allergies.length > 0) {
-                                    e.target.style.boxShadow = '0 6px 16px rgba(255, 120, 117, 0.4)';
-                                    e.target.style.transform = 'translateY(-2px)';
-                                  }
-                                }}
-                                onMouseLeave={e => {
-                                  if (allergies.length > 0) {
-                                    e.target.style.boxShadow = '0 4px 12px rgba(255, 120, 117, 0.3)';
-                                    e.target.style.transform = 'translateY(0)';
-                                  }
-                                }}
-                              >
-                                {allergies.length > 0 
-                                  ? `👀 ดูรายละเอียด (${allergies.length} รายการ)` 
-                                  : '✓ ไม่มี'
-                                }
-                              </button>
-                            );
-                          })()
-                        ) : (
-                          <button
-                            disabled
-                            style={{
-                              padding: '12px 16px',
-                              backgroundColor: '#f5f5f5',
-                              border: 'none',
-                              borderRadius: '8px',
-                              cursor: 'not-allowed',
-                              color: '#666',
-                              fontSize: '14px',
-                              fontWeight: '500',
-                              width: '100%'
-                            }}
-                          >
-                            ✓ ไม่มี
-                          </button>
-                        )}
-                      </div>
+              {/* Card 2: ข้อมูลสำคัญ */}
+              <div className="p-6 bg-white rounded-2xl shadow-lg border border-slate-100">
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
+                  <div className="w-12 h-12 rounded-xl bg-rose-100 flex items-center justify-center text-2xl">⚠️</div>
+                  <h3 className="text-lg font-black text-slate-800">ข้อมูลสำคัญ</h3>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-slate-500 font-medium mb-2">ยาที่แพ้:</label>
+                    <div>
+                      {displayData.Allergic_drugs ? (
+                        (() => {
+                          const allergies = parseAllergies(displayData.Allergic_drugs);
+                          return (
+                            <button
+                              onClick={() => {
+                                setAllergyDetailModal({
+                                  open: true,
+                                  allergies: allergies
+                                });
+                              }}
+                              className={`w-full px-4 py-3 rounded-xl font-bold text-sm transition-all ${allergies.length > 0 ? 'bg-gradient-to-r from-rose-500 to-red-500 text-white shadow-lg shadow-rose-200 hover:shadow-xl' : 'bg-slate-100 text-slate-500'}`}
+                            >
+                              {allergies.length > 0 
+                                ? `👀 ดูรายละเอียด (${allergies.length} รายการ)` 
+                                : '✓ ไม่มี'
+                              }
+                            </button>
+                          );
+                        })()
+                      ) : (
+                        <button
+                          disabled
+                          className="w-full px-4 py-3 bg-slate-100 text-slate-500 rounded-xl font-bold text-sm cursor-not-allowed"
+                        >
+                          ✓ ไม่มี
+                        </button>
+                      )}
                     </div>
-                    <div className="cust-info-row">
-                      <label>โรคประจำตัว:</label>
-                      <span>{customerData.congenital_disease || 'ไม่มีข้อมูล'}</span>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-500 font-medium mb-2">โรคประจำตัว:</label>
+                    <div className="p-3 bg-slate-50 rounded-xl">
+                      <span className="text-sm font-bold text-slate-700">{renderSafeText(displayData.congenital_disease) || 'ไม่มีข้อมูล'}</span>
                     </div>
                   </div>
                 </div>
@@ -358,81 +435,82 @@ function CustomerDetailCustomer() {
 
           {/* Tab 2: อาการและการติดตาม */}
           <Tabs.TabPane tab={<span>🩺 อาการและการติดตาม</span>} key="2">
-            <div className="cust-symptoms-panel">
+            <div className="space-y-6">
               {/* อาการปัจจุบัน */}
-              <div className="cust-symptom-section">
-                <div className="cust-symptom-header">
-                  <h3 className="cust-section-title">🩺 อาการปัจจุบัน</h3>
+              <div className="p-6 bg-white rounded-2xl shadow-lg border border-slate-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl">🩺</div>
+                  <h3 className="text-lg font-black text-slate-800">อาการ{notifData ? 'ในรอบนี้' : 'ปัจจุบัน'}</h3>
                 </div>
                 
-                <div className="cust-symptom-card">
-                  {customerData.Customers_symptoms ? (
-                    <div className="cust-symptom-main">
-                      <div className="cust-symptom-display">
-                        {customerData.Customers_symptoms}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="cust-symptom-empty">
-                      <div className="cust-symptom-empty-icon">📝</div>
-                      <h4>ไม่มีข้อมูลอาการ</h4>
-                    </div>
-                  )}
-                </div>
+                {displayData.Customers_symptoms ? (
+                  <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-100">
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{renderSafeText(displayData.Customers_symptoms)}</p>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-slate-50 rounded-xl">
+                    <div className="text-5xl mb-3">📝</div>
+                    <h4 className="font-bold text-slate-600 mb-1">ไม่มีข้อมูลอาการ</h4>
+                  </div>
+                )}
               </div>
 
               {/* การนัดติดตาม */}
-              <div className="cust-followup-section">
-                <h3 className="cust-section-title">📅 การนัดติดตาม</h3>
-                <div className="cust-followup-card">
-                  <div className="cust-appointment">
-                    <div className="cust-appointment-info">
-                      <span className="cust-appointment-label">วันนัดติดตามอาการ:</span>
-                      <span className="cust-appointment-date">
-                        {customerData.Follow_up_appointment_date ? formatThaiDate(customerData.Follow_up_appointment_date) : 'ยังไม่ได้กำหนด'}
+              <div className="p-6 bg-white rounded-2xl shadow-lg border border-slate-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-2xl">📅</div>
+                  <h3 className="text-lg font-black text-slate-800">การนัดติดตาม</h3>
+                </div>
+                <div className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm text-slate-500 font-medium block mb-1">วันนัดติดตามอาการ:</span>
+                      <span className="text-lg font-black text-emerald-700">
+                        {displayData.Follow_up_appointment_date ? formatThaiDate(displayData.Follow_up_appointment_date) : 'ยังไม่ได้กำหนด'}
                       </span>
                     </div>
-                  </div>
-                  {customerData.Follow_up_appointment_date && (
-                    <div className="cust-appointment-status">
-                      <div className={`cust-status-badge ${new Date(customerData.Follow_up_appointment_date) > new Date() ? 'upcoming' : 'overdue'}`}>
-                        {new Date(customerData.Follow_up_appointment_date) > new Date() ? '📋 กำหนดการ' : '⚠️ ครบกำหนด'}
+                    {displayData.Follow_up_appointment_date && (
+                      <div className={`px-4 py-2 rounded-xl font-bold text-sm ${new Date(displayData.Follow_up_appointment_date) > new Date() ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'}`}>
+                        {new Date(displayData.Follow_up_appointment_date) > new Date() ? '📋 กำหนดการ' : '⚠️ ครบกำหนด'}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* ข้อมูลเตือนสำคัญ */}
-              <div className="cust-alert-section">
-                <h3 className="cust-section-title">⚠️ ข้อมูลสำคัญที่ต้องระวัง</h3>
-                <div className="cust-alert-grid">
-                  <div className="cust-alert-card allergy">
-                    <div className="cust-alert-icon">🚫</div>
-                    <div className="cust-alert-content">
-                      <h4>ยาที่แพ้</h4>
-                      {customerData.Allergic_drugs ? (
-                        (() => {
-                          const allergies = parseAllergies(customerData.Allergic_drugs);
-                          return (
-                            <div>
-                              {allergies.map((allergy, idx) => (
-                                <p key={idx} style={{ margin: '4px 0', fontWeight: 'bold' }}>💊 {allergy.drug || allergy.allergy || 'ไม่ระบุชื่อยา'}</p>
-                              ))}
-                            </div>
-                          );
-                        })()
-                      ) : (
-                        <p>ไม่มีข้อมูล</p>
-                      )}
+              <div className="p-6 bg-white rounded-2xl shadow-lg border border-slate-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-rose-100 flex items-center justify-center text-2xl">⚠️</div>
+                  <h3 className="text-lg font-black text-slate-800">ข้อมูลสำคัญที่ต้องระวัง</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-gradient-to-br from-rose-50 to-red-50 rounded-xl border-2 border-rose-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="text-3xl">🚫</div>
+                      <h4 className="font-black text-rose-700">ยาที่แพ้</h4>
                     </div>
+                    {displayData.Allergic_drugs ? (
+                      (() => {
+                        const allergies = parseAllergies(displayData.Allergic_drugs);
+                        return (
+                          <div className="space-y-1">
+                            {allergies.map((allergy, idx) => (
+                              <p key={idx} className="text-sm font-bold text-rose-600">💊 {allergy.drug || allergy.allergy || 'ไม่ระบุชื่อยา'}</p>
+                            ))}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <p className="text-sm text-slate-500">ไม่มีข้อมูล</p>
+                    )}
                   </div>
-                  <div className="cust-alert-card disease">
-                    <div className="cust-alert-icon">🏥</div>
-                    <div className="cust-alert-content">
-                      <h4>โรคประจำตัว</h4>
-                      <p>{customerData.congenital_disease || 'ไม่มีข้อมูล'}</p>
+                  <div className="p-4 bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl border-2 border-violet-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="text-3xl">🏥</div>
+                      <h4 className="font-black text-violet-700">โรคประจำตัว</h4>
                     </div>
+                    <p className="text-sm font-bold text-violet-600">{renderSafeText(displayData.congenital_disease) || 'ไม่มีข้อมูล'}</p>
                   </div>
                 </div>
               </div>
@@ -440,64 +518,72 @@ function CustomerDetailCustomer() {
           </Tabs.TabPane>
 
           {/* Tab 3: รายการยา */}
-          <Tabs.TabPane tab={<span>💊 รายการยา <span className="cust-tab-badge">{customerData?.prescribed_drugs?.length || 0}</span></span>} key="3">
-            <div className="cust-drugs-panel">
-              {customerData.prescribed_drugs && customerData.prescribed_drugs.length > 0 ? (
+          <Tabs.TabPane tab={<span>💊 รายการยา <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold ml-2">{displayData?.prescribed_drugs?.length || 0}</span></span>} key="3">
+            <div className="space-y-6">
+              {displayData.prescribed_drugs && displayData.prescribed_drugs.length > 0 ? (
                 <>
-                  <div className="cust-drugs-header">
-                    <div className="cust-drugs-info">
-                      <span className="cust-drugs-icon">💊</span>
-                      <div>
-                        <h3 className="cust-drugs-title">รายการยาที่กำหนด</h3>
-                        <p className="cust-drugs-patient">
-                          {user?.full_name || customerData.full_name || 'ผู้ป่วย'}
-                        </p>
+                  {/* Header */}
+                  <div className="p-6 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-2xl shadow-xl text-white">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-3xl">💊</div>
+                        <div>
+                          <h3 className="text-xl font-black mb-1">รายการยา{notifData ? 'ในรอบนี้' : 'ที่กำหนด'}</h3>
+                          <p className="text-indigo-100 text-sm font-medium">
+                            {user?.full_name || displayData.full_name || 'ผู้ป่วย'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="cust-drugs-count">
-                      {customerData.prescribed_drugs.length}
+                      <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center">
+                        <span className="text-3xl font-black">{displayData.prescribed_drugs.length}</span>
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="cust-drugs-grid">
-                    {customerData.prescribed_drugs.map((drugItem, index) => {
+                  {/* Drug Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {displayData.prescribed_drugs.map((drugItem, index) => {
                       const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
                       const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
                       const drug = availableDrugs.find(d => d.documentId === drugId || d.id === drugId);
                       
                       return (
-                        <div key={drugId || index} className="cust-drug-card">
-                          <div className="cust-drug-qty-badge">
+                        <div key={drugId || index} className="relative group p-6 bg-white rounded-2xl shadow-lg border border-slate-100 hover:shadow-xl hover:shadow-indigo-100 transition-all duration-300">
+                          {/* Quantity Badge */}
+                          <div className="absolute -top-3 -right-3 w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white text-sm font-black shadow-lg shadow-indigo-200 z-10">
                             x{quantity}
                           </div>
 
-                          <div className="cust-drug-header">
-                            <div className="cust-drug-icon">
+                          <div className="flex items-start gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-xl font-black flex-shrink-0 group-hover:scale-110 transition-transform">
                               Rx
                             </div>
-                            <div className="cust-drug-info">
-                              <h4 className="cust-drug-name">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-lg font-black text-slate-800 mb-1 line-clamp-2">
                                 {drug ? drug.name_th : 'กำลังโหลด...'}
                               </h4>
-                              <p className="cust-drug-name-en">
+                              <p className="text-sm text-slate-500 font-medium mb-3">
                                 {drug ? drug.name_en : '-'}
                               </p>
+                              
                               {drug && drug.manufacturer && (
-                                <div className="cust-drug-manufacturer" style={{ fontSize: '12px', color: '#0050b3', fontWeight: '500', marginTop: '4px' }}>
-                                  📦 {drug.manufacturer}
+                                <div className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-blue-50 rounded-lg">
+                                  <span className="text-lg">📦</span>
+                                  <span className="text-xs text-blue-700 font-bold">{drug.manufacturer}</span>
                                 </div>
                               )}
+                              
                               {drug && drug.price && (
-                                <div className="cust-drug-price">
-                                  ฿{drug.price}
+                                <div className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 rounded-lg">
+                                  <span className="text-emerald-700 font-black">฿{drug.price}</span>
                                 </div>
                               )}
                             </div>
                           </div>
 
                           {drug && drug.description && (
-                            <div className="cust-drug-desc">
-                              <p>{drug.description}</p>
+                            <div className="mt-4 pt-4 border-t border-slate-100">
+                              <p className="text-sm text-slate-600 leading-relaxed">{drug.description}</p>
                             </div>
                           )}
                         </div>
@@ -506,9 +592,10 @@ function CustomerDetailCustomer() {
                   </div>
                 </>
               ) : (
-                <div className="cust-no-drugs">
-                  <div className="cust-no-drugs-icon">💊</div>
-                  <h3>ยังไม่มีรายการยาที่กำหนด</h3>
+                <div className="text-center py-16 bg-white rounded-2xl shadow-lg border border-slate-100">
+                  <div className="text-7xl mb-4">💊</div>
+                  <h3 className="text-xl font-black text-slate-700 mb-2">ยังไม่มีรายการยาที่กำหนด</h3>
+                  <p className="text-slate-500">ยังไม่มีข้อมูลรายการยาในระบบ</p>
                 </div>
               )}
             </div>
@@ -516,26 +603,62 @@ function CustomerDetailCustomer() {
 
           {/* Tab 4: ดำเนินการ */}
           <Tabs.TabPane tab={<span>📋 ดำเนินการ</span>} key="4">
-            <div className="cust-actions-panel">
-              <div className="cust-actions-grid">
-                    <button 
-                      className="cust-action-btn" 
-                      onClick={handleBack}
-                    >
-                      ← กลับไปหน้าหลัก
-                    </button>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button 
-                        type="button" 
-                        className="cust-action-btn" 
-                        onClick={handleOpenEditSymptoms}
-                        disabled={!drugsLoaded}
-                        title={!drugsLoaded ? 'กำลังโหลดข้อมูลยา...' : 'คลิกเพื่ออัพเดตอาการ'}
-                      >
-                        {!drugsLoaded ? '⏳ กำลังโหลด...' : 'อัพเดตอาการ'}
-                      </button>
+            <div className="space-y-6">
+              <div className="p-6 bg-white rounded-2xl shadow-lg border border-slate-100">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-2xl">📋</div>
+                  <h3 className="text-xl font-black text-slate-800">เมนูดำเนินการ</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button 
+                    className="group p-6 bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 rounded-2xl border-2 border-slate-200 hover:border-slate-300 transition-all duration-300 shadow-lg hover:shadow-xl"
+                    onClick={handleBack}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-slate-500 group-hover:bg-slate-600 flex items-center justify-center text-white text-xl transition-colors">
+                        ←
+                      </div>
+                      <div className="text-left">
+                        <h4 className="text-lg font-black text-slate-800 mb-1">
+                          {notifId ? 'กลับไปรายการประวัติ' : 'กลับไปหน้าหลัก'}
+                        </h4>
+                        <p className="text-sm text-slate-500">กลับไปยังหน้าก่อนหน้า</p>
+                      </div>
                     </div>
-                  </div>
+                  </button>
+                  
+                  <button 
+                    type="button" 
+                    className={`group p-6 rounded-2xl border-2 transition-all duration-300 shadow-lg hover:shadow-xl ${
+                      !drugsLoaded 
+                        ? 'bg-gray-100 border-gray-200 cursor-not-allowed' 
+                        : 'bg-gradient-to-br from-indigo-50 to-violet-50 hover:from-indigo-100 hover:to-violet-100 border-indigo-200 hover:border-indigo-300'
+                    }`}
+                    onClick={handleOpenEditSymptoms}
+                    disabled={!drugsLoaded}
+                    title={!drugsLoaded ? 'กำลังโหลดข้อมูลยา...' : 'คลิกเพื่ออัพเดตอาการ'}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl transition-colors ${
+                        !drugsLoaded 
+                          ? 'bg-gray-400' 
+                          : 'bg-gradient-to-br from-indigo-500 to-violet-500 group-hover:scale-110'
+                      }`}>
+                        {!drugsLoaded ? '⏳' : '✏️'}
+                      </div>
+                      <div className="text-left">
+                        <h4 className={`text-lg font-black mb-1 ${!drugsLoaded ? 'text-gray-500' : 'text-slate-800'}`}>
+                          {!drugsLoaded ? 'กำลังโหลด...' : 'อัพเดตอาการ'}
+                        </h4>
+                        <p className={`text-sm ${!drugsLoaded ? 'text-gray-400' : 'text-slate-500'}`}>
+                          {!drugsLoaded ? 'รอโหลดข้อมูลยา' : 'แก้ไขข้อมูลอาการผู้ป่วย'}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
             </div>
           </Tabs.TabPane>
         </Tabs>
@@ -546,9 +669,9 @@ function CustomerDetailCustomer() {
       {/* Allergy Detail Modal */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '18px', fontWeight: 'bold' }}>
-            <span>💊</span>
-            <span>รายละเอียดยาที่แพ้</span>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-2xl">💊</div>
+            <span className="text-lg font-black text-slate-800">รายละเอียดยาที่แพ้</span>
           </div>
         }
         open={allergyDetailModal.open}
@@ -557,24 +680,7 @@ function CustomerDetailCustomer() {
           <button
             key="close"
             onClick={() => setAllergyDetailModal({ open: false, allergies: [] })}
-            style={{
-              padding: '8px 24px',
-              backgroundColor: '#f5f5f5',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={e => {
-              e.target.style.backgroundColor = '#e6e6e6';
-              e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-            }}
-            onMouseLeave={e => {
-              e.target.style.backgroundColor = '#f5f5f5';
-              e.target.style.boxShadow = 'none';
-            }}
+            className="px-6 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-700 transition-all duration-300 hover:shadow-lg"
           >
             ปิด
           </button>
@@ -584,41 +690,25 @@ function CustomerDetailCustomer() {
         styles={{ body: { maxHeight: '70vh', overflowY: 'auto', padding: '24px' } }}
       >
         {allergyDetailModal.allergies && allergyDetailModal.allergies.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="space-y-4">
             {allergyDetailModal.allergies.map((allergy, idx) => (
               <div
                 key={idx}
-                style={{
-                  background: 'linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%)',
-                  border: '1px solid #ffb3b3',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  boxShadow: '0 4px 12px rgba(255, 120, 117, 0.15)',
-                  transition: 'all 0.3s ease',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 120, 117, 0.25)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 120, 117, 0.15)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
+                className="group p-4 bg-gradient-to-br from-rose-50 to-red-50 border-2 border-rose-200 rounded-2xl shadow-lg hover:shadow-xl hover:shadow-rose-100 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
               >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                  <span style={{ fontSize: '24px', lineHeight: '1.4' }}>⚠️</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#d32f2f', marginBottom: '6px' }}>
+                <div className="flex items-start gap-3">
+                  <span className="text-3xl">⚠️</span>
+                  <div className="flex-1">
+                    <div className="text-base font-black text-rose-700 mb-2">
                       💊 {allergy.drug || 'ยาไม่ระบุชื่อ'}
                     </div>
                     {allergy.symptoms && (
-                      <div style={{ fontSize: '13px', color: '#666', marginBottom: '6px' }}>
-                        <strong>อาการแพ้:</strong> {allergy.symptoms}
+                      <div className="text-sm text-slate-600 mb-2">
+                        <strong className="text-rose-600">อาการแพ้:</strong> {allergy.symptoms}
                       </div>
                     )}
                     {allergy.date && (
-                      <div style={{ fontSize: '12px', color: '#999' }}>
+                      <div className="text-xs text-slate-400">
                         <strong>วันที่บันทึก:</strong> {formatThaiDate(allergy.date)}
                       </div>
                     )}
@@ -628,9 +718,9 @@ function CustomerDetailCustomer() {
             ))}
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#999' }}>
-            <div style={{ fontSize: '48px', marginBottom: '12px' }}>✓</div>
-            <div>ไม่มีข้อมูลยาที่แพ้</div>
+          <div className="text-center py-12">
+            <div className="text-6xl mb-3">✓</div>
+            <div className="text-slate-400 font-medium">ไม่มีข้อมูลยาที่แพ้</div>
           </div>
         )}
       </Modal>
