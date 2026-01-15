@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 
 module.exports = ({ env }) => {
   const client = env('DATABASE_CLIENT', 'postgres');
@@ -8,6 +9,37 @@ module.exports = ({ env }) => {
   
   // เช็คว่ากำลังเชื่อมต่อผ่าน Cloud SQL Socket หรือไม่? (ถ้า Host มีคำว่า /cloudsql)
   const isCloudSqlSocket = dbHost.includes('/cloudsql');
+
+  // ฟังก์ชันช่วยอ่านไฟล์ Cert (ถ้ามี Path ส่งมา)
+  const getSslConfig = () => {
+    // ถ้าวิ่งผ่าน Socket บน Cloud Run ให้ปิด SSL (Proxy จัดการให้แล้ว)
+    if (isCloudSqlSocket) {
+      return false;
+    }
+
+    // ถ้าไม่ได้เปิด SSL ใน Env ก็ปิดไป
+    if (!env.bool('DATABASE_SSL', true)) {
+      return false;
+    }
+
+    // ถ้าเปิด SSL (เช่น Local หรือ TCP) ให้เตรียม Config
+    const sslConfig = {
+      rejectUnauthorized: env.bool('DATABASE_SSL_REJECT_UNAUTHORIZED', false),
+    };
+
+    // 2. ถ้ามีไฟล์ Cert (สำหรับ Option 3: Require trusted client certificates) ก็อ่านใส่เข้าไป
+    if (env('DATABASE_SSL_CA')) {
+      sslConfig.ca = fs.readFileSync(env('DATABASE_SSL_CA')).toString();
+    }
+    if (env('DATABASE_SSL_CERT')) {
+      sslConfig.cert = fs.readFileSync(env('DATABASE_SSL_CERT')).toString();
+    }
+    if (env('DATABASE_SSL_KEY')) {
+      sslConfig.key = fs.readFileSync(env('DATABASE_SSL_KEY')).toString();
+    }
+
+    return sslConfig;
+  };
 
   const connections = {
     // MySQL configuration (ไม่เปลี่ยนแปลง)
@@ -42,11 +74,7 @@ module.exports = ({ env }) => {
         // ********** แก้ไขจุดนี้ **********
         // ถ้าเป็น Cloud SQL Socket (บน Cloud Run) ให้บังคับ ssl: false
         // ถ้าไม่ใช่ (Local/TCP) ให้ใช้ค่าจาก env หรือ default เป็น true
-        ssl: isCloudSqlSocket 
-          ? false 
-          : env.bool('DATABASE_SSL', true) && {
-              rejectUnauthorized: env.bool('DATABASE_SSL_REJECT_UNAUTHORIZED', false),
-            },
+        ssl: getSslConfig(),
         // *******************************
 
         schema: env('DATABASE_SCHEMA', 'public'),

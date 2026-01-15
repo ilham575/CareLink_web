@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/home.css';
-import Footer from '../../components/footer';
+// Footer is rendered globally in App.js
 import { API } from '../../../utils/apiConfig';
 
 function PharmacyItem({ id, documentId, name_th, address, time_open, time_close, phone_store, photo_front, customerProfileDoc, onViewProfile }) {
@@ -248,7 +248,6 @@ function CustomerHome() {
           </>
         )}
       </main>
-      <Footer />
     </div>
   );
 }

@@ -580,7 +580,7 @@ function CustomerPage({ id }) {
           </button>
         </div>
       </main>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 }

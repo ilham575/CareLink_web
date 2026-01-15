@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import '../../../css/pages/default/home.css';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
-import Footer from '../../components/footer';
+// Footer is rendered globally in App.js
 import AnimationWrapper from '../../components/AnimationWrapper'; // เพิ่มบรรทัดนี้
 import { API } from '../../../utils/apiConfig';
 
@@ -319,7 +319,6 @@ function PharmacyHome() {
 						</div>
 					</AnimationWrapper>
 				</main>
-				<Footer />
 			</div>
 		);
 	}
@@ -350,7 +349,6 @@ function PharmacyHome() {
 						</div>
 					</AnimationWrapper>
 				</main>
-				<Footer />
 			</div>
 		);
 	}
@@ -389,7 +387,7 @@ function PharmacyHome() {
 					)}
 				</AnimationWrapper>
 			</main>
-			<Footer />
+			{/* <Footer /> */}
 		</div>
 	);
 }

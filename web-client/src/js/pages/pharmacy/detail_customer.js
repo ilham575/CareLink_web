@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
 import HomeHeader from '../../components/HomeHeader';
-import Footer from '../../components/footer';
+// Footer is rendered globally in App.js
 import 'react-toastify/dist/ReactToastify.css';
 import { Modal, DatePicker, Tabs } from 'antd';
 import dayjs from 'dayjs';
@@ -2031,7 +2031,6 @@ function CustomerDetail() {
             <p className="text-slate-600 font-bold text-lg">กำลังโหลดข้อมูล...</p>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -2054,7 +2053,6 @@ function CustomerDetail() {
             </button>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -2834,7 +2832,6 @@ function CustomerDetail() {
         </Tabs>
       </main>
 
-      <Footer />
 
       {/* Modal สำหรับเพิ่ม/แก้ไขวันนัดติดตามอาการ */}
       <Modal

@@ -45,7 +45,7 @@ function ProfileAvatar({ profileUrl, profileFullName, userData }) {
 
   return (
     <div
-      className="profile-avatar"
+      className="w-10 h-10 sm:w-[50px] sm:h-[50px] rounded-full bg-[#e0e0e0] flex items-center justify-center font-bold text-sm sm:text-[18px] text-[#555] overflow-hidden sm:mr-4 shadow-sm hover:ring-2 hover:ring-white/50 transition-all"
       title={profileFullName || "โปรไฟล์"}
       onClick={handleProfileClick}
       style={{ cursor: 'pointer' }}
@@ -54,7 +54,7 @@ function ProfileAvatar({ profileUrl, profileFullName, userData }) {
         <img
           src={profileUrl}
           alt="profile"
-          className="profile-avatar-img"
+          className="w-full h-full object-cover rounded-full"
         />
       ) : (
         <span>

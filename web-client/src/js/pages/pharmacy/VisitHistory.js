@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import { API } from '../../../utils/apiConfig';
 import HomeHeader from '../../components/HomeHeader';
-import Footer from '../../components/footer';
+// Footer is rendered globally in App.js
 
 dayjs.locale('th');
 
@@ -203,7 +203,6 @@ function VisitHistory() {
             <p className="text-gray-600 font-medium">กำลังโหลดข้อมูล...</p>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -230,7 +229,6 @@ function VisitHistory() {
             </button>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -416,7 +414,7 @@ function VisitHistory() {
         </div>
       </main>
 
-      <Footer />
+      {/* <Footer /> */}
 
       {/* Visit Detail Modal */}
       <Modal

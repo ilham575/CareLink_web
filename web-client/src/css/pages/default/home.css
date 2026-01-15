@@ -9,7 +9,8 @@ body {
 .app-container {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    height: 100%;
+    overflow: hidden;
 }
 
 .app-header {
@@ -79,8 +80,9 @@ body {
 }
 
 .main-content {
-    padding: 32px 8vw;
-    flex-grow: 1;
+    padding: 20px 8vw;
+    flex: 1;
+    overflow-y: auto;
     background: var(--bg-card);
     border-radius: var(--radius-lg);
     margin: 0;

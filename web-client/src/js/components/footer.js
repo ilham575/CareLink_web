@@ -59,32 +59,41 @@ const Footer = () => {
   }
 
   return (
-    <footer
-      style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        width: "100%",
-        background: "rgba(255,255,255,0.85)",
-        boxShadow: "0 -1px 8px rgba(0,0,0,0.04)",
-        fontSize: "0.92rem",
-        color: "#444",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        gap: "2rem",
-        padding: "0.3rem 0",
-        zIndex: 100
-      }}
-    >
-      <span>
-        <span style={{ color: "#888" }}>Session expires in:</span>{" "}
-        <b style={{ color: "#e57373" }}>{formatTime(remaining)}</b>
-      </span>
-      <span style={{ fontSize: "0.85em", color: "#aaa" }}>
-        <span style={{ color: "#bbb" }}>Duration:</span>{" "}
-        <b>{formatTime(totalSeconds)}</b>
-      </span>
+    <footer className="w-full bg-white/80 backdrop-blur-md border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] z-[10] py-3 px-4 select-none font-prompt shrink-0">
+      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-[10px] sm:text-xs">
+        {/* Progress Section */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400 font-medium">Session expires in:</span>
+            <span className={`font-black tabular-nums transition-colors duration-300 ${remaining < 300 ? 'text-rose-500 animate-pulse' : 'text-indigo-600'}`}>
+              {formatTime(remaining)}
+            </span>
+          </div>
+          
+          {/* Visual Progress Bar */}
+          <div className="hidden md:block w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div 
+              className={`h-full transition-all duration-1000 ease-linear rounded-full ${
+                remaining < 300 ? 'bg-rose-400' : 'bg-gradient-to-r from-indigo-500 to-violet-500'
+              }`}
+              style={{ width: `${(remaining / totalSeconds) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Info Section */}
+        <div className="flex items-center gap-4 border-t sm:border-t-0 sm:border-l border-slate-200 pt-1 sm:pt-0 sm:pl-4">
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400 font-medium">Duration:</span>
+            <span className="text-slate-600 font-bold">{formatTime(totalSeconds)}</span>
+          </div>
+          
+          <div className="flex items-center gap-1.5 text-[9px] text-slate-300 font-black uppercase tracking-widest whitespace-nowrap">
+            <div className={`w-1.5 h-1.5 rounded-full ${remaining > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+            Secure Connection
+          </div>
+        </div>
+      </div>
     </footer>
   );
 };

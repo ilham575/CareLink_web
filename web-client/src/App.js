@@ -58,7 +58,7 @@ if (isDevelopBranch) {
 function App() {
   return (
     <Router>
-      <div className="App">
+      <div className="App h-screen flex flex-col overflow-hidden">
         <Routes>
           {/* Root path - จะ redirect ตาม role หรือแสดง Home */}
           <Route path="/" element={<RoleBasedRedirect />} />

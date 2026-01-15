@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../images/image 3.png';
-import '../../css/component/HomeHeader.css'; // เพิ่มบรรทัดนี้
 import ProfileAvatar from "./ProfileAvatar";
 import { API } from '../../utils/apiConfig';
 
@@ -237,14 +236,14 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch, forceShowPharmacy 
   if (isSignup) {
     const isEditMode = !!location.state?.userId;
     return (
-      <header className="app-header">
+      <header className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-8 py-4 flex items-center text-white shadow-md rounded-b-[18px]">
         <img
           src={logo}
           alt="Logo"
-          className="app-logo"
+          className="w-[70px] h-[70px] mr-[18px] rounded-[12px] bg-white shadow-sm cursor-pointer"
           onClick={() => navigate('/login')}
         />
-        <div className="signup-title">
+        <div className="text-2xl font-semibold ml-4">
           {isEditMode ? "แก้ไขข้อมูลโปรไฟล์" : "สร้างบัญชี"}
         </div>
       </header>
@@ -252,24 +251,25 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch, forceShowPharmacy 
   }
 
   return (
-    <header className="app-header">
+    <header className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-2 py-2 sm:px-8 sm:py-[18px] flex flex-col md:flex-row justify-between items-center text-white shadow-md rounded-b-[18px] gap-2 md:gap-0">
       <img
         src={logo}
         alt="Logo"
-        className="app-logo"
+        className="w-[50px] h-[50px] sm:w-[70px] sm:h-[70px] md:mr-[18px] rounded-[12px] bg-white shadow-sm cursor-pointer"
+        onClick={() => navigate('/')}
       />
       {(isFormStaff || isAddStaffAdmin || isEditStaffAdmin) ? (
         // แสดงหัวข้อสำหรับหน้า form_staff และหน้าเพิ่ม/แก้ไขพนักงานของแอดมิน
-        <div className="detail-title">
+        <div className="text-lg sm:text-[1.3em] font-semibold ml-0 md:ml-4 text-center md:text-left py-2">
           {getFormStaffTitle()}
         </div>
       ) : isFormCustomer ? (
         // แสดงหัวข้อสำหรับหน้า form_customer
-        <div className="detail-title">
+        <div className="text-lg sm:text-[1.3em] font-semibold ml-0 md:ml-4 text-center md:text-left py-2">
           {getFormCustomerTitle()}
         </div>
       ) : showPharmacyName ? (
-        <div className="detail-title">
+        <div className="text-lg sm:text-[1.3em] font-semibold ml-0 md:ml-4 text-center md:text-left py-2">
           {(() => {
             const name = pharmacyName || 'ชื่อร้านยา';
             let displayName = name;
@@ -302,12 +302,12 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch, forceShowPharmacy 
           })()}
         </div>
       ) : (
-        <div className="home-search-bar-container">
-          <span className="search-icon">🔍</span>
+        <div className="bg-white/15 rounded-full px-5 py-2.5 flex items-center flex-grow w-full md:w-auto md:mr-6 shadow-sm focus-within:bg-white/25 transition-all duration-200">
+          <span className="mr-2.5 text-[1.3em]">🔍</span>
           <input
             type="text"
             placeholder="ค้นหา"
-            className="home-search-input"
+            className="border-none bg-transparent outline-none text-white text-[1.1em] w-full placeholder:text-white/80"
             value={searchText}
             onChange={e => {
               setSearchText(e.target.value);
@@ -322,7 +322,7 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch, forceShowPharmacy 
         </div>
       )}
       {isLoggedIn ? (
-        <div className="profile-and-btn-row">
+        <div className="flex items-center gap-3 w-full md:w-auto justify-center md:justify-end mt-2 md:mt-0">
           <ProfileAvatar
             profileUrl={profileUrl}
             profileFullName={profileFullName}
@@ -331,7 +331,7 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch, forceShowPharmacy 
             }}
           />
           <button
-            className="home-button"
+            className="bg-gradient-to-r from-[var(--color-primary-dark)] to-[var(--color-accent)] text-white px-5 py-2 sm:px-7 sm:py-3 rounded-lg cursor-pointer text-sm sm:text-[1.08em] font-semibold shadow-sm transition-all duration-200 hover:brightness-110 active:scale-95"
             onClick={handleLogout}
           >
             ออกจากระบบ
@@ -339,7 +339,7 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch, forceShowPharmacy 
         </div>
       ) : (
         <button
-          className="home-button"
+          className="bg-gradient-to-r from-[var(--color-primary-dark)] to-[var(--color-accent)] text-white px-5 py-2 sm:px-7 sm:py-3 rounded-lg cursor-pointer text-sm sm:text-[1.08em] font-semibold shadow-sm transition-all duration-200 hover:brightness-110 active:scale-95 mt-2 md:mt-0"
           onClick={() => navigate('/login')}
         >
           ลงชื่อเข้าใช้

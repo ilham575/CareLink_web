@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
-import '../../../css/pages/staff/drugstore_detail_staff.css';
-import Footer from '../../components/footer';
+// Footer is rendered globally in App.js
 import { toast } from 'react-toastify';
 import AnimationWrapper from '../../components/AnimationWrapper';
 import { API } from '../../../utils/apiConfig';
@@ -106,137 +105,187 @@ function DrugStoresDetail_customer() {
   }, [id]);
 
   return (
-    <div className="dsstaff-detail-container">
+    <div className="h-full bg-slate-50 flex flex-col font-sans overflow-hidden">
       <HomeHeader isLoggedIn={true} pharmacyName={pharmacy?.name_th} />
-      <AnimationWrapper>
-        {loading ? (
-          <div>กำลังโหลดข้อมูล...</div>
+      <div className="flex-1 overflow-y-auto">
+        <AnimationWrapper>
+          {loading ? (
+          <div className="flex justify-center items-center h-64 text-slate-500 font-medium">
+            <div className="animate-pulse">กำลังโหลดข้อมูล...</div>
+          </div>
         ) : pharmacy ? (
-          <>
-            <div className="dsstaff-image-row">
-              <div className="dsstaff-image-box" style={{ padding: 0, background: 'none' }}>
-                {getImageUrl(pharmacy.photo_front) ? (
-                  <img
-                    src={getImageUrl(pharmacy.photo_front)}
-                    alt="รูปด้านนอกร้านยา"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
-                  />
-                ) : (
-                  'รูปด้านนอกร้านยา'
-                )}
-              </div>
-              <div className="dsstaff-image-box" style={{ padding: 0, background: 'none' }}>
-                {getImageUrl(pharmacy.photo_in) ? (
-                  <img
-                    src={getImageUrl(pharmacy.photo_in)}
-                    alt="รูปด้านในร้านยา"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
-                  />
-                ) : (
-                  'รูปด้านในร้านยา'
-                )}
-              </div>
-              <div className="dsstaff-image-box" style={{ padding: 0, background: 'none' }}>
-                {getImageUrl(pharmacy.photo_staff) ? (
-                  <img
-                    src={getImageUrl(pharmacy.photo_staff)}
-                    alt="รูปพนักงาน"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, display: 'block' }}
-                  />
-                ) : (
-                  'รูปเภสัชกรและพนักงาน'
-                )}
-              </div>
+          <div className="w-full px-6 sm:px-8 py-6 space-y-8">
+            {/* Image Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                { img: pharmacy.photo_front, label: 'รูปด้านนอกร้านยา' },
+                { img: pharmacy.photo_in, label: 'รูปด้านในร้านยา' },
+                { img: pharmacy.photo_staff, label: 'รูปเภสัชกรและพนักงาน' }
+              ].map((item, idx) => (
+                <div key={idx} className="relative h-64 sm:h-72 md:h-80 rounded-2xl overflow-hidden shadow-lg border-4 border-white group transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 bg-gradient-to-br from-sky-50 to-blue-100 flex items-center justify-center">
+                  {getImageUrl(item.img) ? (
+                    <img
+                      src={getImageUrl(item.img)}
+                      alt={item.label}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                  ) : (
+                    <span className="text-slate-400 font-bold text-center px-4">{item.label}</span>
+                  )}
+                  <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              ))}
             </div>
 
-            <div className="dsstaff-info-service-row">
-              <div className="dsstaff-left-info">
-                <p>ชื่อร้านยา: {pharmacy.name_th || '-'}</p>
-                <p>ที่อยู่: {pharmacy.address || '-'}</p>
-                <p>
-                  เวลาทำการ: {formatTime(pharmacy.time_open)} - {formatTime(pharmacy.time_close)}
-                </p>
-                <p>เบอร์โทรศัพท์ร้านยา: {pharmacy.phone_store || '-'}</p>
-                <div style={{ marginTop: 12, whiteSpace: 'pre-line' }}>
-                  <p style={{ fontWeight: 'bold', marginBottom: 4 }}>ข้อมูลเภสัชกร:</p>
+            {/* Content Row */}
+            <div className="flex flex-col lg:flex-row gap-8">
+              {/* Left Info */}
+              <div className="flex-1 bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 transition-colors hover:bg-slate-100">
+                    <span className="text-2xl">🏥</span>
+                    <div>
+                      <div className="text-sm font-bold text-slate-400 uppercase tracking-wider">ชื่อร้านยา</div>
+                      <div className="text-xl font-bold text-slate-800">{pharmacy.name_th || '-'}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 transition-colors hover:bg-slate-100">
+                    <span className="text-2xl">📍</span>
+                    <div>
+                      <div className="text-sm font-bold text-slate-400 uppercase tracking-wider">ที่อยู่</div>
+                      <div className="text-lg text-slate-700">{pharmacy.address || '-'}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 transition-colors hover:bg-slate-100">
+                      <span className="text-2xl">🕒</span>
+                      <div>
+                        <div className="text-sm font-bold text-slate-400 uppercase tracking-wider">เวลาทำการ</div>
+                        <div className="text-lg font-bold text-slate-700">
+                          {formatTime(pharmacy.time_open)} - {formatTime(pharmacy.time_close)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 transition-colors hover:bg-slate-100">
+                      <span className="text-2xl">📞</span>
+                      <div>
+                        <div className="text-sm font-bold text-slate-400 uppercase tracking-wider">เบอร์โทรศัพท์</div>
+                        <div className="text-lg font-bold text-slate-700">{pharmacy.phone_store || '-'}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-slate-100">
+                  <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <span className="w-2 h-8 bg-sky-500 rounded-full" />
+                    ข้อมูลเภสัชกร
+                  </h3>
                   {pharmacy?.pharmacy_profiles?.data && pharmacy.pharmacy_profiles.data.length > 0 ? (
-                    <ul>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {pharmacy.pharmacy_profiles.data.map((profile, index) => {
                         const attrs = profile.attributes || {};
                         const user = attrs.users_permissions_user?.data?.attributes || attrs.users_permissions_user || null;
                         const name = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'ไม่ระบุ' : (attrs.full_name || attrs.name || 'ไม่ระบุ');
                         const working = attrs.working_time || attrs.working || attrs.workingTime || null;
                         return (
-                          <li key={index} style={{ marginBottom: 6 }}>
-                            <div>ชื่อเภสัชกร: {name}</div>
+                          <div key={index} className="p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-sky-50 border border-white shadow-sm">
+                            <div className="font-bold text-slate-800 text-lg mb-1">{name}</div>
                             {working && (
-                              <div style={{ color: '#555', fontSize: '0.95em' }}>เวลาทำงานเภสัชกร: {formatWorkingTime(working)}</div>
+                              <div className="text-slate-500 text-sm whitespace-pre-line leading-relaxed">
+                                <span className="font-semibold text-sky-600 block mb-1">เวลาทำงาน:</span>
+                                {formatWorkingTime(working)}
+                              </div>
                             )}
-                          </li>
+                          </div>
                         );
                       })}
-                    </ul>
+                    </div>
                   ) : (
-                    <p>ไม่พบข้อมูลเภสัชกร</p>
+                    <div className="p-8 rounded-2xl bg-slate-50 text-center text-slate-400 font-medium border-2 border-dashed border-slate-200">
+                      ไม่พบข้อมูลเภสัชกร
+                    </div>
                   )}
                 </div>
               </div>
 
-              <div className="dsstaff-right-service">
-                <div className="dsstaff-service-box">
-                  <p className="dsstaff-section-title">การให้บริการ</p>
-                  <ul>
+              {/* Right Sidebar */}
+              <div className="w-full lg:w-[400px] space-y-6">
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                  <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <span className="w-2 h-8 bg-emerald-500 rounded-full" />
+                    การให้บริการ
+                  </h3>
+                  <ul className="space-y-4">
                     {pharmacy.services ? (
                       <>
-                        {pharmacy.services.sell_products && <li>จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ</li>}
-                        {pharmacy.services.consulting && <li>ให้คำปรึกษาทางเภสัชกรรม</li>}
-                        {pharmacy.services.health_check && <li>ตรวจสุขภาพเบื้องต้น</li>}
-                        {pharmacy.services.delivery && <li>รับฝากยาและจัดส่งยา</li>}
+                        {[
+                          { key: 'sell_products', label: 'จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ', icon: '💊' },
+                          { key: 'consulting', label: 'ให้คำปรึกษาทางเภสัชกรรม', icon: '💬' },
+                          { key: 'health_check', label: 'ตรวจสุขภาพเบื้องต้น', icon: '🩺' },
+                          { key: 'delivery', label: 'รับฝากยาและจัดส่งยา', icon: '🚚' }
+                        ].map((s) => pharmacy.services[s.key] && (
+                          <li key={s.key} className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 text-emerald-700 font-semibold border border-emerald-100 transition-transform hover:translate-x-1">
+                            <span>{s.icon}</span>
+                            <span>{s.label}</span>
+                          </li>
+                        ))}
                       </>
                     ) : (
-                      <li>ไม่มีข้อมูลการให้บริการ</li>
+                      <li className="text-slate-400">ไม่มีข้อมูลการให้บริการ</li>
                     )}
                   </ul>
                 </div>
-                <div className="dsstaff-map-box">
-                  <p className="dsstaff-section-title">GOOGLE MAP</p>
-                  <div className="dsstaff-map-placeholder">
-                    {pharmacy.link_gps ? (
-                      <a
-                        href={
-                          pharmacy.link_gps.startsWith('http')
-                            ? pharmacy.link_gps
-                            : `https://${pharmacy.link_gps}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        ดูแผนที่
-                      </a>
-                    ) : (
-                      '<LINK GOOGLE MAP>'
-                    )}
+
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                  <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <span className="w-2 h-8 bg-rose-500 rounded-full" />
+                    พิกัดร้าน
+                  </h3>
+                  <div className="aspect-square w-full rounded-2xl bg-slate-100 flex items-center justify-center relative group overflow-hidden border-2 border-slate-50">
+                    <div className="absolute inset-0 bg-[url('https://maps.googleapis.com/maps/api/staticmap?center=13.7563,100.5018&zoom=13&size=400x400&sensor=false')] bg-cover opacity-20 group-hover:scale-110 transition-transform duration-500" />
+                    <div className="relative z-10 flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-xl text-3xl">📍</div>
+                      {pharmacy.link_gps ? (
+                        <a
+                          href={pharmacy.link_gps.startsWith('http') ? pharmacy.link_gps : `https://${pharmacy.link_gps}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-white px-8 py-3 rounded-full font-bold text-slate-800 shadow-lg hover:bg-slate-800 hover:text-white transition-all transform hover:scale-105 active:scale-95"
+                        >
+                          เปิด Google Maps
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 font-medium italic">ไม่มีข้อมูลแผนที่</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="dsstaff-bottom-button" style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', padding: '0 16px' }}>
+
+            {/* Bottom Button */}
+            <div className="flex justify-start pt-4">
               <button
-                className="dsstaff-back-button"
+                className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-10 py-3 rounded-2xl font-bold transition-all transform active:scale-95 shadow-sm"
                 onClick={() => {
-                  // กลับไปหน้า customer home
                   navigate('/customerHome');
                 }}
               >
-                กลับ
+                ย้อนกลับ
               </button>
             </div>
-          </>
+          </div>
         ) : (
-          <div>ไม่พบข้อมูลร้านยา</div>
+          <div className="flex flex-col items-center justify-center py-24 text-slate-400 space-y-4">
+             <span className="text-6xl">🔍</span>
+             <p className="text-xl font-medium">ไม่พบข้อมูลร้านยา</p>
+          </div>
         )}
       </AnimationWrapper>
-      <Footer />
+      </div>
     </div>
   );
 }

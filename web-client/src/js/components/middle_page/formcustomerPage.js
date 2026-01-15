@@ -43,9 +43,7 @@ function FormCustomerPage() {
     
     // Customer profile fields
     congenital_disease: "",
-    Allergic_drugs: "",
-    Customers_symptoms: "",
-    Follow_up_appointment_date: ""
+    Allergic_drugs: ""
   });
 
   // Get pharmacyId and documentId from URL params
@@ -103,9 +101,7 @@ function FormCustomerPage() {
           password: "", // Don't load password for security
           email: user?.email || "",
           congenital_disease: customer.congenital_disease || customer.attributes?.congenital_disease || "",
-          Allergic_drugs: allergyDisplay,
-          Customers_symptoms: customer.Customers_symptoms || customer.attributes?.Customers_symptoms || "",
-          Follow_up_appointment_date: customer.Follow_up_appointment_date || customer.attributes?.Follow_up_appointment_date || ""
+          Allergic_drugs: allergyDisplay
         });
       }
     } catch (error) {
@@ -302,9 +298,7 @@ function FormCustomerPage() {
         users_permissions_user: newUserData.user.documentId,
         drug_stores: [targetStore.documentId],
         congenital_disease: formData.congenital_disease,
-        Allergic_drugs: parseJsonField(formData.Allergic_drugs),
-        Customers_symptoms: formData.Customers_symptoms,
-        Follow_up_appointment_date: formData.Follow_up_appointment_date || null
+        Allergic_drugs: parseJsonField(formData.Allergic_drugs)
       };
 
       // Add pharmacy_profile if found
@@ -455,9 +449,7 @@ function FormCustomerPage() {
     const updateData = {
       data: {
         congenital_disease: formData.congenital_disease,
-        Allergic_drugs: parseJsonField(formData.Allergic_drugs),
-        Customers_symptoms: formData.Customers_symptoms,
-        Follow_up_appointment_date: formData.Follow_up_appointment_date || null
+        Allergic_drugs: parseJsonField(formData.Allergic_drugs)
       }
     };
 
@@ -576,18 +568,6 @@ function FormCustomerPage() {
                       placeholder="08x-xxx-xxxx"
                     />
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">โรคประจำตัว</label>
-                    <input
-                      type="text"
-                      name="congenital_disease"
-                      value={formData.congenital_disease}
-                      onChange={handleInputChange}
-                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
-                      placeholder="ระบุโรคประจำตัว (ถ้ามี)..."
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -657,6 +637,18 @@ function FormCustomerPage() {
 
                 <div className="space-y-6">
                   <div className="space-y-2">
+                    <label className="text-xs font-black text-emerald-600/60 uppercase tracking-widest ml-1">🩺 โรคประจำตัว</label>
+                    <input
+                      type="text"
+                      name="congenital_disease"
+                      value={formData.congenital_disease}
+                      onChange={handleInputChange}
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-emerald-500 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
+                      placeholder="ระบุโรคประจำตัว (ถ้ามี)..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <label className="text-xs font-black text-emerald-600/60 uppercase tracking-widest ml-1">⚠️ ยาที่แพ้</label>
                     <textarea
                       name="Allergic_drugs"
@@ -666,34 +658,6 @@ function FormCustomerPage() {
                       className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-emerald-500 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner resize-none"
                       placeholder="ระบุยาที่แพ้ (ถ้ามี)..."
                     ></textarea>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-emerald-600/60 uppercase tracking-widest ml-1">🩺 อาการเบื้องต้น</label>
-                    <textarea
-                      name="Customers_symptoms"
-                      value={formData.Customers_symptoms}
-                      onChange={handleInputChange}
-                      rows="4"
-                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-emerald-500 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner resize-none"
-                      placeholder="บันทึกอาการเบื้องต้นหรือข้อมูลเพิ่มเติม..."
-                    ></textarea>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-emerald-600/60 uppercase tracking-widest ml-1">📅 วันนัดติดตามผล</label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        name="Follow_up_appointment_date"
-                        value={formData.Follow_up_appointment_date}
-                        onChange={handleInputChange}
-                        className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-emerald-500 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner appearance-none"
-                      />
-                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>

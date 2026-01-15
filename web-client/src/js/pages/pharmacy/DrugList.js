@@ -1157,25 +1157,25 @@ export default function DrugList() {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         {/* Page Header */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 mb-8 overflow-hidden relative">
+        <div className="bg-white rounded-[2rem] md:rounded-3xl p-6 shadow-sm border border-slate-200 mb-6 md:mb-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 p-8 opacity-5">
             <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="m14.7 18.8 5.8-5.9a3.5 3.5 0 0 0-4.9-5l-5.9 5.9a3.5 3.5 0 0 0 4.9 5Z"/><path d="M8.8 14.7 3 20.5"/><path d="M10.6 12.8 15.5 17.7"/><path d="m11.8 10.2 5.6 5.6"/><path d="m16.2 8.4 5.6 5.6"/><path d="M21 21v.01"/><path d="M18 18v.01"/></svg>
           </div>
           
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
             <div>
-              <h2 className="text-3xl font-bold text-slate-800 tracking-tight">
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight text-center lg:text-left">
                 {store?.attributes?.name_th || 'รายการยา'}
               </h2>
-              <div className="mt-2 flex items-center text-slate-500 bg-blue-50 w-fit px-3 py-1.5 rounded-full border border-blue-100">
+              <div className="mt-4 lg:mt-2 flex items-center justify-center lg:justify-start text-slate-500 bg-blue-50 w-full lg:w-fit px-3 py-1.5 rounded-full border border-blue-100">
                 <span className="text-blue-500 mr-2">💡</span>
-                <span className="text-sm font-medium italic">วิธีใช้: เพิ่มชื่อยา (ยี่ห้อ ราคา) → เพิ่ม Lot (จำนวน วันผลิต วันหมดอายุ)</span>
+                <span className="text-[11px] md:text-sm font-medium italic">วิธีใช้: เพิ่มชื่อยา (ยี่ห้อ ราคา) → เพิ่ม Lot (จำนวน วันผลิต วันหมดอายุ)</span>
               </div>
             </div>
             
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center lg:justify-end gap-2 md:gap-3">
               <button 
-                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition-all duration-200"
+                className="flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition-all duration-200 text-sm md:text-base"
                 onClick={() => navigate(-1)}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -1183,7 +1183,7 @@ export default function DrugList() {
               </button>
               
               <button 
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all duration-200 ${
+                className={`flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 rounded-xl font-semibold transition-all duration-200 text-sm md:text-base ${
                   selectedIds.length > 0 
                     ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 shadow-sm shadow-rose-100' 
                     : 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
@@ -1192,45 +1192,45 @@ export default function DrugList() {
                 disabled={selectedIds.length === 0}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                {selectedIds.length > 0 ? `ลบที่เลือก (${selectedIds.length})` : 'ลบที่เลือก'}
+                {selectedIds.length > 0 ? `ลบ (${selectedIds.length})` : 'ลบที่เลือก'}
               </button>
               
               <button 
-                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all duration-200 transform hover:-translate-y-0.5"
+                className="flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all duration-200 transform hover:-translate-y-0.5 text-sm md:text-base"
                 onClick={() => handleOpenModal()}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                เพิ่มรายการยาใหม่
+                เพิ่มรายการยา
               </button>
             </div>
           </div>
         </div>
 
         {/* Controls Section */}
-        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200 mb-8 overflow-visible flex flex-col lg:flex-row items-center gap-6">
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full lg:w-fit">
+        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200 mb-6 md:mb-8 overflow-visible flex flex-col lg:flex-row items-center gap-6">
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full lg:w-fit overflow-x-auto no-scrollbar">
             <button
-              className={`flex-1 lg:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+              className={`flex-none px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all duration-200 whitespace-nowrap ${
                 activeTab === 'expiry' 
                   ? 'bg-white text-indigo-600 shadow-sm' 
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
               onClick={() => setActiveTab('expiry')}
             >
-              📅 ยาหมดอายุ
+              📅 หมดอายุ
             </button>
             <button
-              className={`flex-1 lg:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+              className={`flex-none px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all duration-200 whitespace-nowrap ${
                 activeTab === 'import' 
                   ? 'bg-white text-indigo-600 shadow-sm' 
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
               onClick={() => setActiveTab('import')}
             >
-              📤 นำเข้า / เทมเพลต
+              📤 นำเข้า
             </button>
             <button
-              className={`flex-1 lg:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+              className={`flex-none px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all duration-200 whitespace-nowrap ${
                 activeTab === 'search' 
                   ? 'bg-white text-indigo-600 shadow-sm' 
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
@@ -1241,7 +1241,7 @@ export default function DrugList() {
             </button>
           </div>
 
-          <div className="flex-1 w-full relative">
+          <div className="flex-1 w-full relative overflow-hidden">
             {activeTab === 'search' && (
               <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-300">
                 <div className="relative flex-1 group">
@@ -1258,25 +1258,16 @@ export default function DrugList() {
                     }}
                     className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                   />
-                  {searchTerm && (
-                    <button 
-                      onClick={() => setSearchTerm('')}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-rose-500 transition-colors"
-                      title="ล้าง"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
-                    </button>
-                  )}
                 </div>
               </div>
             )}
 
             {activeTab === 'expiry' && (
-              <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-300">
-                <span className="text-sm font-bold text-slate-500 uppercase tracking-wider pl-2">กรองระยะเวลา:</span>
-                <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-300">
+                <span className="text-xs font-black text-slate-400 uppercase tracking-widest pl-2">ตัวกรอง:</span>
+                <div className="flex gap-2 w-full sm:w-auto">
                   <button 
-                    className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all duration-200 ${
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs md:text-sm font-bold border transition-all duration-200 ${
                       expiryFilterMonths === 3 
                         ? 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-100' 
                         : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
@@ -1286,7 +1277,7 @@ export default function DrugList() {
                     3 เดือน
                   </button>
                   <button 
-                    className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all duration-200 ${
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs md:text-sm font-bold border transition-all duration-200 ${
                       expiryFilterMonths === 6 
                         ? 'bg-rose-500 text-white border-rose-500 shadow-md shadow-rose-100' 
                         : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
@@ -1300,84 +1291,74 @@ export default function DrugList() {
             )}
 
             {activeTab === 'import' && (
-              <div className="flex flex-wrap items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-300">
+              <div className="flex flex-wrap items-center gap-2 md:gap-3 animate-in fade-in slide-in-from-left-4 duration-300">
                 <button 
-                  className="px-4 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-sm font-bold hover:bg-emerald-100 transition-all flex items-center gap-2"
+                  className="px-3 md:px-4 py-2 md:py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-xs md:text-sm font-bold hover:bg-emerald-100 transition-all flex items-center gap-2"
                   onClick={() => { setImportTourStep(0); setImportTourClosing(false); setImportTourOpen(true); }}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8h.01"/><path d="M11 12h1v4h1"/><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/></svg>
-                  คำแนะนำ
+                  วิธีใช้งาน
                 </button>
                 
-                <div className="h-8 w-px bg-slate-100 mx-1"></div>
+                <div className="hidden sm:block h-8 w-px bg-slate-100 mx-1"></div>
 
-                <div className="flex items-center gap-2">
-                  <input id="csvFileInput" type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
-                  <label 
-                    htmlFor="csvFileInput" 
-                    className="px-4 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-slate-900 transition-all shadow-sm"
-                  >
-                    {csvFileName ? 'เปลี่ยนไฟล์ CSV' : 'เลือกไฟล์ CSV'}
-                  </label>
-                  {csvFileName && (
-                    <span className="text-xs font-semibold text-slate-500 max-w-[120px] truncate bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                      {csvFileName}
-                    </span>
-                  )}
-                  <button 
-                    className="p-2.5 bg-indigo-600 disabled:bg-slate-200 text-white rounded-xl transition-all shadow-sm"
-                    onClick={handleImportCSV} 
-                    disabled={!csvFile || importing}
-                    title="นำเข้า CSV"
-                  >
-                    {importing ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    )}
-                  </button>
-                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <input id="csvFileInput" type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+                    <label 
+                      htmlFor="csvFileInput" 
+                      className="px-3 md:px-4 py-2 md:py-2.5 bg-slate-800 text-white rounded-xl text-xs md:text-sm font-bold cursor-pointer hover:bg-slate-900 transition-all shadow-sm whitespace-nowrap"
+                    >
+                      {csvFileName ? 'เปลี่ยน CSV' : 'เลือก CSV'}
+                    </label>
+                    <button 
+                      className="p-2 md:p-2.5 bg-indigo-600 disabled:bg-slate-200 text-white rounded-xl transition-all shadow-sm"
+                      onClick={handleImportCSV} 
+                      disabled={!csvFile || importing}
+                      title="นำเข้า CSV"
+                    >
+                      {importing ? (
+                        <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      )}
+                    </button>
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  <input id="xlsxFileInput" type="file" accept=".xlsx,.xls" onChange={handleFileChangeAdvanced} className="hidden" />
-                  <label 
-                    htmlFor="xlsxFileInput" 
-                    className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-emerald-700 transition-all shadow-sm"
-                  >
-                    {xlsxFileName ? 'เปลี่ยนไฟล์ Excel' : 'เลือกไฟล์ Excel'}
-                  </label>
-                  {xlsxFileName && (
-                    <span className="text-xs font-semibold text-slate-500 max-w-[120px] truncate bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                      {xlsxFileName}
-                    </span>
-                  )}
-                  <button 
-                    className="p-2.5 bg-emerald-600 disabled:bg-slate-200 text-white rounded-xl transition-all shadow-sm"
-                    onClick={handleImportXLSX} 
-                    disabled={!xlsxRecords || importing}
-                    title="นำเข้า Excel"
-                  >
-                    {importing ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <input id="xlsxFileInput" type="file" accept=".xlsx,.xls" onChange={handleFileChangeAdvanced} className="hidden" />
+                    <label 
+                      htmlFor="xlsxFileInput" 
+                      className="px-3 md:px-4 py-2 md:py-2.5 bg-emerald-600 text-white rounded-xl text-xs md:text-sm font-bold cursor-pointer hover:bg-emerald-700 transition-all shadow-sm whitespace-nowrap"
+                    >
+                      {xlsxFileName ? 'เปลี่ยน Excel' : 'เลือก Excel'}
+                    </label>
+                    <button 
+                      className="p-2 md:p-2.5 bg-emerald-600 disabled:bg-slate-200 text-white rounded-xl transition-all shadow-sm"
+                      onClick={handleImportXLSX} 
+                      disabled={!xlsxRecords || importing}
+                      title="นำเข้า Excel"
+                    >
+                      {importing ? (
+                        <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex gap-2">
                   <button 
-                    className="px-3 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                    className="px-2 md:px-3 py-1.5 md:py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-[10px] md:text-xs font-bold hover:bg-slate-50 transition-all flex items-center gap-1.5"
                     onClick={() => downloadTemplateAs('csv')}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     เทมเพลต (CSV)
                   </button>
                   <button 
-                    className="px-3 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                    className="px-2 md:px-3 py-1.5 md:py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-[10px] md:text-xs font-bold hover:bg-slate-50 transition-all flex items-center gap-1.5"
                     onClick={() => downloadTemplateAs('xlsx')}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     เทมเพลต (Excel)
                   </button>
                 </div>
@@ -1387,158 +1368,231 @@ export default function DrugList() {
         </div>
 
         {/* Table Section */}
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mb-8">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-500 rounded-full animate-spin"></div>
-              <p className="mt-4 text-slate-500 font-medium">กำลังโหลดรายการยา...</p>
+              <p className="mt-4 text-slate-500 font-medium tracking-tight">กำลังโหลดรายการยา...</p>
             </div>
           ) : filteredDrugs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-slate-300">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
+              <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
               </div>
-              <h3 className="text-lg font-bold text-slate-800">ไม่พบรายการยา</h3>
-              <p className="text-slate-500 mt-1">ลองเปลี่ยนคำค้นหา หรือกรองข้อมูลใหม่</p>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">ไม่พบรายการยา</h3>
+              <p className="text-slate-500 max-w-xs mx-auto">ลองเปลี่ยนคำค้นหา หรือกรองข้อมูลใหม่เพื่อให้พบรายการที่ต้องการ</p>
               <button 
-                className="mt-6 text-indigo-600 font-bold hover:text-indigo-700 underline underline-offset-4"
+                className="mt-6 text-indigo-600 font-bold hover:text-indigo-700 underline underline-offset-8 transition-all"
                 onClick={() => { setSearchTerm(''); setExpiryFilterMonths(null); }}
               >
                 ล้างตัวกรองทั้งหมด
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-6 py-5 w-[60px]">
-                      <div className="flex items-center justify-center">
-                        <input 
-                          type="checkbox" 
-                          className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
-                          onChange={toggleSelectAll} 
-                          checked={filteredDrugs.length > 0 && selectedIds.length === filteredDrugs.map(d => getDrugKey(d)).filter(Boolean).length} 
-                        />
-                      </div>
-                    </th>
-                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none">ชื่อยี่ห้อ</th>
-                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none">ชื่อยา</th>
-                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none">ข้อบ่งใช้</th>
-                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none">ราคา</th>
-                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none text-center">คลังสินค้า</th>
-                    <th className="px-6 py-5 text-sm font-bold text-slate-600 uppercase tracking-widest leading-none text-right">การจัดการ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filteredDrugs.map((drug, idx) => {
-                    const drugKey = getDrugKey(drug);
-                    const isHighlighted = highlightDrugId && drugKey === highlightDrugId;
-                    const stockCount = drug.drug_batches?.reduce((acc, b) => acc + (b.attributes?.quantity || b.quantity || 0), 0) || 0;
-                    
-                    return (
-                      <tr 
-                        key={drugKey || idx}
-                        ref={isHighlighted ? highlightRef : null}
-                        className={`group transition-all duration-200 hover:bg-slate-50/80 ${
-                          isHighlighted ? 'bg-amber-50 ring-2 ring-amber-200 ring-inset' : ''
-                        }`}
-                      >
-                        <td className="px-6 py-5">
-                          <div className="flex items-center justify-center">
-                            <input 
-                              type="checkbox" 
-                              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
-                              checked={selectedIds.includes(drugKey)} 
-                              onChange={() => toggleSelection(drugKey)} 
-                            />
-                          </div>
-                        </td>
-                        <td className="px-6 py-5">
-                          <span className="inline-flex items-center px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold ring-1 ring-slate-200 group-hover:bg-white group-hover:ring-slate-300 transition-all">
-                            {drug.manufacturer || '(ไม่ระบุ)'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5">
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-100">
+                      <th className="px-6 py-5 w-[60px]">
+                        <div className="flex items-center justify-center">
+                          <input 
+                            type="checkbox" 
+                            className="w-5 h-5 rounded-lg border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                            onChange={toggleSelectAll} 
+                            checked={filteredDrugs.length > 0 && selectedIds.length === filteredDrugs.map(d => getDrugKey(d)).filter(Boolean).length} 
+                          />
+                        </div>
+                      </th>
+                      <th className="px-6 py-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none">ผู้ผลิต/ยี่ห้อ</th>
+                      <th className="px-6 py-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none">รายการยา</th>
+                      <th className="px-6 py-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none">ข้อบ่งใช้</th>
+                      <th className="px-6 py-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none text-right">ราคา</th>
+                      <th className="px-6 py-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none text-center">คงเหลือ (LOT)</th>
+                      <th className="px-6 py-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none text-right">ดำเนินการ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {filteredDrugs.map((drug, idx) => {
+                      const drugKey = getDrugKey(drug);
+                      const isHighlighted = highlightDrugId && drugKey === highlightDrugId;
+                      const stockCount = drug.drug_batches?.reduce((acc, b) => acc + (b.attributes?.quantity || b.quantity || 0), 0) || 0;
+                      
+                      return (
+                        <tr 
+                          key={drugKey || idx}
+                          ref={isHighlighted ? highlightRef : null}
+                          className={`group transition-all duration-200 hover:bg-slate-50/80 ${
+                            isHighlighted ? 'bg-amber-50 ring-2 ring-amber-200 ring-inset' : ''
+                          }`}
+                        >
+                          <td className="px-6 py-5">
+                            <div className="flex items-center justify-center">
+                              <input 
+                                type="checkbox" 
+                                className="w-5 h-5 rounded-lg border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                                checked={selectedIds.includes(drugKey)} 
+                                onChange={() => toggleSelection(drugKey)} 
+                              />
+                            </div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className="inline-flex items-center px-3 py-1 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase ring-1 ring-slate-200 group-hover:bg-white group-hover:ring-slate-300 transition-all">
+                              {drug.manufacturer || '(ไม่ระบุผู้ผลิต)'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-bold text-slate-800 text-[15px] leading-tight group-hover:text-indigo-600 transition-colors">
+                                {drug.name_th || drug.name_en || '-'}
+                              </span>
+                              {drug.name_en && drug.name_th && (
+                                <span className="text-[10px] text-slate-400 font-bold uppercase leading-none tracking-wider">{drug.name_en}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 leading-normal">
+                            <p className="text-[13px] text-slate-500 line-clamp-2 max-w-[200px] leading-relaxed">
+                              {drug.description || 'ไม่มีข้อมูลรายละเอียด'}
+                            </p>
+                          </td>
+                          <td className="px-6 py-5 leading-none text-right">
+                            <div className="flex flex-col gap-1 items-end">
+                              <span className="text-lg font-black text-slate-800 tracking-tight">
+                                {drug.price ? `${drug.price.toLocaleString()} ฿` : '-'}
+                              </span>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">ต่อหน่วย</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 leading-none">
+                            <div className="flex justify-center">
+                              <button 
+                                className={`group/btn relative flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md ${
+                                  stockCount === 0 
+                                    ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200 shadow-rose-100/50' 
+                                    : stockCount < 10
+                                      ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200 shadow-amber-100/50'
+                                      : 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200 shadow-indigo-100/50'
+                                }`}
+                                onClick={() => { setBatchDetailsModalDrug(drug); setBatchDetailsModalOpen(true); }}
+                              >
+                                <div className={`p-1.5 rounded-xl ${
+                                  stockCount === 0 ? 'bg-rose-500/10' : stockCount < 10 ? 'bg-amber-500/10' : 'bg-indigo-500/10'
+                                }`}>
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/></svg>
+                                </div>
+                                <div className="flex flex-col items-start leading-none gap-0.5">
+                                  <span className="text-base font-black tracking-tight">{stockCount.toLocaleString()}</span>
+                                  <span className="text-[9px] font-black uppercase opacity-70 tracking-[0.1em]">{drug.drug_batches?.length || 0} ล็อตสินค้า</span>
+                                </div>
+                                {stockCount < 5 && (
+                                  <div className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 border-2 border-white shadow-sm"></span>
+                                  </div>
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 leading-none">
+                            <div className="flex items-center justify-end gap-1.5 text-slate-400">
+                              <button 
+                                className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all duration-300 border border-transparent hover:border-indigo-100"
+                                onClick={() => handleOpenModal(drug)}
+                                title="แก้ไขข้อมูลยา"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                              </button>
+                              <button 
+                                className="p-2.5 bg-slate-50 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all duration-300 border border-transparent hover:border-rose-100"
+                                onClick={() => handleDelete(drugKey)}
+                                title="ลบรายการยา"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden flex flex-col gap-4 p-4">
+                {filteredDrugs.map((drug, idx) => {
+                  const drugKey = getDrugKey(drug);
+                  const stockCount = drug.drug_batches?.reduce((acc, b) => acc + (b.attributes?.quantity || b.quantity || 0), 0) || 0;
+                  return (
+                    <div key={drugKey || idx} className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 relative overflow-hidden active:scale-[0.98] transition-all duration-200">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-4">
+                          <input 
+                            type="checkbox" 
+                            className="w-6 h-6 rounded-xl border-slate-200 text-indigo-600 focus:ring-indigo-500 transition-all"
+                            checked={selectedIds.includes(drugKey)} 
+                            onChange={() => toggleSelection(drugKey)} 
+                          />
                           <div className="flex flex-col gap-0.5">
-                            <span className="font-bold text-slate-800 text-[15px] leading-tight">
+                            <span className="font-bold text-slate-800 text-base leading-tight">
                               {drug.name_th || drug.name_en || '-'}
                             </span>
-                            {drug.name_en && drug.name_th && (
-                              <span className="text-xs text-slate-400 font-medium leading-none">{drug.name_en}</span>
-                            )}
-                            {isHighlighted && (
-                              <span className="mt-1 inline-flex items-center text-[10px] font-black bg-rose-500 text-white uppercase px-1.5 py-0.5 rounded shadow-sm animate-pulse w-fit leading-none">
-                                ⚠️ สต๊อกหมด
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-5 leading-normal">
-                          <p className="text-sm text-slate-500 line-clamp-2 max-w-[200px] leading-relaxed">
-                            {drug.description || '-'}
-                          </p>
-                        </td>
-                        <td className="px-6 py-5 leading-none">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-lg font-black text-rose-500 tracking-tight">
-                              {drug.price ? `${drug.price.toLocaleString()} ฿` : '-'}
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                              {drug.manufacturer || '(ไม่ระบุผู้ผลิต)'}
                             </span>
-                            <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">ต่อชิ้น/ชุด</span>
                           </div>
-                        </td>
-                        <td className="px-6 py-5 leading-none">
-                          <div className="flex justify-center">
-                            <button 
-                              className={`group/btn relative flex items-center gap-2 pr-4 pl-3 py-2 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md ${
-                                stockCount === 0 
-                                  ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200' 
-                                  : stockCount < 10
-                                    ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200'
-                                    : 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200'
-                              }`}
-                              onClick={() => { setBatchDetailsModalDrug(drug); setBatchDetailsModalOpen(true); }}
-                            >
-                              <div className={`p-1.5 rounded-xl ${
-                                stockCount === 0 ? 'bg-rose-500/10' : stockCount < 10 ? 'bg-amber-500/10' : 'bg-indigo-500/10'
-                              }`}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
-                              </div>
-                              <div className="flex flex-col items-start leading-none">
-                                <span className="text-sm font-black">{stockCount}</span>
-                                <span className="text-[10px] font-bold opacity-70 uppercase tracking-tighter">{drug.drug_batches?.length || 0} ล็อต</span>
-                              </div>
-                              <div className="absolute -top-1 -right-1 flex h-3 w-3">
-                                {stockCount < 5 && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>}
-                                {stockCount < 5 && <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 border border-white"></span>}
-                              </div>
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-6 py-5 leading-none">
-                          <div className="flex items-center justify-end gap-2 text-slate-400">
-                            <button 
-                              className="p-2.5 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200"
-                              onClick={() => handleOpenModal(drug)}
-                              title="แก้ไขยา"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                            </button>
-                            <button 
-                              className="p-2.5 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all duration-200"
-                              onClick={() => handleDelete(drugKey)}
-                              title="ลบยา"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-lg font-black text-indigo-600 tracking-tight">
+                            {drug.price ? `${drug.price.toLocaleString()} ฿` : '-'}
+                          </span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">ราคาต่อหน่วย</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50/80 rounded-[1.5rem] p-4 mb-5 border border-slate-100/50">
+                        <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                          {drug.description || 'ไม่มีข้อมูลรายละเอียดข้อบ่งใช้สำหรับยาตัวนี้'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <button 
+                          className={`flex-1 flex flex-col items-center justify-center py-3 rounded-[1.5rem] border transition-all duration-300 ${
+                            stockCount === 0 
+                              ? 'bg-rose-50 border-rose-100 text-rose-600 shadow-sm shadow-rose-100/20' 
+                              : stockCount < 10
+                                ? 'bg-amber-50 border-amber-100 text-amber-600 shadow-sm shadow-amber-100/20'
+                                : 'bg-indigo-50 border-indigo-100 text-indigo-600 shadow-sm shadow-indigo-100/20'
+                          }`}
+                          onClick={() => { setBatchDetailsModalDrug(drug); setBatchDetailsModalOpen(true); }}
+                        >
+                          <span className="text-xl font-black leading-none mb-1">{stockCount.toLocaleString()}</span>
+                          <span className="text-[9px] font-black uppercase opacity-70 tracking-widest">สต็อก ({drug.drug_batches?.length || 0} ล็อต)</span>
+                        </button>
+                        
+                        <div className="flex gap-2">
+                          <button 
+                            className="w-14 h-14 flex items-center justify-center bg-slate-50 text-slate-400 rounded-[1.25rem] border border-slate-100 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 transition-all duration-300"
+                            onClick={() => handleOpenModal(drug)}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                          </button>
+                          <button 
+                            className="w-14 h-14 flex items-center justify-center bg-slate-50 text-slate-400 rounded-[1.25rem] border border-slate-100 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-100 transition-all duration-300"
+                            onClick={() => handleDelete(drugKey)}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
 

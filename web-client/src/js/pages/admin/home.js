@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/home.css';
-import Footer from '../../components/footer';
+// Footer is rendered globally in App.js
 import { API } from '../../../utils/apiConfig';
 
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
@@ -471,7 +471,6 @@ function AdminHome() {
           </>
         )}
       </main>
-      <Footer />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
-import Footer from '../../components/footer';
+// Footer is rendered globally in App.js
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/home.css';
 import '../../../css/pages/staff/home.css';
@@ -199,7 +199,6 @@ function StaffHome() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

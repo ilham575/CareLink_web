@@ -263,7 +263,6 @@ function DrugStoresDetail_pharmacist() {
           <div>ไม่พบข้อมูลร้านยา</div>
         )}
       </AnimationWrapper>
-      <Footer />
     </div>
   );
 }
