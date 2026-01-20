@@ -17,10 +17,16 @@ module.exports = {
 
     // Setup Telegram Webhook automatically
     const publicUrl = strapi.config.get('server.url');
-    if (publicUrl && !publicUrl.includes('localhost')) {
+    const manualWebhookUrl = process.env.TELEGRAM_WEBHOOK_URL; // ✨ ดึงจาก .env
+
+    if (manualWebhookUrl) {
+      // 🛠️ ถ้ามีการระบุ URL เอง (เช่น ngrok) ให้ใช้ตัวนี้ก่อน
+      await setupTelegramWebhook(manualWebhookUrl);
+    } else if (publicUrl && !publicUrl.includes('localhost')) {
+      // ☁️ ถ้าอยู่บน GCP ให้ใช้ publicUrl
       await setupTelegramWebhook(publicUrl);
     } else {
-      console.log('ℹ️ [TELEGRAM] Localhost detected - skipping automatic webhook setup. Please use ngrok/localtunnel manually.');
+      console.log('ℹ️ [TELEGRAM] Localhost detected - skipping automatic setup.');
     }
   },
 };

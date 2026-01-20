@@ -5,6 +5,9 @@ const reminderConfig = require("../../../../config/reminder-config");
 
 module.exports = {
   async webhook(ctx) {
+    // 1. ตอบกลับ Telegram ทันทีเพื่อหยุดสถานะ Retry
+    ctx.body = { ok: true }; 
+    
     // � Log แบบชัดเจนสุดๆ
     console.log('====================================');
     console.log('RECEIVED REQUEST FROM TELEGRAM');
@@ -13,10 +16,7 @@ module.exports = {
     console.log('====================================');
     
     const body = ctx.request.body;
-    if (!body || !body.message) {
-      ctx.body = { ok: true };
-      return;
-    }
+    if (!body || !body.message) return; // ไม่ต้องทำอะไรต่อถ้าไม่มี message
 
     const chatId = body.message.chat.id;
     const text = (body.message.text || "");
@@ -26,11 +26,11 @@ module.exports = {
       const parts = text.split(' ');
       if (parts.length > 1) {
         const customerId = parts[1];
-        console.log(`[Telegram] Linking Customer Profile ID: ${customerId} with ChatID: ${chatId}`);
         
         try {
-          // 🔍 ค้นหาโปรไฟล์ลูกค้า (ใช้ Document Service ของ Strapi 5)
+          // 🔍 ค้นหาโปรไฟล์ลูกค้า (ระบุ status: 'draft' เพื่อให้หาเจอทั้งฉบับร่างและที่เผยแพร่แล้วใน Strapi 5)
           const profile = await strapi.documents('api::customer-profile.customer-profile').findFirst({
+            status: 'draft',
             filters: {
               $or: [
                 { documentId: customerId },
@@ -41,15 +41,30 @@ module.exports = {
 
           if (profile) {
             const actualDocId = profile.documentId;
-            
-            // 🛑 ตรวจสอบก่อนว่าเคยผูกไปแล้วหรือยัง
-            if (profile.telegramChatId === chatId.toString()) {
-              console.log(`[Telegram] Already linked with ChatID: ${chatId}`);
-              ctx.body = { ok: true };
-              return;
+            const existingChatId = profile.telegramChatId;
+
+            // 1. ตรวจสอบว่ามี telegramChatId อยู่แล้วหรือไม่
+            if (existingChatId) {
+              if (existingChatId === chatId.toString()) {
+                // กรณี ChatID เหมือนเดิม
+                await sendTelegramMessage(chatId, "ℹ️ บัญชีนี้ถูกเชื่อมต่อกับระบบ CareLink ไว้เรียบร้อยแล้วค่ะ");
+                return; // จบการทำงาน (ctx.body ถูกตั้งไว้ตั้งแต่ต้นแล้ว)
+              } else {
+                // กรณีมี ChatID อยู่แล้วแต่ไม่เหมือนเดิม (ต้องการเปลี่ยนเครื่อง/บัญชี)
+                await strapi.documents('api::customer-profile.customer-profile').update({
+                  documentId: actualDocId,
+                  data: { telegramChatId: chatId.toString() },
+                  status: 'published'
+                });
+                await sendTelegramMessage(
+                  chatId, 
+                  "🔄 พบการเชื่อมต่อเดิมกับบัญชีอื่นอยู่ ระบบได้ทำการเปลี่ยนมาเชื่อมต่อกับบัญชีนี้ให้แทนเรียบร้อยแล้วค่ะ"
+                );
+                return;
+              }
             }
 
-            // 📝 อัปเดตข้อมูลและสั่ง Publish ทันที (วิธีของ Strapi 5)
+            // 2. ถ้าไม่มีข้อมูล ChatID เลย (กรณีผูกครั้งแรก)
             const updatedRecord = await strapi.documents('api::customer-profile.customer-profile').update({
               documentId: actualDocId,
               data: { 
@@ -72,16 +87,9 @@ module.exports = {
 
         } catch (err) {
           console.error('[TELEGRAM ERROR]', err);
-          await sendTelegramMessage(chatId, "❌ เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้งภายหลัง");
         }
-      } else {
-        await sendTelegramMessage(chatId, "สวัสดีค่ะ! 😊 กรุณากดปุ่ม 'เชื่อมต่อ' จากหน้าโปรไฟล์บนเว็บไซต์ เพื่อเปิดใช้งานการแจ้งเตือนนะคะ");
       }
-    } else {
-      await sendTelegramMessage(chatId, "ได้รับข้อความแล้วค่ะ!");
     }
-
-    ctx.body = { ok: true };
   },
 
   // ฟังก์ชันสำหรับ cron job
