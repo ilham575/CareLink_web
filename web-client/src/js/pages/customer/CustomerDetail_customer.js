@@ -62,9 +62,14 @@ function renderSafeText(val) {
   if (typeof val === 'string') return val;
   if (typeof val === 'object') {
     // If it's the {main, note, history} structure
-    if (val.main || val.note || val.history) {
-      return val.main || val.note || val.history || '';
-    }
+    const components = [];
+    if (val.main) components.push(`อาการหลัก: ${val.main}`);
+    if (val.history) components.push(`ประวัติ: ${val.history}`);
+    if (val.note) components.push(`หมายเหตุ: ${val.note}`);
+    if (val.followup_symptoms) components.push(`ติดตามอาการ: ${val.followup_symptoms}`);
+    
+    if (components.length > 0) return components.join('\n');
+    
     // Fallback for other objects
     try {
       return JSON.stringify(val);
@@ -204,10 +209,27 @@ function CustomerDetailCustomer() {
   };
 
   const handleOpenEditSymptoms = () => {
+    // กรองรายการยาที่สั่งจ่ายเพื่อส่งไปให้ลูกค้าเลือกในหน้าถัดไป
+    const prescribed = displayData.prescribed_drugs || [];
+    
+    const prescribedDrugsOnly = prescribed.map(p => {
+      const dId = p.drugId || p.documentId || p.id;
+      // ค้นหาชื่อยาจากฐานข้อมูลยา (availableDrugs) เพื่อให้ได้ชื่อที่ถูกต้อง
+      const masterDrug = availableDrugs.find(d => 
+        String(d.id) === String(dId) || String(d.documentId) === String(dId)
+      );
+
+      return {
+        id: dId,
+        name_th: masterDrug?.name_th || p.name_th || p.name || p.drug || 'ไม่ระบุชื่อยา',
+        name_en: masterDrug?.name_en || p.name_en || ''
+      };
+    });
+
     // Navigate the user to the Edit Symptoms page for this customer
-    // Pass availableDrugs and notifId (if exists) via state
+    // Pass ONLY prescribed drugs and notifId (if exists) via state
     const stateData = { 
-      availableDrugs,
+      availableDrugs: prescribedDrugsOnly,
       notifId,
       notificationData: notifData // Pass the entire notification data
     };
@@ -221,9 +243,9 @@ function CustomerDetailCustomer() {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col bg-[#f8fafc] font-prompt overflow-hidden">
+      <div className="min-h-screen flex flex-col bg-[#f8fafc] font-prompt">
         <HomeHeader isLoggedIn={true} pharmacyName={pharmacyName} pharmacistName={pharmacistName} />
-        <main className="flex-1 w-full px-4 flex items-center justify-center overflow-hidden">
+        <main className="flex-1 w-full px-4 flex items-center justify-center">
           <div className="flex flex-col items-center justify-center animate-in fade-in duration-700">
             <div className="relative w-24 h-24 mb-8">
               <div className="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
@@ -240,9 +262,9 @@ function CustomerDetailCustomer() {
 
   if (!customer) {
     return (
-      <div className="h-full flex flex-col bg-[#f8fafc] font-prompt overflow-hidden">
+      <div className="min-h-screen flex flex-col bg-[#f8fafc] font-prompt">
         <HomeHeader isLoggedIn={true} pharmacyName={pharmacyName} pharmacistName={pharmacistName} />
-        <main className="flex-1 w-full px-4 flex items-center justify-center overflow-hidden">
+        <main className="flex-1 w-full px-4 flex items-center justify-center">
           <div className="max-w-md mx-auto bg-white p-12 rounded-[3.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 text-center animate-in zoom-in-95 duration-500">
             <div className="w-24 h-24 bg-rose-50 rounded-[2.5rem] flex items-center justify-center text-5xl mx-auto mb-8 shadow-inner shadow-rose-100/50">😔</div>
             <h3 className="text-2xl font-black text-slate-800 mb-4 tracking-tight">ไม่พบข้อมูลลูกค้า</h3>
@@ -265,17 +287,17 @@ function CustomerDetailCustomer() {
   // Use data from notification if viewing history
   const displayData = notifData && notifData.data ? {
     ...customerData,
-    Customers_symptoms: notifData.data.data?.symptoms || notifData.data.symptoms || notifData.data.Customers_symptoms || customerData.Customers_symptoms,
+    Customers_symptoms: notifData.data.data?.followup_symptoms || notifData.data.followup_symptoms || notifData.data.data?.symptoms || notifData.data.symptoms || notifData.data.Customers_symptoms || customerData.Customers_symptoms,
     Allergic_drugs: notifData.data.data?.Allergic_drugs || notifData.data.Allergic_drugs || customerData.Allergic_drugs,
     prescribed_drugs: notifData.data.data?.prescribed_drugs || notifData.data.prescribed_drugs || customerData.prescribed_drugs,
     Follow_up_appointment_date: notifData.data.data?.appointment_date || notifData.data.appointment_date || notifData.data.Follow_up_appointment_date || customerData.Follow_up_appointment_date
   } : customerData;
 
   return (
-    <div className="h-full flex flex-col bg-[#f1f5f9] font-prompt text-slate-900 overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-[#f1f5f9] font-prompt text-slate-900">
       <HomeHeader isLoggedIn={true} pharmacyName={pharmacyName} pharmacistName={pharmacistName} />
       
-      <main className="flex-1 w-full px-4 py-4 overflow-y-auto">
+      <main className="flex-1 w-full px-4 py-4">
         {/* Archive Alert */}
         {notifData && (
           <div className="mb-6 group overflow-hidden relative p-5 bg-white/80 backdrop-blur-2xl border border-amber-200 rounded-[2rem] shadow-xl shadow-amber-100/30 transition-all hover:scale-[1.01]">
@@ -404,9 +426,20 @@ function CustomerDetailCustomer() {
                 children: (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 animate-in fade-in slide-in-from-bottom-5 duration-700">
                     <div className="group bg-white/60 backdrop-blur-2xl p-6 rounded-[2rem] border border-white/50 shadow-lg hover:shadow-xl transition-all duration-500">
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-xl text-indigo-600">👤</div>
-                        <h3 className="text-xl font-black text-slate-800 tracking-tight">ข้อมูลผู้ป่วย</h3>
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-xl text-indigo-600">👤</div>
+                          <h3 className="text-xl font-black text-slate-800 tracking-tight">ข้อมูลผู้ป่วย</h3>
+                        </div>
+                        {/* Edit Profile Button */}
+                        {!notifData && (
+                          <button 
+                            onClick={() => navigate('/customer/edit_profile')}
+                            className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                          >
+                            <span>✏️</span> แก้ไข
+                          </button>
+                        )}
                       </div>
                       <div className="space-y-4">
                         {[

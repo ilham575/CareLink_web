@@ -1,6 +1,7 @@
 module.exports = ({ env }) => ({
   host: env('HOST', '0.0.0.0'),
   port: env.int('PORT', 1337),
+  // การตั้งค่า Proxy (จำเป็นมากสำหรับ Cloud Run)
   proxy: {
     enabled: true,
     headers: {
@@ -9,7 +10,9 @@ module.exports = ({ env }) => ({
       'X-Forwarded-Port': true,
     },
   },
-  url: env('URL', env('PUBLIC_URL', 'http://localhost:1337')),
+  // ✅ ใช้ PUBLIC_URL ที่ส่งมาจาก Cloud Build เป็นหลัก
+  // ถ้าไม่มี (เช่นตอนรัน Local) จะไปใช้ localhost แทน
+  url: env('PUBLIC_URL', env('URL', 'http://localhost:1337')),
   app: {
     keys: env.array('APP_KEYS'),
   },

@@ -167,9 +167,9 @@ function StaffVisitHistory() {
 
   if (loading) {
     return (
-      <div className="h-full bg-gray-50 flex flex-col overflow-hidden">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
         <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
-        <main className="flex-1 flex items-center justify-center overflow-hidden">
+        <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent mb-4"></div>
             <p className="text-gray-600 font-medium">กำลังโหลดข้อมูล...</p>
@@ -181,9 +181,9 @@ function StaffVisitHistory() {
 
   if (!customer) {
     return (
-      <div className="h-full bg-gray-50 flex flex-col overflow-hidden">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
         <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
-        <main className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+        <main className="flex-1 flex items-center justify-center p-4">
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-md w-full text-center">
             <div className="text-6xl mb-4 grayscale opacity-20">👥</div>
             <h2 className="text-2xl font-bold text-gray-900 mb-6">ไม่พบข้อมูลลูกค้า</h2>
@@ -216,10 +216,10 @@ function StaffVisitHistory() {
   const modalStatus = latestNotifForModal?.staff_work_status || selectedVisit?.staff_work_status || {};
 
   return (
-    <div className="h-full bg-gray-50 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <HomeHeader pharmacyName={pharmacy?.name_th || ''} />
       
-      <main className="flex-1 w-full px-6 py-4 overflow-y-auto">
+      <main className="flex-1 w-full px-6 py-4">
         {/* Modern Header Section */}
         <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 mb-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 p-8 opacity-5">

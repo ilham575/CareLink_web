@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
-import Footer from "../../components/footer";
+// Footer is rendered globally in App.js
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { API } from "../../../utils/apiConfig";
@@ -235,7 +235,6 @@ function PharmacistDetail_admin() {
       <>
         <HomeHeader />
         <div className="p-6 text-center">กำลังโหลดข้อมูล...</div>
-        <Footer />
       </>
     );
 
@@ -252,7 +251,6 @@ function PharmacistDetail_admin() {
             กลับ
           </button>
         </div>
-        <Footer />
       </>
     );
   }
@@ -413,7 +411,6 @@ function PharmacistDetail_admin() {
           </button>
         </div>
       </div>
-      <Footer />
       {/* Global ToastContainer in App.js will render toasts */}
     </>
   );

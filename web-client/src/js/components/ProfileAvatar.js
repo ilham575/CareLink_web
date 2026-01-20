@@ -40,6 +40,8 @@ function ProfileAvatar({ profileUrl, profileFullName, userData }) {
       }
     } else if (role === 'staff') {
       navigate('/edit_staff_profile');
+    } else if (role === 'customer') {
+      navigate('/customer/edit_profile');
     }
   };
 

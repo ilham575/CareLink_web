@@ -29,8 +29,14 @@ function formatThaiDate(dateStr) {
 // Helper to safely render text that might be an object
 const renderSafeText = (val) => {
   if (typeof val === 'object' && val !== null) {
-    if (val.main) return val.main;
-    if (val.history) return val.history;
+    const components = [];
+    if (val.main) components.push(`อาการหลัก: ${val.main}`);
+    if (val.history) components.push(`ประวัติ: ${val.history}`);
+    if (val.note) components.push(`หมายเหตุ: ${val.note}`);
+    if (val.followup_symptoms) components.push(`ติดตามอาการ: ${val.followup_symptoms}`);
+    
+    if (components.length > 0) return components.join(' | ');
+    
     return JSON.stringify(val);
   }
   return val;
@@ -132,9 +138,9 @@ function CustomerVisitHistory() {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col bg-[#f8fafc] font-prompt overflow-hidden">
+      <div className="min-h-screen flex flex-col bg-[#f8fafc] font-prompt">
         <HomeHeader pharmacyName={pharmacyName} pharmacistName={pharmacistName} />
-        <main className="flex-1 w-full px-4 flex flex-col items-center justify-center overflow-hidden">
+        <main className="flex-1 w-full px-4 flex flex-col items-center justify-center">
           <div className="flex flex-col items-center justify-center animate-in fade-in duration-700">
             <div className="relative w-24 h-24 mb-8">
               <div className="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
@@ -152,10 +158,10 @@ function CustomerVisitHistory() {
   const user = customer?.attributes?.users_permissions_user?.data?.attributes || customer?.users_permissions_user;
 
   return (
-    <div className="h-full flex flex-col bg-[#f1f5f9] font-prompt text-slate-900 overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-[#f1f5f9] font-prompt text-slate-900">
       <HomeHeader pharmacyName={pharmacyName} pharmacistName={pharmacistName} />
       
-      <main className="flex-1 w-full px-6 py-4 overflow-y-auto">
+      <main className="flex-1 w-full px-6 py-4">
         {/* Profile Premium Card */}
         <div className="mb-8 relative group">
           <div className="absolute -top-10 -right-10 w-48 h-48 bg-indigo-400/10 blur-[80px] rounded-full group-hover:bg-indigo-400/15 transition-colors"></div>
@@ -224,14 +230,14 @@ function CustomerVisitHistory() {
                         </div>
                       </div>
                       
-                      {(visit.data?.symptoms || visit.data?.Customers_symptoms || visit.data?.data?.symptoms) && (
+                      {(visit.data?.symptoms || visit.data?.Customers_symptoms || visit.data?.data?.symptoms || visit.data?.data?.followup_symptoms) && (
                         <div className="px-4">
                           <div className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                              <span className="w-1 h-1 bg-indigo-500 rounded-full"></span>
                              บันทึกอาการ
                           </div>
-                          <div className="text-slate-600 text-xs line-clamp-2 leading-relaxed font-bold italic">
-                            "{renderSafeText(visit.data?.symptoms?.main || visit.data?.symptoms || visit.data?.Customers_symptoms || visit.data?.data?.symptoms)}"
+                          <div className="text-slate-600 text-xs line-clamp-3 leading-relaxed font-bold italic">
+                            "{renderSafeText(visit.data?.data?.followup_symptoms || visit.data?.symptoms || visit.data?.Customers_symptoms || visit.data?.data?.symptoms)}"
                           </div>
                         </div>
                       )}

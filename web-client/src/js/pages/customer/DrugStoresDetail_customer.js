@@ -105,9 +105,9 @@ function DrugStoresDetail_customer() {
   }, [id]);
 
   return (
-    <div className="h-full bg-slate-50 flex flex-col font-sans overflow-hidden">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       <HomeHeader isLoggedIn={true} pharmacyName={pharmacy?.name_th} />
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1">
         <AnimationWrapper>
           {loading ? (
           <div className="flex justify-center items-center h-64 text-slate-500 font-medium">

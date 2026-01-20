@@ -1,5 +1,4 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import Footer from "../footer";
 import HomeHeader from "../HomeHeader";
 import { formatTime } from "../../utils/time";
 import React, { useEffect, useState } from "react";
@@ -347,7 +346,6 @@ function StaffPage({ id }) {
           </button>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

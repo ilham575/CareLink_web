@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate, useParams } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
-import Footer from "../../components/footer";
+// Footer is rendered globally in App.js
 import { API } from "../../../utils/apiConfig";
 
 // ✅ default service keys
@@ -759,8 +759,6 @@ function EditStore_admin() {
           </div>
         </div>
       )}
-
-      <Footer />
     </>
   );
 }

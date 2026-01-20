@@ -179,6 +179,7 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch, forceShowPharmacy 
     location.pathname.startsWith('/staff_detail_admin/') ||
     location.pathname.startsWith('/customer_detail/') ||
     location.pathname.startsWith('/customer_detail_view/') ||
+    location.pathname.startsWith('/customer/edit_profile') ||
     location.pathname.startsWith('/pharmacist_detail_admin/') ||
     location.pathname.startsWith('/add_pharmacy_admin/') ||
     location.pathname.startsWith('/edit_pharmacist_admin/'); // เพิ่มบรรทัดนี้
@@ -296,6 +297,11 @@ function HomeHeader({ pharmacyName, pharmacistName, onSearch, forceShowPharmacy 
               } else {
                 displayName = `แก้ไขเภสัชกร${displayName}`;
               }
+            }
+
+            // เช็คถ้าเป็นหน้าแก้ไขโปรไฟล์ลูกค้า
+            if (location.pathname.startsWith('/customer/edit_profile')) {
+              displayName = 'แก้ไขข้อมูลส่วนตัว';
             }
             
             return displayName;

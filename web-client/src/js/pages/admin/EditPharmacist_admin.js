@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
-import Footer from "../../components/footer";
+// Footer is rendered globally in App.js
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { API } from "../../../utils/apiConfig";
@@ -1425,8 +1425,6 @@ function EditPharmacist_admin() {
           </div>
         </div>
       )}
-
-      <Footer />
     </>
   );
 }

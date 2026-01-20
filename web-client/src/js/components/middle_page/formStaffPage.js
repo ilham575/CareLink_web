@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect } from "react";
-import Footer from "../footer";
 import HomeHeader from "../HomeHeader";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -1423,7 +1422,6 @@ function FormStaffPage() {
           </div>
         </form>
       </div>
-      <Footer />
       
       {/* Popup Component */}
       <StaffInfoPopup />

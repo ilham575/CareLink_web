@@ -37,6 +37,7 @@ import DrugStoresDetail_customer from './js/pages/customer/DrugStoresDetail_cust
 import CustomerDetail_customer from './js/pages/customer/CustomerDetail_customer';
 import CustomerVisitHistory from './js/pages/customer/CustomerVisitHistory';
 import EditSymptomsCustomer from './js/pages/customer/EditSymptoms_customer';
+import EditProfileCustomer from './js/pages/customer/EditProfile_customer';
 import PrintTransferForm from './js/pages/pharmacy/PrintTransferForm';
 import PrintAllergyCard from './js/pages/pharmacy/PrintAllergyCard';
 import RoleBasedRedirect from './js/utils/rolebasedredirect';
@@ -58,7 +59,7 @@ if (isDevelopBranch) {
 function App() {
   return (
     <Router>
-      <div className="App h-screen flex flex-col overflow-hidden">
+      <div className="App min-h-screen flex flex-col">
         <Routes>
           {/* Root path - จะ redirect ตาม role หรือแสดง Home */}
           <Route path="/" element={<RoleBasedRedirect />} />
@@ -110,6 +111,7 @@ function App() {
             <Route path="/customer_detail_view/:customerDocumentId" element={<CustomerDetail_customer />} />
             <Route path="/customer/visit-history/:customerDocumentId" element={<CustomerVisitHistory />} />
             <Route path="/customer/edit_symptoms/:customerDocumentId" element={<EditSymptomsCustomer />} />
+            <Route path="/customer/edit_profile" element={<EditProfileCustomer />} />
           </Route>
 
           {/* -------------------- STAFF MANAGEMENT -------------------- */}

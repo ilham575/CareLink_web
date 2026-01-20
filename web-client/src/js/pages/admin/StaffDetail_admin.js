@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
-import Footer from '../../components/footer';
+// Footer is rendered globally in App.js
 import '../../../css/pages/default/home.css';
 import '../../../css/component/StaffCard.css';
 import { API } from '../../../utils/apiConfig';
@@ -417,8 +417,6 @@ function StaffDetailAdmin() {
           </div>
         )}
       </main>
-      
-      <Footer />
     </div>
   );
 }

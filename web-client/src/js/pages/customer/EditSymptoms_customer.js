@@ -13,9 +13,14 @@ function renderSafeText(val) {
   if (typeof val === 'string') return val;
   if (typeof val === 'object') {
     // If it's the {main, note, history} structure
-    if (val.main || val.note || val.history) {
-      return val.main || val.note || val.history || '';
-    }
+    const components = [];
+    if (val.main) components.push(`อาการหลัก: ${val.main}`);
+    if (val.history) components.push(`ประวัติ: ${val.history}`);
+    if (val.note) components.push(`หมายเหตุ: ${val.note}`);
+    if (val.followup_symptoms) components.push(`ติดตามอาการ: ${val.followup_symptoms}`);
+    
+    if (components.length > 0) return components.join('\n');
+    
     // Fallback for other objects
     try {
       return JSON.stringify(val);
@@ -69,15 +74,16 @@ function EditSymptomsCustomer() {
 
     if (passedNotifId) setNotifId(passedNotifId);
     
-    if (passedDrugs && passedDrugs.length > 0) {
-      // Use drugs from CustomerDetail page
+    // หากมีการส่งรายการยามา (ระบุยาที่ได้รับ) ให้ใช้รายการนั้น
+    if (passedDrugs) {
       const drugList = passedDrugs.map(d => ({
         id: d.id || d.documentId,
         name: d.name_th || d.name_en || 'ยาที่ไม่ระบุ'
       }));
       setAvailableDrugs(drugList);
-    } else {
-      // Fallback: fetch drugs if not passed
+    } 
+    // หากไม่มีการส่งข้อมูลมาเลย (เช่น เข้าผ่าน URL โดยตรง) ให้โหลดรายการยาทั้งหมดเป็น fallback
+    else {
       const loadDrugs = async () => {
         try {
           const res = await fetch(API.drugs.listWithBatches());
@@ -289,7 +295,7 @@ function EditSymptomsCustomer() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#f8fafc] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-700 overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-[#f8fafc] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-700">
       {/* Background decoration elements */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-200/20 blur-[120px] rounded-full"></div>
@@ -298,7 +304,7 @@ function EditSymptomsCustomer() {
 
       <HomeHeader isLoggedIn={true} pharmacyName={pharmacyName} pharmacistName={pharmacistName} forceShowPharmacy={true} />
 
-      <main className="relative z-10 flex-1 w-full px-6 py-6 animate-in fade-in duration-700 overflow-y-auto">
+      <main className="relative z-10 flex-1 w-full px-6 py-6 animate-in fade-in duration-700">
         {/* Breadcrumb / Status */}
         <div className="flex items-center gap-2 mb-6 text-[10px] font-black uppercase tracking-widest text-slate-400">
           <span className="hover:text-indigo-600 cursor-pointer transition-colors" onClick={handleCancel}>หน้าหลัก</span>

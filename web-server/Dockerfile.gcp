@@ -1,42 +1,55 @@
-# ใช้ Node 18 Alpine (รุ่นนี้ปัญหาน้อยสุดกับ Strapi)
+# ใช้ Node 18 Alpine (รุ่นนี้เสถียรสุดกับ Strapi v4)
 FROM node:18-alpine
 
-# 1. ติดตั้งเครื่องมือระบบ (สำคัญมาก! ต้องมี vips-dev และ git)
+# 1. ติดตั้ง System Dependencies
+# เพิ่ม git และ vips-dev (จำเป็นมากสำหรับ Strapi)
 RUN apk update && apk add --no-cache \
     build-base gcc autoconf automake \
     zlib-dev libpng-dev nasm bash \
     vips-dev git
 
-# 2. ตั้งค่า Environment
-ARG PUBLIC_URL=http://localhost:1337
-ARG STRAPI_ADMIN_BACKEND_URL
-ENV NODE_ENV=production \
-    PUBLIC_URL=$PUBLIC_URL \
-    URL=$PUBLIC_URL \
-    STRAPI_ADMIN_BACKEND_URL=${STRAPI_ADMIN_BACKEND_URL:-$PUBLIC_URL}
+# 2. ตั้งค่า Environment Variables
+# Default เป็น production เพื่อความปลอดภัยและประสิทธิภาพ
+ENV NODE_ENV=production
 WORKDIR /opt/app
 
-# 3. ติดตั้ง Dependencies (ใช้วิธี install ธรรมดาเพื่อความชัวร์)
-COPY package*.json ./
-RUN npm config set fetch-retry-maxtimeout 600000 -g && npm install
+# 3. จัดการ Dependencies (เทคนิค Caching)
+COPY package.json package-lock.json* ./
+
+# เพิ่ม --platform=linux/amd64 เพื่อความชัวร์ (บางที build จากเครื่อง mac แล้วมีปัญหา)
+# และ install dependencies ทั้งหมด (รวม devDependencies) เพื่อใช้ในการ Build Admin
+RUN npm config set fetch-retry-maxtimeout 600000 -g && \
+    npm install --platform=linux/amd64 --arch=x64 sharp && \
+    npm install
 
 # 4. ย้ายโค้ดเข้า Container
 COPY . .
 
-# 5. สร้าง uploads directory
+# 5. Build Strapi Admin Panel 🛠️
+# รับค่า PUBLIC_URL มาจาก Cloud Build เพื่อฝังลงใน JS ของหน้า Admin
+ARG PUBLIC_URL
+ENV PUBLIC_URL=${PUBLIC_URL}
+ENV STRAPI_ADMIN_BACKEND_URL=${PUBLIC_URL}
+
+RUN npm run build
+
+# 6. (Optional) ลบ devDependencies ออกเพื่อลดขนาด Image 🧹
+# หลังจาก Build เสร็จแล้ว เราไม่ต้องการพวก tool ในการ build อีก
+# ขั้นตอนนี้จะช่วยประหยัดพื้นที่ Cloud Run ได้เยอะ
+RUN npm prune --production
+
+# 7. จัดการโฟลเดอร์ Uploads (สำหรับชั่วคราว)
+# หมายเหตุ: บน Cloud Run ไฟล์ในนี้จะหายเมื่อ Restart
+# แนะนำให้ติดตั้ง Strapi Provider Upload Google Cloud Storage ในอนาคต
 RUN mkdir -p public/uploads && \
     chmod -R 777 public/uploads
 
-# 6. Build หน้า Admin Panel with correct URL
-# STRAPI_ADMIN_BACKEND_URL tells admin panel where to connect to API
-RUN STRAPI_ADMIN_BACKEND_URL=$PUBLIC_URL URL=$PUBLIC_URL npm run build
-
-# 7. เปิด Port
+# 8. เปิด Port
 EXPOSE 1337
 
-# 8. Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:1337/admin || exit 1
+# 9. Health Check (สำคัญมากเพื่อให้ Cloud Run รู้ว่า App พร้อมทำงานหรือยัง)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:1337/_health || exit 1
 
-# 9. สั่งรัน
+# 10. Start Server
 CMD ["npm", "run", "start"]
