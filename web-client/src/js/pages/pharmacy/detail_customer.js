@@ -673,6 +673,10 @@ function CustomerDetail() {
   };
 
   const handleSaveAppointment = async () => {
+    if (staffWorkStatus.prepared) {
+      toast.error('ไม่สามารถบันทึกวันนัดได้ เนื่องจากพนักงานจัดส่งยาเรียบร้อยแล้ว');
+      return;
+    }
     if (!appointmentDate) {
       toast.error('กรุณาเลือกวันนัดติดตามอาการ');
       return;
@@ -785,6 +789,10 @@ function CustomerDetail() {
   };
 
   const handleDeleteAppointment = async () => {
+    if (staffWorkStatus.prepared) {
+      toast.error('ไม่สามารถลบวันนัดได้ เนื่องจากพนักงานจัดส่งยาเรียบร้อยแล้ว');
+      return;
+    }
     try {
       const token = localStorage.getItem('jwt');
 
@@ -1003,6 +1011,10 @@ function CustomerDetail() {
   }, [customer, newVisit]);
 
   const handleSaveAddDrug = async () => {
+    if (staffWorkStatus.prepared) {
+      toast.error('ไม่สามารถแก้ไขยาได้ เนื่องจากพนักงานจัดส่งยาเรียบร้อยแล้ว');
+      return;
+    }
     try {
       const token = localStorage.getItem('jwt');
       
@@ -1391,6 +1403,10 @@ function CustomerDetail() {
 
   // ฟังก์ชันบันทึกอาการ
   const handleSaveEditSymptom = async () => {
+    if (staffWorkStatus.prepared) {
+      toast.error('ไม่สามารถบันทึกอาการได้ เนื่องจากพนักงานจัดส่งยาเรียบร้อยแล้ว');
+      return;
+    }
     try {
       const token = localStorage.getItem('jwt');
       
@@ -1539,6 +1555,10 @@ function CustomerDetail() {
 
   // ฟังก์ชันลบอาการ
   const handleDeleteSymptom = async () => {
+    if (staffWorkStatus.prepared) {
+      toast.error('ไม่สามารถลบอาการได้ เนื่องจากพนักงานจัดส่งยาเรียบร้อยแล้ว');
+      return;
+    }
     try {
       const token = localStorage.getItem('jwt');
       const res = await fetch(API.customerProfiles.update(customerDocumentId), { method: 'PUT',
@@ -2372,23 +2392,38 @@ function CustomerDetail() {
                     <div className="flex gap-2">
                       {(customer.Customers_symptoms || customer.symptom_history || customer.symptom_note) ? (
                         <>
-                          <button className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-sm font-bold transition-all" onClick={openEditSymptomModal}>
+                          <button 
+                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${staffWorkStatus.prepared ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700'}`}
+                            onClick={staffWorkStatus.prepared ? undefined : openEditSymptomModal}
+                            disabled={staffWorkStatus.prepared}
+                            title={staffWorkStatus.prepared ? 'พนักงานจัดส่งยาแล้ว — ไม่สามารถแก้ไขอาการได้' : 'แก้ไขอาการ'}
+                          >
                             ✏️ แก้ไข
                           </button>
-                          <button className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-sm font-bold transition-all" onClick={() => {
-                            showConfirmation({
-                              title: '🗑️ ยืนยันการลบอาการ',
-                              message: 'คุณต้องการลบข้อมูลอาการทั้งหมดใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
-                              onConfirm: handleDeleteSymptom,
-                              confirmText: 'ลบข้อมูล',
-                              type: 'danger'
-                            });
-                          }}>
+                          <button 
+                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${staffWorkStatus.prepared ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-rose-50 hover:bg-rose-100 text-rose-700'}`}
+                            onClick={staffWorkStatus.prepared ? undefined : () => {
+                              showConfirmation({
+                                title: '🗑️ ยืนยันการลบอาการ',
+                                message: 'คุณต้องการลบข้อมูลอาการทั้งหมดใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+                                onConfirm: handleDeleteSymptom,
+                                confirmText: 'ลบข้อมูล',
+                                type: 'danger'
+                              });
+                            }}
+                            disabled={staffWorkStatus.prepared}
+                            title={staffWorkStatus.prepared ? 'พนักงานจัดส่งยาแล้ว — ไม่สามารถลบอาการได้' : 'ลบอาการ'}
+                          >
                             🗑️ ลบ
                           </button>
                         </>
                       ) : (
-                        <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-200 hover:shadow-xl transition-all" onClick={openAddSymptomModal}>
+                        <button 
+                          className={`px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition-all ${staffWorkStatus.prepared ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-indigo-200 hover:shadow-xl'}`}
+                          onClick={staffWorkStatus.prepared ? undefined : openAddSymptomModal}
+                          disabled={staffWorkStatus.prepared}
+                          title={staffWorkStatus.prepared ? 'พนักงานจัดส่งยาแล้ว — ไม่สามารถเพิ่มอาการได้' : 'เพิ่มอาการ'}
+                        >
                           ➕ เพิ่มอาการ
                         </button>
                       )}
@@ -2480,7 +2515,12 @@ function CustomerDetail() {
                         })()}
                       </span>
                     </div>
-                    <button className="px-5 py-3 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-200 hover:shadow-xl transition-all" onClick={handleOpenAppointmentModal}>
+                    <button 
+                      className={`px-5 py-3 rounded-xl text-sm font-bold shadow-lg transition-all ${staffWorkStatus.prepared ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-indigo-200 hover:shadow-xl'}`}
+                      onClick={staffWorkStatus.prepared ? undefined : handleOpenAppointmentModal}
+                      disabled={staffWorkStatus.prepared}
+                      title={staffWorkStatus.prepared ? 'พนักงานจัดส่งยาแล้ว — ไม่สามารถแก้ไขวันนัดได้' : 'แก้ไขวันนัด'}
+                    >
                       {(() => {
                         const displayNotification = currentNotification || latestNotification;
                         const snapshotAppointment = displayNotification?.data?.data?.appointment_date || displayNotification?.data?.appointment_date || null;
@@ -2712,7 +2752,7 @@ function CustomerDetail() {
                             </button>
                             {isOutOfStock ? (
                               <button
-                                onClick={(e) => {
+                                onClick={staffWorkStatus.prepared ? undefined : (e) => {
                                   e.stopPropagation();
                                   setAddDrugModal(prev => ({
                                     ...prev,
@@ -2723,7 +2763,9 @@ function CustomerDetail() {
                                   setDrugQuantities(prev => ({ ...prev, [drugId]: quantity }));
                                   setActiveTab('2');
                                 }}
-                                className="flex-1 px-3 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-xs font-bold transition-all"
+                                disabled={staffWorkStatus.prepared}
+                                title={staffWorkStatus.prepared ? 'ไม่สามารถเปลี่ยนยา — พนักงานจัดส่งแล้ว' : 'เปลี่ยนยา'}
+                                className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all ${staffWorkStatus.prepared ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700'}`}
                               >
                                 🔄 เปลี่ยนยา
                               </button>
@@ -2780,8 +2822,10 @@ function CustomerDetail() {
                 </button>
 
                 <button 
-                  className="flex items-center justify-center gap-2 p-5 bg-gradient-to-br from-indigo-50 to-white rounded-2xl border-2 border-indigo-100 hover:border-indigo-300 hover:shadow-lg transition-all duration-200 group"
-                  onClick={handleOpenAppointmentModal}
+                  className={`flex items-center justify-center gap-2 p-5 rounded-2xl border-2 transition-all duration-200 group ${staffWorkStatus.prepared ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed' : 'bg-gradient-to-br from-indigo-50 to-white border-indigo-100 hover:border-indigo-300 hover:shadow-lg'}`}
+                  onClick={staffWorkStatus.prepared ? undefined : handleOpenAppointmentModal}
+                  disabled={staffWorkStatus.prepared}
+                  title={staffWorkStatus.prepared ? 'พนักงานจัดส่งยาแล้ว — ไม่สามารถแก้ไขวันนัดได้จากหน้านี้' : 'จัดการวันนัด'}
                 >
                   <span className="text-2xl group-hover:scale-110 transition-transform">📅</span>
                   <span className="font-bold text-slate-700">{customer.Follow_up_appointment_date ? 'แก้ไขวันนัดติดตามอาการ' : 'เพิ่มวันนัดติดตามอาการ'}</span>

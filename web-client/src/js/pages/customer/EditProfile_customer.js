@@ -244,6 +244,30 @@ function EditProfileCustomer() {
               />
             </div>
 
+            {customerDocId && (
+              <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl shadow-sm">
+                    ✈️
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-indigo-900">การแจ้งเตือน Telegram</h4>
+                    <p className="text-[11px] text-indigo-600 font-bold">รับแจ้งเตือนทานยาผ่านแอป Telegram</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const botUsername = process.env.REACT_APP_TELEGRAM_BOT_NAME || 'carelink2_bot';
+                    window.open(`https://t.me/${botUsername}?start=${customerDocId}`, '_blank');
+                  }}
+                  className="px-4 py-2 bg-indigo-600 text-white text-xs font-black rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                >
+                  เชื่อมต่อ
+                </button>
+              </div>
+            )}
+
             <div className="pt-6 border-t border-slate-50 flex flex-col md:flex-row gap-4">
               <button
                 type="button"

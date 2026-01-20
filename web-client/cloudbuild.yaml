@@ -11,6 +11,8 @@ steps:
       - 'REACT_APP_API_URL=${_API_URL}'
       - '--build-arg'
       - 'REACT_APP_SOCKET_URL=${_SOCKET_URL}'
+      - '--build-arg'
+      - 'REACT_APP_TELEGRAM_BOT_NAME=${_TELEGRAM_BOT_NAME}'
       - '.' # รันจากตำแหน่งปัจจุบันที่ส่งไฟล์ขึ้นไป
 
   # Step 2: Push image
@@ -37,7 +39,7 @@ steps:
       - '8080'
       - '--allow-unauthenticated'
       - '--set-env-vars'
-      - 'REACT_APP_API_URL=$_API_URL,REACT_APP_SOCKET_URL=${_SOCKET_URL}'
+      - 'REACT_APP_API_URL=$_API_URL,REACT_APP_SOCKET_URL=${_SOCKET_URL},REACT_APP_TELEGRAM_BOT_NAME=$_TELEGRAM_BOT_NAME'
     waitFor: ['push-image']
 
 substitutions:
@@ -46,6 +48,7 @@ substitutions:
   _REGION: 'asia-southeast1'
   _API_URL: 'https://carelink-strapi-ke4rorabaa-as.a.run.app'
   _SOCKET_URL: 'wss://carelink-strapi-290491493302.asia-southeast1.run.app'
+  _TELEGRAM_BOT_NAME: 'carelink2_bot'
 
 options:
   logging: CLOUD_LOGGING_ONLY

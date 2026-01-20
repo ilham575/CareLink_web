@@ -1,6 +1,7 @@
 'use strict';
 const importRoles = require('../scripts/importRoles');
 const { initializeSocketIO } = require('./socket-server');
+const { setupTelegramWebhook } = require('./utils/telegram');
 
 module.exports = {
   register() {},
@@ -13,6 +14,14 @@ module.exports = {
     
     // Initialize Socket.IO on Strapi's HTTP server
     initializeSocketIO(strapi, strapi.server.httpServer || strapi.server);
+
+    // Setup Telegram Webhook automatically
+    const publicUrl = strapi.config.get('server.url');
+    if (publicUrl && !publicUrl.includes('localhost')) {
+      await setupTelegramWebhook(publicUrl);
+    } else {
+      console.log('ℹ️ [TELEGRAM] Localhost detected - skipping automatic webhook setup. Please use ngrok/localtunnel manually.');
+    }
   },
 };
 

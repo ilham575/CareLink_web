@@ -17,30 +17,33 @@ module.exports = ({ env }) => {
     // ✅ ส่วนจัดการ Upload (แก้ไขสมบูรณ์แล้ว)
     upload: {
       config: {
-        // เลือก Provider: ถ้า Production ใช้ GCS, ถ้า Local ใช้ local storage
+        // 1. Provider Config
         provider: isProduction 
           ? '@strapi-community/strapi-provider-upload-google-cloud-storage' 
           : 'local',
         
         providerOptions: isProduction
           ? {
-              // ☁️ ตั้งค่าสำหรับ Google Cloud Storage (เฉพาะ Production)
               bucketName: env('GCS_BUCKET_NAME'),
               publicFiles: true,
               uniform: true,
-              // 👇 บรรทัดนี้แก้ปัญหา path browser/browser/... ให้หายขาด
               baseUrl: `https://storage.googleapis.com/${env('GCS_BUCKET_NAME')}`,
               basePath: '',
             }
-          : {
-              // 💻 ตั้งค่าสำหรับ Local (ไม่ต้องตั้งอะไรเพิ่ม ใช้ค่า Default)
-            },
-            
-        // ใช้ Breakpoints ร่วมกันทั้ง 2 โหมด
+          : {},
+
+        // 2. Action Options (ถ้ามี)
+        actionOptions: {
+          upload: {},
+          delete: {},
+        },
+
+        // ✅ 3. Breakpoints อยู่ตรงนี้ครับ (ระดับเดียวกับ provider)
         breakpoints: {
-          lg: 1000,
-          md: 750,
-          sm: 500,
+          xl: 1000, // (เผื่ออยากเพิ่ม)
+          lg: 750,
+          md: 500,
+          sm: 300,  // (ปรับค่าตามต้องการ)
         },
       },
     },

@@ -61,6 +61,9 @@
     },
     "Allergic_drugs": {
       "type": "json"
+    },
+    "telegramChatId": {
+      "type": "string"
     }
   }
 }

@@ -101,6 +101,8 @@ steps:
         APP_KEYS: "${_APP_KEYS}"
         ENCRYPTION_KEY: "${_ENCRYPTION_KEY}"
         SOCKET_ALLOWED_ORIGINS: "${_SOCKET_ALLOWED_ORIGINS}"
+        TELEGRAM_TOKEN: "${_TELEGRAM_TOKEN}"
+        TELEGRAM_BOT_NAME: "${_TELEGRAM_BOT_NAME}"
         EOF
 
         # สั่ง Deploy
@@ -144,7 +146,7 @@ substitutions:
   _CLOUDSQL_INSTANCE: 'carelink-web:asia-southeast1:carelink-db' 
   
   # ☁️ Google Cloud Storage Bucket Name (ใส่ชื่อ Bucket ที่คุณสร้าง)
-  _GCS_BUCKET_NAME: 'carelink-uploads'
+  _GCS_BUCKET_NAME: 'carelink-images-2026'
 
   # Strapi Secrets (ควรเก็บใน Secret Manager ในอนาคต)
   _ADMIN_JWT_SECRET: 'your-admin-jwt-secret'
@@ -158,6 +160,8 @@ substitutions:
   _PUBLIC_URL: 'https://carelink-strapi-290491493302.asia-southeast1.run.app'
   _STRAPI_URL: 'https://carelink-strapi-290491493302.asia-southeast1.run.app'
   _SOCKET_ALLOWED_ORIGINS: '*'
+  _TELEGRAM_TOKEN: '8556919848:AAEWut2e_LaEblycNEGI-oOOhFi966IISTs'
+  _TELEGRAM_BOT_NAME: 'carelink2_bot'
 
 # Build timeout
 timeout: '3600s'

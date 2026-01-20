@@ -24,4 +24,25 @@ async function sendTelegramMessage(chatId, text) {
   }
 }
 
-module.exports = { sendTelegramMessage };
+async function setupTelegramWebhook(baseUrl) {
+  const token = process.env.TELEGRAM_TOKEN;
+  if (!token) return;
+
+  const webhookUrl = `${baseUrl}/api/telegram/webhook`;
+  const url = `https://api.telegram.org/bot${token}/setWebhook?url=${webhookUrl}`;
+
+  console.log(`[TELEGRAM] Setting webhook to: ${webhookUrl}`);
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.ok) {
+      console.log("✅ [TELEGRAM] Webhook set successfully");
+    } else {
+      console.error("❌ [TELEGRAM] Failed to set webhook:", data.description);
+    }
+  } catch (err) {
+    console.error("❌ [TELEGRAM] Webhook setup error:", err.message);
+  }
+}
+
+module.exports = { sendTelegramMessage, setupTelegramWebhook };
