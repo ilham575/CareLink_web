@@ -1020,10 +1020,19 @@ function CustomerDetail() {
       
       // แปลงข้อมูลให้เป็นรูปแบบ array ของ object ที่มี drugId และ quantity
       const prescribedDrugs = addDrugModal.selectedDrugs.map(item => {
-        if (typeof item === 'string') {
-          return { drugId: item, quantity: drugQuantities[item] || 1 };
-        }
-        return { drugId: item.drugId, quantity: drugQuantities[item.drugId] || item.quantity || 1 };
+        const dId = typeof item === 'string' ? item : item.drugId;
+        const drugInfo = addDrugModal.availableDrugs.find(d => d.documentId === dId);
+        
+        return { 
+          drugId: dId, 
+          quantity: drugQuantities[dId] || (typeof item === 'object' ? item.quantity : 1) || 1,
+          reminder_time: typeof item === 'object' ? item.reminder_time : null,
+          take_morning: typeof item === 'object' ? !!item.take_morning : !!drugInfo?.take_morning,
+          take_lunch: typeof item === 'object' ? !!item.take_lunch : !!drugInfo?.take_lunch,
+          take_evening: typeof item === 'object' ? !!item.take_evening : !!drugInfo?.take_evening,
+          take_bedtime: typeof item === 'object' ? !!item.take_bedtime : !!drugInfo?.take_bedtime,
+          meal_relation: typeof item === 'object' ? (item.meal_relation || drugInfo?.meal_relation || 'after') : (drugInfo?.meal_relation || 'after')
+        };
       });
       
       // ถ้าเป็นการดู notification เก่า (มี notifId) → ไม่บันทึกลง customer database
@@ -2633,6 +2642,7 @@ function CustomerDetail() {
                     {customer.prescribed_drugs.map((drugItem, index) => {
                       const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
                       const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
+                      const reminderTime = typeof drugItem === 'object' ? (drugItem.reminder_time || (drug?.suggested_time ? drug.suggested_time.slice(0, 5) : '')) : '';
                       const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
                       const isOutOfStock = (
                         Array.isArray(outOfStockIds) && outOfStockIds.includes(drugId)
@@ -2698,6 +2708,141 @@ function CustomerDetail() {
                               </div>
                             </details>
                           )}
+
+                          {/* Reminder Time Input */}
+                          <div className="mt-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 p-4 space-y-4 mb-4">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5">
+                                🥣 ช่วงเวลาที่ทาน
+                              </label>
+                              <select
+                                value={drugItem.meal_relation || drug?.meal_relation || 'after'}
+                                onChange={async (e) => {
+                                  const newRelation = e.target.value;
+                                  const newDrugs = [...customer.prescribed_drugs];
+                                  if (typeof newDrugs[index] === 'string') {
+                                    newDrugs[index] = { drugId: drugId, quantity: quantity, meal_relation: newRelation };
+                                  } else {
+                                    newDrugs[index] = { ...newDrugs[index], meal_relation: newRelation };
+                                  }
+                                  
+                                  if (notifId) {
+                                    setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                    return;
+                                  }
+                                  
+                                  try {
+                                    const token = localStorage.getItem('jwt');
+                                    await fetch(API.customerProfiles.update(customerDocumentId), {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                      body: JSON.stringify({ data: { prescribed_drugs: newDrugs } })
+                                    });
+                                    setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                    toast.success('อัปเดตวิธีการทานยาแล้ว');
+                                  } catch (err) {
+                                    toast.error('บันทึกไม่สำเร็จ');
+                                  }
+                                }}
+                                disabled={staffWorkStatus.prepared}
+                                className="bg-white border border-indigo-200 rounded-lg px-2 py-1 text-[10px] font-black text-indigo-700 outline-none"
+                              >
+                                <option value="before">ก่อนอาหาร</option>
+                                <option value="after">หลังอาหาร</option>
+                                <option value="with_meal">พร้อมอาหาร</option>
+                                <option value="none">ไม่ระบุ</option>
+                              </select>
+                            </div>
+
+                            <div className="grid grid-cols-4 gap-2">
+                              {[
+                                { id: 'take_morning', label: 'เช้า', icon: '🌅' },
+                                { id: 'take_lunch', label: 'เที่ยง', icon: '☀️' },
+                                { id: 'take_evening', label: 'เย็น', icon: '🌆' },
+                                { id: 'take_bedtime', label: 'นอน', icon: '🌙' },
+                              ].map(slot => {
+                                const isSelected = drugItem[slot.id] !== undefined ? !!drugItem[slot.id] : !!drug?.[slot.id];
+                                return (
+                                  <button
+                                    key={slot.id}
+                                    onClick={async () => {
+                                      if (staffWorkStatus.prepared) return;
+                                      const newDrugs = [...customer.prescribed_drugs];
+                                      const updatedValue = !isSelected;
+                                      
+                                      if (typeof newDrugs[index] === 'string') {
+                                        newDrugs[index] = { drugId: drugId, quantity: quantity, [slot.id]: updatedValue };
+                                      } else {
+                                        newDrugs[index] = { ...newDrugs[index], [slot.id]: updatedValue };
+                                      }
+
+                                      if (notifId) {
+                                        setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                        return;
+                                      }
+
+                                      try {
+                                        const token = localStorage.getItem('jwt');
+                                        await fetch(API.customerProfiles.update(customerDocumentId), {
+                                          method: 'PUT',
+                                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                          body: JSON.stringify({ data: { prescribed_drugs: newDrugs } })
+                                        });
+                                        setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                      } catch (err) {
+                                        toast.error('บันทึกไม่สำเร็จ');
+                                      }
+                                    }}
+                                    disabled={staffWorkStatus.prepared}
+                                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm' : 'bg-white border-slate-100 text-slate-400 opacity-60'}`}
+                                  >
+                                    <span className="text-sm">{slot.icon}</span>
+                                    <span className="text-[8px] font-black uppercase">{slot.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            <div className="relative border-t border-indigo-100 pt-3">
+                              <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                                หรือระบุเวลาแจ้งเตือนระบุเฉพาะ (Manual)
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="time"
+                                  defaultValue={drugItem.reminder_time || (drug?.suggested_time ? drug.suggested_time.slice(0, 5) : "")}
+                                  onChange={async (e) => {
+                                    const newTime = e.target.value;
+                                    const newDrugs = [...customer.prescribed_drugs];
+                                    if (typeof newDrugs[index] === 'string') {
+                                      newDrugs[index] = { drugId: drugId, quantity: quantity, reminder_time: newTime };
+                                    } else {
+                                      newDrugs[index] = { ...newDrugs[index], reminder_time: newTime };
+                                    }
+
+                                    if (notifId) {
+                                      setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                      return;
+                                    }
+
+                                    try {
+                                      const token = localStorage.getItem('jwt');
+                                      await fetch(API.customerProfiles.update(customerDocumentId), {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                        body: JSON.stringify({ data: { prescribed_drugs: newDrugs } })
+                                      });
+                                      setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                    } catch (err) {
+                                      toast.error('บันทึกเวลาไม่สำเร็จ');
+                                    }
+                                  }}
+                                  disabled={staffWorkStatus.prepared}
+                                  className="w-full bg-white border border-indigo-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-400 outline-none transition-all cursor-pointer"
+                                />
+                              </div>
+                            </div>
+                          </div>
 
                           {/* Action Buttons */}
                           <div className="flex gap-2">

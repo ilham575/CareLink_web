@@ -27,6 +27,35 @@
     "price": {
       "type": "decimal"
     },
+    "suggested_time": {
+      "type": "time"
+    },
+    "take_morning": {
+      "type": "boolean",
+      "default": false
+    },
+    "take_lunch": {
+      "type": "boolean",
+      "default": false
+    },
+    "take_evening": {
+      "type": "boolean",
+      "default": false
+    },
+    "take_bedtime": {
+      "type": "boolean",
+      "default": false
+    },
+    "meal_relation": {
+      "type": "enumeration",
+      "enum": [
+        "before",
+        "after",
+        "with_meal",
+        "none"
+      ],
+      "default": "after"
+    },
     "drug_store": {
       "type": "relation",
       "relation": "manyToOne",

@@ -45,6 +45,7 @@ import VisitHistory from './js/pages/pharmacy/VisitHistory';
 import StaffVisitHistory from './js/pages/staff/StaffVisitHistory';
 import 'antd/dist/reset.css';
 import { API } from './utils/apiConfig';
+import useNotificationListener from './hooks/useNotificationListener';
 
 // Override console.log based on environment/branch
 const isDevelopBranch = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
@@ -57,6 +58,16 @@ if (isDevelopBranch) {
 }
 
 function App() {
+  // Hook for medication reminders
+  const getUser = () => {
+    try {
+        const userStr = localStorage.getItem('user');
+        return userStr ? JSON.parse(userStr) : null;
+    } catch (e) { return null; }
+  };
+  const user = getUser();
+  useNotificationListener(user?.id);
+
   return (
     <Router>
       <div className="App min-h-screen flex flex-col">

@@ -1781,6 +1781,7 @@ function CustomerDetailStaff() {
                         {customer.prescribed_drugs.map((drugItem, index) => {
                           const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
                           const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
+                          const reminderTime = typeof drugItem === 'object' ? drugItem.reminder_time : null;
                           const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
                           const isOutOfStock = staffStatus.outOfStock.includes(drugId);
                           const isPrepared = staffStatus.prepared;
@@ -1840,6 +1841,40 @@ function CustomerDetailStaff() {
                                     )}
                                   </div>
                                 )}
+
+                                <div className="flex flex-wrap gap-2">
+                                  {reminderTime && (
+                                    <span className="bg-indigo-600 text-white px-3 py-1 rounded-xl text-[10px] font-bold shadow-sm flex items-center gap-1">
+                                      ⏰ ระบุเวลา: {reminderTime} น.
+                                    </span>
+                                  )}
+                                  
+                                  {/* Meal Times Display */}
+                                  {(() => {
+                                    const mealMap = { 
+                                      take_morning: 'เช้า', 
+                                      take_lunch: 'เที่ยง', 
+                                      take_evening: 'เย็น', 
+                                      take_bedtime: 'ก่อนนอน' 
+                                    };
+                                    const relationMap = { 
+                                      before: 'ก่อนอาหาร', 
+                                      after: 'หลังอาหาร', 
+                                      with_meal: 'พร้อมอาหาร', 
+                                      none: '' 
+                                    };
+                                    
+                                    const selectedSlots = Object.keys(mealMap).filter(k => drugItem[k] === true);
+                                    if (selectedSlots.length === 0) return null;
+                                    
+                                    const relation = drugItem.meal_relation || 'after';
+                                    return (
+                                      <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-xl text-[10px] font-black border border-amber-200 flex items-center gap-1">
+                                        🥣 {relationMap[relation]} {selectedSlots.map(k => mealMap[k]).join(', ')}
+                                      </span>
+                                    );
+                                  })()}
+                                </div>
                                 
                                 {drug && drug.description && (
                                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">

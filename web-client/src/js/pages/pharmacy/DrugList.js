@@ -253,7 +253,13 @@ export default function DrugList() {
     name_en: '',
     description: '',
     manufacturer: '',
-    price: ''
+    price: '',
+    suggested_time: '',
+    take_morning: false,
+    take_lunch: false,
+    take_evening: false,
+    take_bedtime: false,
+    meal_relation: 'after'
   });
   // Import Tour modal state
   const [importTourOpen, setImportTourOpen] = useState(false);
@@ -799,7 +805,13 @@ export default function DrugList() {
         name_en: drug.name_en || '',
         description: drug.description || '',
         manufacturer: drug.manufacturer || '',
-        price: drug.price ? String(drug.price) : ''
+        price: drug.price ? String(drug.price) : '',
+        suggested_time: drug.suggested_time ? drug.suggested_time.slice(0, 5) : '',
+        take_morning: !!drug.take_morning,
+        take_lunch: !!drug.take_lunch,
+        take_evening: !!drug.take_evening,
+        take_bedtime: !!drug.take_bedtime,
+        meal_relation: drug.meal_relation || 'after'
       });
       setDrugMode('edit');
       setSelectedExistingDrugId(null);
@@ -811,7 +823,13 @@ export default function DrugList() {
         name_en: '',
         description: '',
         manufacturer: '',
-        price: ''
+        price: '',
+        suggested_time: '',
+        take_morning: false,
+        take_lunch: false,
+        take_evening: false,
+        take_bedtime: false,
+        meal_relation: 'after'
       });
       setDrugMode('new');
       setSelectedExistingDrugId(null);
@@ -873,8 +891,11 @@ export default function DrugList() {
   
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -896,10 +917,12 @@ export default function DrugList() {
 
       // prefer documentId for relation (use documentId only)
       const storeRelationId = (store && store.attributes && store.attributes.documentId) ? store.attributes.documentId : id;
+      
       const drugData = {
         ...formData,
         price: parseFloat(formData.price),  // ✅ ต้องแปลงเป็น number
-        drug_store: storeRelationId  // ✅ ต้องส่ง drug_store ในทุก mode!
+        drug_store: storeRelationId,  // ✅ ต้องส่ง drug_store ในทุก mode!
+        suggested_time: formData.suggested_time ? (formData.suggested_time.split(':').length === 2 ? formData.suggested_time + ':00' : formData.suggested_time) : null
       };
 
       if (editingDrug) {
@@ -1697,7 +1720,13 @@ export default function DrugList() {
                                 name_en: selected.name_en || '',
                                 description: selected.description || '',
                                 manufacturer: '',
-                                price: ''
+                                price: '',
+                                suggested_time: selected.suggested_time ? selected.suggested_time.slice(0, 5) : '',
+                                take_morning: !!selected.take_morning,
+                                take_lunch: !!selected.take_lunch,
+                                take_evening: !!selected.take_evening,
+                                take_bedtime: !!selected.take_bedtime,
+                                meal_relation: selected.meal_relation || 'after'
                               });
                             }
                           }
@@ -1790,6 +1819,58 @@ export default function DrugList() {
                         required
                       />
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">฿</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-black text-indigo-600 uppercase tracking-widest leading-none">ช่วงเวลาที่ทาน</label>
+                    <select
+                      name="meal_relation"
+                      value={formData.meal_relation}
+                      onChange={handleInputChange}
+                      className="bg-white border-2 border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold text-indigo-700 outline-none"
+                    >
+                      <option value="before">ก่อนอาหาร</option>
+                      <option value="after">หลังอาหาร</option>
+                      <option value="with_meal">พร้อมอาหาร</option>
+                      <option value="none">ไม่ระบุ</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-3">
+                    {[
+                      { id: 'take_morning', label: 'เช้า', icon: '🌅' },
+                      { id: 'take_lunch', label: 'เที่ยง', icon: '☀️' },
+                      { id: 'take_evening', label: 'เย็น', icon: '🌆' },
+                      { id: 'take_bedtime', label: 'ก่อนนอน', icon: '🌙' },
+                    ].map(item => (
+                      <label key={item.id} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 cursor-pointer transition-all ${formData[item.id] ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200'}`}>
+                        <input
+                          type="checkbox"
+                          name={item.id}
+                          checked={formData[item.id]}
+                          onChange={handleInputChange}
+                          className="hidden"
+                        />
+                        <span className="text-xl">{item.icon}</span>
+                        <span className="text-[10px] font-black uppercase tracking-tighter">{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">หรือระบุเวลาแจ้งเตือนที่ต้องการ (Manual)</label>
+                    <div className="relative">
+                      <input
+                        type="time"
+                        name="suggested_time"
+                        value={formData.suggested_time}
+                        onChange={handleInputChange}
+                        className="w-full bg-white border-2 border-slate-100 rounded-xl p-3 pl-10 text-slate-800 font-bold focus:border-indigo-500 transition-all outline-none text-sm"
+                      />
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">⏰</span>
                     </div>
                   </div>
                 </div>

@@ -64,6 +64,12 @@
     },
     "telegramChatId": {
       "type": "string"
+    },
+    "medication_schedules": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::medication-schedule.medication-schedule",
+      "mappedBy": "customer"
     }
   }
 }
