@@ -29,7 +29,12 @@ function initializeSocketIO(strapiInstance, httpServer) {
 
   const allowedOrigins = process.env.SOCKET_ALLOWED_ORIGINS
     ? process.env.SOCKET_ALLOWED_ORIGINS.split(',')
-    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
+    : [
+        'https://carelink-web-485714.web.app',
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:5173'
+      ];
   
   console.log('[Socket.IO] CORS allowed origins:', allowedOrigins);
 
