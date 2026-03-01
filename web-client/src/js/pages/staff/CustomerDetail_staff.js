@@ -1874,6 +1874,20 @@ function CustomerDetailStaff() {
                                       </span>
                                     );
                                   })()}
+
+                                  {/* Frequency Display */}
+                                  {drugItem.frequency_hours > 0 && (
+                                    <span className="bg-violet-100 text-violet-700 px-3 py-1 rounded-xl text-[10px] font-black border border-violet-200 flex items-center gap-1">
+                                      🔄 ทุก {drugItem.frequency_hours} ชม. ({Math.floor(24 / drugItem.frequency_hours)} ครั้ง/วัน)
+                                    </span>
+                                  )}
+
+                                  {/* Dosage Display */}
+                                  {drugItem.dosage_per_time && (
+                                    <span className="bg-cyan-100 text-cyan-700 px-3 py-1 rounded-xl text-[10px] font-black border border-cyan-200 flex items-center gap-1">
+                                      💊 ครั้งละ {drugItem.dosage_per_time}
+                                    </span>
+                                  )}
                                 </div>
                                 
                                 {drug && drug.description && (

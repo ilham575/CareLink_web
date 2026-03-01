@@ -56,6 +56,14 @@
       ],
       "default": "after"
     },
+    "dosage_per_time": {
+      "type": "string",
+      "default": ""
+    },
+    "frequency_hours": {
+      "type": "integer",
+      "default": 0
+    },
     "drug_store": {
       "type": "relation",
       "relation": "manyToOne",

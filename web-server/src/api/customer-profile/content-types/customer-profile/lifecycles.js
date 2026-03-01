@@ -35,6 +35,11 @@ async function syncSchedules(event) {
 
         const drugName = drug.name_th || drug.name_en || 'Unknown Drug';
         
+        // Build dosage label for notification message
+        const dosageLabel = (typeof drugItem === 'object' && drugItem.dosage_per_time) 
+          ? ` (ครั้งละ ${drugItem.dosage_per_time})` 
+          : (drug.dosage_per_time ? ` (ครั้งละ ${drug.dosage_per_time})` : '');
+        
         // Determine times to schedule
         const times = [];
 
@@ -43,8 +48,16 @@ async function syncSchedules(event) {
           let t = drugItem.reminder_time;
           if (t.split(':').length === 2) t += ':00';
           times.push(t);
-        } 
-        // Case B: Meal-based timing (เช้า เที่ยง เย็น ก่อนนอน)
+        }
+        // Case B: Frequency-based (every X hours)
+        else if (typeof drugItem === 'object' && drugItem.frequency_hours && drugItem.frequency_hours > 0) {
+          const freq = drugItem.frequency_hours;
+          for (let hour = 0; hour < 24; hour += freq) {
+            const hh = String(hour).padStart(2, '0');
+            times.push(`${hh}:00:00`);
+          }
+        }
+        // Case C: Meal-based timing (เช้า เที่ยง เย็น ก่อนนอน)
         else {
           const mealType = drugItem.meal_relation || drug.meal_relation || 'after';
           const timeConfig = mealType === 'before' ? reminderConfig.TIMES.BEFORE_MEAL : reminderConfig.TIMES.AFTER_MEAL;
@@ -68,7 +81,7 @@ async function syncSchedules(event) {
           
           await strapi.entityService.create('api::medication-schedule.medication-schedule', {
             data: {
-              drug_name: drugName,
+              drug_name: drugName + dosageLabel,
               schedule_time: time,
               customer: customerProfileId,
               is_active: true,

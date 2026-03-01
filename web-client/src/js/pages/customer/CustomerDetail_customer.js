@@ -638,15 +638,84 @@ function CustomerDetailCustomer() {
                                           ฿{drug.price} / หน่วย
                                         </span>
                                       )}
-                                      <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-[8px] font-black tracking-widest uppercase">
-                                        ใช้งานปกติ
-                                      </span>
                                     </div>
                                   </div>
                                 </div>
 
+                                {/* Medication Instructions */}
+                                <div className="mt-4 pt-4 border-t border-slate-100 space-y-2.5">
+                                  {/* Meal relation & time slots */}
+                                  {(() => {
+                                    const mealMap = { take_morning: '🌅 เช้า', take_lunch: '☀️ เที่ยง', take_evening: '🌆 เย็น', take_bedtime: '🌙 ก่อนนอน' };
+                                    const relationMap = { before: 'ก่อนอาหาร', after: 'หลังอาหาร', with_meal: 'พร้อมอาหาร', none: '' };
+                                    const selectedSlots = Object.keys(mealMap).filter(k => drugItem[k] === true);
+                                    const relation = drugItem.meal_relation;
+                                    
+                                    if (selectedSlots.length === 0 && !relation) return null;
+                                    
+                                    return (
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {relation && relation !== 'none' && (
+                                          <span className="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-xl text-[10px] font-black border border-amber-100">
+                                            🥣 {relationMap[relation]}
+                                          </span>
+                                        )}
+                                        {selectedSlots.map(k => (
+                                          <span key={k} className="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-bold border border-indigo-100">
+                                            {mealMap[k]}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
+
+                                  {/* Reminder time */}
+                                  {drugItem.reminder_time && (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-bold border border-emerald-100">
+                                        ⏰ แจ้งเตือนเวลา {drugItem.reminder_time} น.
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* Frequency */}
+                                  {drugItem.frequency_hours > 0 && (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="px-2.5 py-1 bg-violet-50 text-violet-700 rounded-xl text-[10px] font-bold border border-violet-100">
+                                        🔄 ทานทุก {drugItem.frequency_hours} ชั่วโมง ({Math.floor(24 / drugItem.frequency_hours)} ครั้ง/วัน)
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* Dosage */}
+                                  {drugItem.dosage_per_time && (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="px-2.5 py-1 bg-cyan-50 text-cyan-700 rounded-xl text-[10px] font-bold border border-cyan-100">
+                                        💊 ครั้งละ {drugItem.dosage_per_time}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* If no instructions at all */}
+                                  {(() => {
+                                    const hasSlots = ['take_morning', 'take_lunch', 'take_evening', 'take_bedtime'].some(k => drugItem[k] === true);
+                                    const hasRelation = drugItem.meal_relation && drugItem.meal_relation !== 'none';
+                                    const hasTime = drugItem.reminder_time;
+                                    const hasFreq = drugItem.frequency_hours > 0;
+                                    const hasDosage = drugItem.dosage_per_time;
+                                    if (!hasSlots && !hasRelation && !hasTime && !hasFreq && !hasDosage) {
+                                      return (
+                                        <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-[8px] font-black tracking-widest uppercase">
+                                          ใช้งานตามคำแนะนำ
+                                        </span>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                </div>
+
                                 {drug && drug.description && (
-                                  <div className="mt-4 pt-4 border-t border-slate-50 italic">
+                                  <div className="mt-3 pt-3 border-t border-slate-50 italic">
                                     <p className="text-xs text-slate-500 leading-relaxed font-medium line-clamp-2">"{drug.description}"</p>
                                   </div>
                                 )}

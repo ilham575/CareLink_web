@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
 import HomeHeader from '../../components/HomeHeader';
+import DrugNotificationModal from '../../components/DrugNotificationModal';
 // Footer is rendered globally in App.js
 import 'react-toastify/dist/ReactToastify.css';
 import { Modal, DatePicker, Tabs } from 'antd';
@@ -90,6 +91,23 @@ function CustomerDetail() {
     availableDrugs: [],
     selectedDrugs: [],
     filterBy: 'all'
+  });
+  // Modal สำหรับตั้งค่าเวลาทานยา (แยกออกมา)
+  const [drugNotificationModal, setDrugNotificationModal] = useState({
+    open: false,
+    drug: null,
+    drugId: null,
+    take_morning: false,
+    take_lunch: false,
+    take_evening: false,
+    take_bedtime: false,
+    meal_relation: 'after',
+    reminder_time: '',
+    quantity: 1,
+    dosage_per_time: '',
+    frequency_hours: 0,
+    useDefaults: true,
+    drugDefaults: {}
   });
   // IDs of drugs reported out-of-stock by staff (used to update the prescribed-drugs tab)
   const [outOfStockIds, setOutOfStockIds] = useState([]);
@@ -1015,6 +1033,20 @@ function CustomerDetail() {
       toast.error('ไม่สามารถแก้ไขยาได้ เนื่องจากพนักงานจัดส่งยาเรียบร้อยแล้ว');
       return;
     }
+    // ✅ Validation: ตรวจสอบว่าแต่ละยามีการระบุเวลาทาน (บังคับสำหรับการจ่ายยาให้ลูกค้า)
+    const drugsWithoutNotif = addDrugModal.selectedDrugs.filter(item => {
+      const hasSlot = item.take_morning || item.take_lunch || item.take_evening || item.take_bedtime;
+      const hasTime = item.reminder_time && String(item.reminder_time).trim() !== '';
+      return !hasSlot && !hasTime;
+    });
+    if (drugsWithoutNotif.length > 0) {
+      const names = drugsWithoutNotif.map(item => {
+        const drug = addDrugModal.availableDrugs.find(d => d.documentId === (typeof item === 'string' ? item : item.drugId));
+        return drug ? drug.name_th : 'ไม่ระบุชื่อ';
+      });
+      toast.error(`กรุณาระบุเวลาทานยา (เลือกช่วงเวลา หรือระบุเวลาเอง) สำหรับ: ${names.join(', ')}`);
+      return;
+    }
     try {
       const token = localStorage.getItem('jwt');
       
@@ -1031,7 +1063,9 @@ function CustomerDetail() {
           take_lunch: typeof item === 'object' ? !!item.take_lunch : !!drugInfo?.take_lunch,
           take_evening: typeof item === 'object' ? !!item.take_evening : !!drugInfo?.take_evening,
           take_bedtime: typeof item === 'object' ? !!item.take_bedtime : !!drugInfo?.take_bedtime,
-          meal_relation: typeof item === 'object' ? (item.meal_relation || drugInfo?.meal_relation || 'after') : (drugInfo?.meal_relation || 'after')
+          meal_relation: typeof item === 'object' ? (item.meal_relation || drugInfo?.meal_relation || 'after') : (drugInfo?.meal_relation || 'after'),
+          dosage_per_time: typeof item === 'object' ? (item.dosage_per_time || drugInfo?.dosage_per_time || '') : (drugInfo?.dosage_per_time || ''),
+          frequency_hours: typeof item === 'object' ? (item.frequency_hours || drugInfo?.frequency_hours || 0) : (drugInfo?.frequency_hours || 0)
         };
       });
       
@@ -2642,7 +2676,6 @@ function CustomerDetail() {
                     {customer.prescribed_drugs.map((drugItem, index) => {
                       const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
                       const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
-                      const reminderTime = typeof drugItem === 'object' ? (drugItem.reminder_time || (drug?.suggested_time ? drug.suggested_time.slice(0, 5) : '')) : '';
                       const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
                       const isOutOfStock = (
                         Array.isArray(outOfStockIds) && outOfStockIds.includes(drugId)
@@ -2841,6 +2874,93 @@ function CustomerDetail() {
                                   className="w-full bg-white border border-indigo-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-400 outline-none transition-all cursor-pointer"
                                 />
                               </div>
+                            </div>
+                          </div>
+
+                          {/* Dosage & Frequency Controls */}
+                          <div className="bg-violet-50/50 rounded-2xl border border-violet-100 p-4 space-y-3 mb-4">
+                            {/* Frequency */}
+                            <div className="flex items-center justify-between gap-3">
+                              <label className="text-[10px] font-black text-violet-600 uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
+                                🔄 ทานทุกกี่ชม.
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="24"
+                                  defaultValue={drugItem.frequency_hours || drug?.frequency_hours || ''}
+                                  onChange={async (e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    const newDrugs = [...customer.prescribed_drugs];
+                                    if (typeof newDrugs[index] === 'string') {
+                                      newDrugs[index] = { drugId: drugId, quantity: quantity, frequency_hours: val };
+                                    } else {
+                                      newDrugs[index] = { ...newDrugs[index], frequency_hours: val };
+                                    }
+                                    if (notifId) {
+                                      setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                      return;
+                                    }
+                                    try {
+                                      const token = localStorage.getItem('jwt');
+                                      await fetch(API.customerProfiles.update(customerDocumentId), {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                        body: JSON.stringify({ data: { prescribed_drugs: newDrugs } })
+                                      });
+                                      setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                    } catch (err) {
+                                      toast.error('บันทึกไม่สำเร็จ');
+                                    }
+                                  }}
+                                  disabled={staffWorkStatus.prepared}
+                                  placeholder="0"
+                                  className="w-16 bg-white border border-violet-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-violet-400 outline-none text-center"
+                                />
+                                <span className="text-[10px] font-bold text-slate-400">ชม.</span>
+                              </div>
+                            </div>
+                            {(drugItem.frequency_hours > 0) && (
+                              <p className="text-[10px] text-violet-500 font-bold">💡 ทานยาทุก {drugItem.frequency_hours} ชั่วโมง ({Math.floor(24 / drugItem.frequency_hours)} ครั้ง/วัน)</p>
+                            )}
+
+                            {/* Dosage per time */}
+                            <div className="flex items-center justify-between gap-3 border-t border-violet-100 pt-3">
+                              <label className="text-[10px] font-black text-violet-600 uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
+                                💊 ครั้งละ
+                              </label>
+                              <input
+                                type="text"
+                                defaultValue={drugItem.dosage_per_time || drug?.dosage_per_time || ''}
+                                onChange={async (e) => {
+                                  const val = e.target.value;
+                                  const newDrugs = [...customer.prescribed_drugs];
+                                  if (typeof newDrugs[index] === 'string') {
+                                    newDrugs[index] = { drugId: drugId, quantity: quantity, dosage_per_time: val };
+                                  } else {
+                                    newDrugs[index] = { ...newDrugs[index], dosage_per_time: val };
+                                  }
+                                  if (notifId) {
+                                    setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                    return;
+                                  }
+                                  try {
+                                    const token = localStorage.getItem('jwt');
+                                    await fetch(API.customerProfiles.update(customerDocumentId), {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                      body: JSON.stringify({ data: { prescribed_drugs: newDrugs } })
+                                    });
+                                    setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                  } catch (err) {
+                                    toast.error('บันทึกไม่สำเร็จ');
+                                  }
+                                }}
+                                disabled={staffWorkStatus.prepared}
+                                placeholder="เช่น 1 เม็ด, 2 ช้อนชา"
+                                className="w-40 bg-white border border-violet-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-violet-400 outline-none placeholder:font-medium placeholder:text-slate-300"
+                              />
                             </div>
                           </div>
 
@@ -3597,8 +3717,8 @@ function CustomerDetail() {
                     if (Array.isArray(raw)) {
                       // New format: array of { drug, symptoms, date } or just strings
                       return raw.map(item => {
-                        const drug = typeof item === 'string' ? item : (item?.drug || '');
-                        return String(drug).toLowerCase();
+                        const allergyDrug = typeof item === 'string' ? item : (item?.drug || '');
+                        return String(allergyDrug).toLowerCase();
                       }).filter(Boolean);
                     }
                     if (typeof raw === 'object') {
@@ -3613,8 +3733,8 @@ function CustomerDetail() {
                         // JSON array
                         const parsed = JSON.parse(s);
                         return parsed.map(item => {
-                          const drug = typeof item === 'string' ? item : (item?.drug || '');
-                          return String(drug).toLowerCase();
+                          const allergyDrug = typeof item === 'string' ? item : (item?.drug || '');
+                          return String(allergyDrug).toLowerCase();
                         }).filter(Boolean);
                       }
                       if (s.startsWith('{')) {
@@ -3734,13 +3854,26 @@ function CustomerDetail() {
                                 return newQuantities;
                               });
                             } else {
-                              // เพิ่มเข้า selectedDrugs
-                              setAddDrugModal(prev => ({
-                                ...prev,
-                                selectedDrugs: [...prev.selectedDrugs, { drugId: drug.documentId, quantity: 1 }]
-                              }));
-                              // เพิ่มเข้า quantities
-                              setDrugQuantities(prev => ({ ...prev, [drug.documentId]: 1 }));
+                              // เปิด Modal ตั้งค่าเวลาทาน (Notification Settings)
+                              const _defaults = {
+                                take_morning: !!drug.take_morning,
+                                take_lunch: !!drug.take_lunch,
+                                take_evening: !!drug.take_evening,
+                                take_bedtime: !!drug.take_bedtime,
+                                meal_relation: drug.meal_relation || 'after',
+                                reminder_time: drug.suggested_time ? drug.suggested_time.slice(0, 5) : '',
+                                dosage_per_time: drug.dosage_per_time || '',
+                                frequency_hours: drug.frequency_hours || 0
+                              };
+                              setDrugNotificationModal({
+                                open: true,
+                                drug,
+                                drugId: drug.documentId,
+                                ...Object.fromEntries(Object.entries(_defaults)),
+                                quantity: 1,
+                                useDefaults: true,
+                                drugDefaults: _defaults
+                              });
                             }
                           }}
                         >
@@ -4266,6 +4399,15 @@ function CustomerDetail() {
           </div>
         )}
       </Modal>
+
+      {/* Modal สำหรับตั้งค่าเวลาทานยา (Notification Settings) - Extracted to component */}
+      <DrugNotificationModal
+        drugNotificationModal={drugNotificationModal}
+        setDrugNotificationModal={setDrugNotificationModal}
+        addDrugModal={addDrugModal}
+        setAddDrugModal={setAddDrugModal}
+        setDrugQuantities={setDrugQuantities}
+      />
 
       {/* Staff Work Status Update Modal - REMOVED: Pharmacy should not update staff status, only view it */}
       {/* Modal removed because pharmacy view should only display status, not update it */}

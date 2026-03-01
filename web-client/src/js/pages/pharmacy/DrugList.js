@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
+import DrugNotificationSettingsModal from '../../components/DrugNotificationSettingsModal';
 import { API } from '../../../utils/apiConfig';
 
 /* eslint-disable no-undef */
@@ -259,7 +260,9 @@ export default function DrugList() {
     take_lunch: false,
     take_evening: false,
     take_bedtime: false,
-    meal_relation: 'after'
+    meal_relation: 'after',
+    dosage_per_time: '',
+    frequency_hours: 0
   });
   // Import Tour modal state
   const [importTourOpen, setImportTourOpen] = useState(false);
@@ -811,7 +814,9 @@ export default function DrugList() {
         take_lunch: !!drug.take_lunch,
         take_evening: !!drug.take_evening,
         take_bedtime: !!drug.take_bedtime,
-        meal_relation: drug.meal_relation || 'after'
+        meal_relation: drug.meal_relation || 'after',
+        dosage_per_time: drug.dosage_per_time || '',
+        frequency_hours: drug.frequency_hours || 0
       });
       setDrugMode('edit');
       setSelectedExistingDrugId(null);
@@ -829,7 +834,9 @@ export default function DrugList() {
         take_lunch: false,
         take_evening: false,
         take_bedtime: false,
-        meal_relation: 'after'
+        meal_relation: 'after',
+        dosage_per_time: '',
+        frequency_hours: 0
       });
       setDrugMode('new');
       setSelectedExistingDrugId(null);
@@ -1057,6 +1064,65 @@ export default function DrugList() {
 
   // modal open/close animation for main add/edit modal
   const [showModalClosing, setShowModalClosing] = useState(false);
+  // Notification settings sub-modal state
+  const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
+  const [notifEditDrug, setNotifEditDrug] = useState(null); // drug being edited via notification modal
+  const [notifFormData, setNotifFormData] = useState({ take_morning: false, take_lunch: false, take_evening: false, take_bedtime: false, meal_relation: 'after', suggested_time: '', dosage_per_time: '', frequency_hours: 0 });
+  const [notifSaving, setNotifSaving] = useState(false);
+
+  const handleOpenNotifModal = (drug) => {
+    setNotifEditDrug(drug);
+    setNotifFormData({
+      take_morning: !!drug.take_morning,
+      take_lunch: !!drug.take_lunch,
+      take_evening: !!drug.take_evening,
+      take_bedtime: !!drug.take_bedtime,
+      meal_relation: drug.meal_relation || 'after',
+      suggested_time: drug.suggested_time ? drug.suggested_time.slice(0, 5) : '',
+      dosage_per_time: drug.dosage_per_time || '',
+      frequency_hours: drug.frequency_hours || 0
+    });
+    setNotifSettingsOpen(true);
+  };
+
+  const handleNotifInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setNotifFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  };
+
+  const handleSaveNotifSettings = async () => {
+    if (!notifEditDrug) return;
+    setNotifSaving(true);
+    try {
+      const drugKey = getDrugKey(notifEditDrug);
+      const payload = {
+        take_morning: notifFormData.take_morning,
+        take_lunch: notifFormData.take_lunch,
+        take_evening: notifFormData.take_evening,
+        take_bedtime: notifFormData.take_bedtime,
+        meal_relation: notifFormData.meal_relation,
+        suggested_time: notifFormData.suggested_time
+          ? (notifFormData.suggested_time.split(':').length === 2 ? notifFormData.suggested_time + ':00' : notifFormData.suggested_time)
+          : null,
+        dosage_per_time: notifFormData.dosage_per_time || '',
+        frequency_hours: parseInt(notifFormData.frequency_hours) || 0
+      };
+      const res = await fetch(API.drugs.update(drugKey), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ data: payload })
+      });
+      if (!res.ok) throw new Error('save failed');
+      // patch local state
+      setDrugs(prev => prev.map(d => getDrugKey(d) === drugKey ? { ...d, ...payload } : d));
+      showSuccess('บันทึกการแจ้งเตือนสำเร็จ');
+      setNotifSettingsOpen(false);
+    } catch {
+      showError('เกิดข้อผิดพลาดในการบันทึกการแจ้งเตือน');
+    } finally {
+      setNotifSaving(false);
+    }
+  };
 
   // Batch handlers
   const handleSaveBatch = async (e) => {
@@ -1528,6 +1594,13 @@ export default function DrugList() {
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                               </button>
                               <button 
+                                className="p-2.5 bg-slate-50 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-2xl transition-all duration-300 border border-transparent hover:border-violet-100"
+                                onClick={() => handleOpenNotifModal(drug)}
+                                title="ตั้งค่าการแจ้งเตือน"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                              </button>
+                              <button 
                                 className="p-2.5 bg-slate-50 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all duration-300 border border-transparent hover:border-rose-100"
                                 onClick={() => handleDelete(drugKey)}
                                 title="ลบรายการยา"
@@ -1726,7 +1799,9 @@ export default function DrugList() {
                                 take_lunch: !!selected.take_lunch,
                                 take_evening: !!selected.take_evening,
                                 take_bedtime: !!selected.take_bedtime,
-                                meal_relation: selected.meal_relation || 'after'
+                                meal_relation: selected.meal_relation || 'after',
+                                dosage_per_time: selected.dosage_per_time || '',
+                                frequency_hours: selected.frequency_hours || 0
                               });
                             }
                           }
@@ -1823,58 +1898,6 @@ export default function DrugList() {
                   </div>
                 </div>
 
-                <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-black text-indigo-600 uppercase tracking-widest leading-none">ช่วงเวลาที่ทาน</label>
-                    <select
-                      name="meal_relation"
-                      value={formData.meal_relation}
-                      onChange={handleInputChange}
-                      className="bg-white border-2 border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold text-indigo-700 outline-none"
-                    >
-                      <option value="before">ก่อนอาหาร</option>
-                      <option value="after">หลังอาหาร</option>
-                      <option value="with_meal">พร้อมอาหาร</option>
-                      <option value="none">ไม่ระบุ</option>
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-3">
-                    {[
-                      { id: 'take_morning', label: 'เช้า', icon: '🌅' },
-                      { id: 'take_lunch', label: 'เที่ยง', icon: '☀️' },
-                      { id: 'take_evening', label: 'เย็น', icon: '🌆' },
-                      { id: 'take_bedtime', label: 'ก่อนนอน', icon: '🌙' },
-                    ].map(item => (
-                      <label key={item.id} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 cursor-pointer transition-all ${formData[item.id] ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200'}`}>
-                        <input
-                          type="checkbox"
-                          name={item.id}
-                          checked={formData[item.id]}
-                          onChange={handleInputChange}
-                          className="hidden"
-                        />
-                        <span className="text-xl">{item.icon}</span>
-                        <span className="text-[10px] font-black uppercase tracking-tighter">{item.label}</span>
-                      </label>
-                    ))}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">หรือระบุเวลาแจ้งเตือนที่ต้องการ (Manual)</label>
-                    <div className="relative">
-                      <input
-                        type="time"
-                        name="suggested_time"
-                        value={formData.suggested_time}
-                        onChange={handleInputChange}
-                        className="w-full bg-white border-2 border-slate-100 rounded-xl p-3 pl-10 text-slate-800 font-bold focus:border-indigo-500 transition-all outline-none text-sm"
-                      />
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">⏰</span>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="flex gap-3 pt-4">
                   <button 
                     type="button" 
@@ -1894,6 +1917,16 @@ export default function DrugList() {
             </div>
           </div>
         )}
+
+        <DrugNotificationSettingsModal
+          open={notifSettingsOpen}
+          onClose={() => setNotifSettingsOpen(false)}
+          onSave={handleSaveNotifSettings}
+          formData={notifFormData}
+          handleInputChange={handleNotifInputChange}
+          drugName={notifEditDrug ? (notifEditDrug.name_th || notifEditDrug.name_en) : undefined}
+          saving={notifSaving}
+        />
 
         {(confirmDialog.visible || confirmDialog.closing) && (
           <div 

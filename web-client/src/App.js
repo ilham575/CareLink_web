@@ -71,6 +71,7 @@ function App() {
   return (
     <Router>
       <div className="App min-h-screen flex flex-col">
+        <div className="flex-1">
         <Routes>
           {/* Root path - จะ redirect ตาม role หรือแสดง Home */}
           <Route path="/" element={<RoleBasedRedirect />} />
@@ -148,6 +149,7 @@ function App() {
             <Route path="/print_allergy_card/:customerDocumentId" element={<PrintAllergyCard />} />
           </Route>
         </Routes>
+        </div>
         <Footer />
         {/* Global Toast Container to persist across navigation */}
         <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnHover />

@@ -1034,7 +1034,7 @@ function EditPharmacist_admin() {
   };
 
   return (
-    <>
+    <div className="min-h-screen bg-slate-50 pb-12">
       <HomeHeader 
         pharmacyName={
           userRole === "admin" && currentStoreName 
@@ -1044,380 +1044,450 @@ function EditPharmacist_admin() {
             : undefined
         }
       />
-      <div className="max-w-3xl mx-auto bg-white shadow-md rounded-lg p-6 mt-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-green-700">
-            {isOwnerEdit ? "แก้ไขโปรไฟล์ของฉัน" : "แก้ไขข้อมูลเภสัชกร"}
-          </h2>
-          
-          {/* 👉 ปุ่มให้แอดมิน ดูเวลาทำงานทั้งหมดเมื่อเภสัชกรทำงานหลายร้าน */}
-          {userRole === "admin" && allProfiles.length > 1 && (
-            <button
-              type="button"
-              onClick={() => setShowWorkTimesModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
-            >
-              ดูเวลาทำงานทั้งหมด
-            </button>
-          )}
-        </div>
-
-        {/* กรณี pharmacy มีหลายร้าน ให้เลือก dropdown */}
-        {userRole === "pharmacy" && drugStores.length > 1 && ( /* เปลี่ยนเงื่อนไข */
-          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <label className="block font-semibold mb-1 text-blue-700">
-              เลือกร้านยาที่ต้องการแก้ไขเวลาเข้างาน
-            </label>
-            <select
-              className="border rounded p-2 w-full"
-              value={selectedDrugStore || ""}
-              onChange={(e) => setSelectedDrugStore(e.target.value)}
-            >
-              <option value="" disabled>
-                -- เลือกร้านยา --
-              </option>
-              {drugStores.map((store, index) => ( /* เปลี่ยนจาก allProfiles เป็น drugStores */
-                <option key={store.id || index} value={store.id}>
-                  {store.name.startsWith("ร้านยา") ? store.name : `ร้านยา${store.name}`}
-                </option>
-              ))}
-            </select>
-            <div className="text-sm text-blue-600 mt-2 p-2 bg-blue-50 rounded">
-              ⚠️ <strong>สำคัญ:</strong> การแก้ไขเวลาทำงานจะมีผลเฉพาะร้านที่เลือกเท่านั้น 
-              และจะไม่กระทบกับเวลาทำงานในร้านอื่นๆ
-            </div>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pb-6 border-b border-slate-100">
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              {isOwnerEdit ? "แก้ไขโปรไฟล์ของฉัน" : "แก้ไขข้อมูลเภสัชกร"}
+            </h2>
+            
+            {/* 👉 ปุ่มให้แอดมิน ดูเวลาทำงานทั้งหมดเมื่อเภสัชกรทำงานหลายร้าน */}
+            {userRole === "admin" && allProfiles.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setShowWorkTimesModal(true)}
+                className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-colors font-medium text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                ดูเวลาทำงานทั้งหมด
+              </button>
+            )}
           </div>
-        )}
 
-        {/* แสดงรายการร้านที่ทำงาน (สำหรับกรณีแก้ไขตัวเอง) */}
-        {isOwnerEdit && drugStores.length > 0 && (
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h3 className="text-lg font-semibold text-blue-700 mb-3">
-              ร้านยาที่คุณทำงาน ({drugStores.length} ร้าน)
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {drugStores.map((store, index) => (
-                <div key={store.id || index} className="bg-white p-3 rounded border shadow-sm">
-                  <div className="flex items-center">
-                    <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-800 text-xs font-medium rounded-full mr-2">
+          {/* กรณี pharmacy มีหลายร้าน ให้เลือก dropdown */}
+          {userRole === "pharmacy" && drugStores.length > 1 && (
+            <div className="mb-8 p-5 bg-amber-50 border border-amber-200 rounded-xl">
+              <label className="block font-semibold mb-2 text-amber-800 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                เลือกร้านยาที่ต้องการแก้ไขเวลาเข้างาน
+              </label>
+              <select
+                className="w-full border border-amber-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all"
+                value={selectedDrugStore || ""}
+                onChange={(e) => setSelectedDrugStore(e.target.value)}
+              >
+                <option value="" disabled>
+                  -- เลือกร้านยา --
+                </option>
+                {drugStores.map((store, index) => (
+                  <option key={store.id || index} value={store.id}>
+                    {store.name.startsWith("ร้านยา") ? store.name : `ร้านยา${store.name}`}
+                  </option>
+                ))}
+              </select>
+              <div className="text-sm text-amber-700 mt-3 flex items-start gap-2">
+                <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span><strong>สำคัญ:</strong> การแก้ไขเวลาทำงานจะมีผลเฉพาะร้านที่เลือกเท่านั้น และจะไม่กระทบกับเวลาทำงานในร้านอื่นๆ</span>
+              </div>
+            </div>
+          )}
+
+          {/* แสดงรายการร้านที่ทำงาน (สำหรับกรณีแก้ไขตัวเอง) */}
+          {isOwnerEdit && drugStores.length > 0 && (
+            <div className="mb-8 p-5 bg-indigo-50 rounded-xl border border-indigo-100">
+              <h3 className="text-lg font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                ร้านยาที่คุณทำงาน ({drugStores.length} ร้าน)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {drugStores.map((store, index) => (
+                  <div key={store.id || index} className="bg-white p-3.5 rounded-lg border border-indigo-100 shadow-sm flex items-center">
+                    <span className="inline-flex items-center justify-center w-7 h-7 bg-indigo-100 text-indigo-700 text-sm font-bold rounded-full mr-3 shrink-0">
                       {index + 1}
                     </span>
-                    <span className="font-medium text-gray-800">
+                    <span className="font-medium text-slate-700 truncate">
                       {store.name.startsWith('ร้านยา') ? store.name : `ร้านยา${store.name}`}
                     </span>
                   </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 text-sm text-blue-600">
-              💡 ข้อมูลที่คุณแก้ไขจะมีผลกับทุกร้านที่คุณทำงาน
-            </div>
-          </div>
-        )}
-
-        <form
-          className="grid grid-cols-1 md:grid-cols-2 gap-6"
-          onSubmit={handleSubmit}
-        >
-          {/* Profile Image */}
-          <div className="md:col-span-2">
-            <label className="block font-semibold mb-1">รูปโปรไฟล์</label>
-            <div className="space-y-4">
-              {imagePreview && (
-                <div className="flex justify-center">
-                  <img
-                    src={imagePreview}
-                    alt="Profile Preview"
-                    className="w-32 h-32 object-cover rounded-full border-4 border-gray-300"
-                  />
-                </div>
-              )}
-              <div className="flex justify-center">
-                <label className="bg-gray-200 px-4 py-2 rounded cursor-pointer hover:bg-gray-300">
-                  เลือกรูปภาพ
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                </label>
+                ))}
+              </div>
+              <div className="mt-4 text-sm text-indigo-600 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                ข้อมูลที่คุณแก้ไขจะมีผลกับทุกร้านที่คุณทำงาน
               </div>
             </div>
-          </div>
+          )}
 
-          {/* User Info */}
-          <div>
-            <label className="block font-semibold mb-1">ชื่อ*</label>
-            <input
-              type="text"
-              name="firstname"
-              value={formData.firstname}
-              onChange={handleChange}
-              className="w-full border rounded p-2"
-              required
-            />
-          </div>
-          <div>
-            <label className="block font-semibold mb-1">นามสกุล*</label>
-            <input
-              type="text"
-              name="lastname"
-              value={formData.lastname}
-              onChange={handleChange}
-              className="w-full border rounded p-2"
-              required
-            />
-          </div>
-          <div>
-            <label className="block font-semibold mb-1">เบอร์โทรศัพท์*</label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className="w-full border rounded p-2"
-              required
-              pattern="[0-9]+"
-              inputMode="numeric"
-            />
-          </div>
-          <div>
-            <label className="block font-semibold mb-1">USERNAME*</label>
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              className="w-full border rounded p-2"
-              required
-            />
-          </div>
-          <div>
-            <label className="block font-semibold mb-1">PASSWORD*</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full border rounded p-2"
-              required
-            />
-          </div>
+          <form className="space-y-8" onSubmit={handleSubmit}>
+            {/* Profile Image */}
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">รูปโปรไฟล์</h3>
+              <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6">
+                <div className="relative w-32 h-32 shrink-0">
+                  {imagePreview ? (
+                    <img
+                      src={imagePreview}
+                      alt="Profile Preview"
+                      className="w-full h-full object-cover rounded-2xl border-2 border-slate-200 shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-slate-100 rounded-2xl flex items-center justify-center border-2 border-slate-200 border-dashed">
+                      <svg className="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col justify-center h-32">
+                  <label className="inline-flex items-center justify-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors shadow-sm font-medium">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    อัปโหลดรูปภาพใหม่
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                  </label>
+                  <p className="text-xs text-slate-500 mt-2">รองรับไฟล์ JPG, PNG ขนาดไม่เกิน 5MB</p>
+                </div>
+              </div>
+            </div>
 
-          {/* Pharmacy Profile */}
-          <div className="md:col-span-2">
-            <label className="block font-semibold mb-1">เลขที่ใบอนุญาต*</label>
-            <input
-              type="text"
-              name="license_number"
-              value={formData.license_number}
-              onChange={handleChange}
-              className="w-full border rounded p-2"
-              required
-            />
-          </div>
+            {/* User Info */}
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">ข้อมูลส่วนตัว</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">ชื่อ <span className="text-rose-500">*</span></label>
+                  <input
+                    type="text"
+                    name="firstname"
+                    value={formData.firstname}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-slate-50 focus:bg-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">นามสกุล <span className="text-rose-500">*</span></label>
+                  <input
+                    type="text"
+                    name="lastname"
+                    value={formData.lastname}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-slate-50 focus:bg-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">เบอร์โทรศัพท์ <span className="text-rose-500">*</span></label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-slate-50 focus:bg-white"
+                    required
+                    pattern="[0-9]+"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">เลขที่ใบอนุญาต <span className="text-rose-500">*</span></label>
+                  <input
+                    type="text"
+                    name="license_number"
+                    value={formData.license_number}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-slate-50 focus:bg-white"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
 
-          {/* Working Times */}
-          <div className="md:col-span-2">
-            <label className="block font-semibold mb-2">วันและเวลาเข้างาน*</label>
-            
-            {/* Bulk Add Section */}
-            <div className="mb-4 p-4 bg-gray-50 rounded">
-              <h4 className="font-medium mb-2">เพิ่มเวลาเดียวกันสำหรับหลายวัน</h4>
-              <div className="grid grid-cols-7 gap-2 mb-2">
-                {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].map(day => (
-                  <label key={day} className="flex items-center gap-1">
+            {/* Account Info */}
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">ข้อมูลบัญชีผู้ใช้</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">ชื่อผู้ใช้งาน (Username) <span className="text-rose-500">*</span></label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-slate-50 focus:bg-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">รหัสผ่าน (Password) <span className="text-rose-500">*</span></label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-slate-50 focus:bg-white"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Working Times */}
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">วันและเวลาเข้างาน</h3>
+              
+              {/* Bulk Add Section */}
+              <div className="mb-6 p-5 bg-slate-50 border border-slate-200 rounded-xl">
+                <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  เพิ่มเวลาเดียวกันสำหรับหลายวัน
+                </h4>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].map(day => (
+                    <label key={day} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer transition-colors ${selectedDays.includes(day) ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                      <input
+                        type="checkbox"
+                        checked={selectedDays.includes(day)}
+                        onChange={(e) => handleDaySelection(day, e.target.checked)}
+                        className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm font-medium">{day}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <input
+                      type="time"
+                      value={bulkTimeIn}
+                      onChange={(e) => setBulkTimeIn(e.target.value)}
+                      className="border border-slate-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none flex-1 sm:w-32"
+                    />
+                    <span className="text-slate-400 font-medium">ถึง</span>
+                    <input
+                      type="time"
+                      value={bulkTimeOut}
+                      onChange={(e) => setBulkTimeOut(e.target.value)}
+                      className="border border-slate-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none flex-1 sm:w-32"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addBulkWorkingTime}
+                    className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm"
+                  >
+                    เพิ่มช่วงเวลา
+                  </button>
+                </div>
+              </div>
+
+              {/* Individual Working Times List */}
+              {formData.working_times && formData.working_times.length > 0 ? (
+                <div className="space-y-3">
+                  <h4 className="font-bold text-slate-700 mb-2">ตารางเวลาทำงานปัจจุบัน</h4>
+                  {formData.working_times.map((item, index) => (
+                    <div key={index} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+                      <select
+                        value={item.day}
+                        onChange={(e) =>
+                          handleWorkingTimeChange(index, "day", e.target.value)
+                        }
+                        className="w-full sm:w-40 border border-slate-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50"
+                      >
+                        <option value="จันทร์">จันทร์</option>
+                        <option value="อังคาร">อังคาร</option>
+                        <option value="พุธ">พุธ</option>
+                        <option value="พฤหัสบดี">พฤหัสบดี</option>
+                        <option value="ศุกร์">ศุกร์</option>
+                        <option value="เสาร์">เสาร์</option>
+                        <option value="อาทิตย์">อาทิตย์</option>
+                      </select>
+
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <input
+                          type="time"
+                          value={item.time_in || ""}
+                          onChange={(e) =>
+                            handleWorkingTimeChange(index, "time_in", e.target.value)
+                          }
+                          className="border border-slate-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none flex-1 sm:w-32 bg-slate-50"
+                        />
+                        <span className="text-slate-400 font-medium">-</span>
+                        <input
+                          type="time"
+                          value={item.time_out || ""}
+                          onChange={(e) =>
+                            handleWorkingTimeChange(index, "time_out", e.target.value)
+                          }
+                          className="border border-slate-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none flex-1 sm:w-32 bg-slate-50"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeWorkingTime(index)}
+                        className="w-full sm:w-auto mt-2 sm:mt-0 sm:ml-auto text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        ลบ
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-slate-50 border border-slate-200 border-dashed rounded-xl mb-4">
+                  <svg className="w-12 h-12 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-slate-500 font-medium">ยังไม่มีเวลาทำงาน กรุณาเพิ่มเวลาทำงาน</p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={addWorkingTime}
+                className="mt-4 inline-flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors shadow-sm font-medium text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                </svg>
+                เพิ่มวัน/เวลา แยก
+              </button>
+            </div>
+
+            {/* Services */}
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">การให้บริการ</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-5 bg-slate-50 border border-slate-200 rounded-xl">
+                {[
+                  { key: "sell_products", label: "จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ" },
+                  { key: "consulting", label: "ให้คำปรึกษาทางเภสัชกรรม" },
+                  { key: "wholesale", label: "ขายปลีกและขายส่ง" },
+                  { key: "delivery", label: "บริการจัดส่งกล่องยาสามัญประจำบ้าน" },
+                ].map((s) => (
+                  <label key={s.key} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-indigo-300 transition-colors">
                     <input
                       type="checkbox"
-                      checked={selectedDays.includes(day)}
-                      onChange={(e) => handleDaySelection(day, e.target.checked)}
-                      className="w-4 h-4"
+                      name={s.key}
+                      checked={formData.services[s.key]}
+                      onChange={handleChange}
+                      className="mt-1 w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
                     />
-                    <span className="text-sm">{day.slice(0, 3)}</span>
+                    <span className="text-slate-700 font-medium text-sm">{s.label}</span>
                   </label>
                 ))}
               </div>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="time"
-                  value={bulkTimeIn}
-                  onChange={(e) => setBulkTimeIn(e.target.value)}
-                  className="border p-2 rounded"
-                  placeholder="เวลาเริ่ม"
-                />
-                <span>-</span>
-                <input
-                  type="time"
-                  value={bulkTimeOut}
-                  onChange={(e) => setBulkTimeOut(e.target.value)}
-                  className="border p-2 rounded"
-                  placeholder="เวลาสิ้นสุด"
-                />
-                <button
-                  type="button"
-                  onClick={addBulkWorkingTime}
-                  className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                >
-                  เพิ่มช่วงเวลา
-                </button>
-              </div>
             </div>
 
-            {/* Individual Working Times List */}
-            {formData.working_times && formData.working_times.length > 0 ? (
-              <div className="space-y-2">
-                <h4 className="font-medium">ตารางเวลาทำงานปัจจุบัน</h4>
-                {formData.working_times.map((item, index) => (
-                  <div key={index} className="flex gap-2 items-center p-2 bg-white border rounded">
-                    <select
-                      value={item.day}
-                      onChange={(e) =>
-                        handleWorkingTimeChange(index, "day", e.target.value)
-                      }
-                      className="border p-2 rounded"
-                    >
-                      {/* 🔧 ใช้วันภาษาไทยโดยตรง ไม่ใช้ dayMap */}
-                      <option value="จันทร์">จันทร์</option>
-                      <option value="อังคาร">อังคาร</option>
-                      <option value="พุธ">พุธ</option>
-                      <option value="พฤหัสบดี">พฤหัสบดี</option>
-                      <option value="ศุกร์">ศุกร์</option>
-                      <option value="เสาร์">เสาร์</option>
-                      <option value="อาทิตย์">อาทิตย์</option>
-                    </select>
-
-                    <input
-                      type="time"
-                      value={item.time_in || ""}
-                      onChange={(e) =>
-                        handleWorkingTimeChange(index, "time_in", e.target.value)
-                      }
-                      className="border p-2 rounded"
-                    />
-                    <input
-                      type="time"
-                      value={item.time_out || ""}
-                      onChange={(e) =>
-                        handleWorkingTimeChange(index, "time_out", e.target.value)
-                      }
-                      className="border p-2 rounded"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => removeWorkingTime(index)}
-                      className="text-red-500 ml-2"
-                    >
-                      ลบ
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-gray-500 mb-2">
-                ยังไม่มีเวลาทำงาน กรุณาเพิ่มเวลาทำงาน
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={addWorkingTime}
-              className="mt-2 bg-gray-200 px-3 py-1 rounded"
-            >
-              + เพิ่มวัน/เวลา แยก
-            </button>
-          </div>
-
-          {/* Services */}
-          <div className="md:col-span-2">
-            <label className="block font-semibold mb-1">การให้บริการ*</label>
-            <div className="space-y-2 p-4 bg-gray-100 rounded">
-              {[
-                { key: "sell_products", label: "จำหน่ายยาและผลิตภัณฑ์เพื่อสุขภาพ" },
-                { key: "consulting", label: "ให้คำปรึกษาทางเภสัชกรรม" },
-                { key: "wholesale", label: "ขายปลีกและขายส่ง" },
-                { key: "delivery", label: "บริการจัดส่งกล่องยาสามัญประจำบ้าน" },
-              ].map((s) => (
-                <label key={s.key} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name={s.key}
-                    checked={formData.services[s.key]}
-                    onChange={handleChange}
-                  />
-                  <span>{s.label}</span>
-                </label>
-              ))}
+            {/* Submit & Actions */}
+            <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="w-full sm:w-auto bg-white border border-slate-300 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 transition-colors font-medium shadow-sm order-2 sm:order-1"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                className="w-full sm:w-auto bg-indigo-600 text-white px-8 py-2.5 rounded-xl hover:bg-indigo-700 transition-colors font-medium shadow-sm order-1 sm:order-2 flex justify-center items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                {isOwnerEdit ? "บันทึกการแก้ไขโปรไฟล์" : "บันทึกการแก้ไข"}
+              </button>
             </div>
-          </div>
-
-          {/* Submit */}
-          <div className="md:col-span-2 flex justify-end">
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-            >
-              {isOwnerEdit ? "บันทึกการแก้ไขโปรไฟล์" : "บันทึกการแก้ไข"}
-            </button>
-          </div>
-        </form>
-        <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <button
-            className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300"
-            type="button"
-            onClick={() => navigate(-1)}
-          >
-            กลับ
-          </button>
+          </form>
         </div>
       </div>
 
       {/* 👉 Modal แสดงเวลาทำงานทั้งหมด */}
       {showWorkTimesModal && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => setShowWorkTimesModal(false)}
         >
           <div
-            className="w-full max-w-md bg-white rounded-lg shadow-lg p-4"
+            className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-label="เวลาทำงานทั้งหมดของเภสัชกร"
           >
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-lg font-semibold">เวลาทำงานทั้งหมด</h3>
+            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                เวลาทำงานทั้งหมด
+              </h3>
               <button
                 type="button"
                 onClick={() => setShowWorkTimesModal(false)}
-                className="text-gray-600 hover:text-gray-800"
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-1.5 rounded-lg transition-colors"
                 aria-label="ปิด"
               >
-                ✕
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <div className="space-y-2 max-h-64 overflow-auto">
-              {(() => {
-                const allWorkingTimes = getAggregatedWorkingTimes();
-                if (allWorkingTimes.length === 0) {
-                  return <p className="text-gray-500 text-center py-4">ไม่มีข้อมูลเวลาทำงาน</p>;
-                }
-                return allWorkingTimes.map((wt, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded border">
-                    <span className="font-medium text-gray-700">{wt.day}</span>
-                    <span className="text-gray-600">{wt.time_in} - {wt.time_out}</span>
-                  </div>
-                ));
-              })()}
+            <div className="p-5">
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                {(() => {
+                  const allWorkingTimes = getAggregatedWorkingTimes();
+                  if (allWorkingTimes.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <svg className="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-slate-500 font-medium">ไม่มีข้อมูลเวลาทำงาน</p>
+                      </div>
+                    );
+                  }
+                  return allWorkingTimes.map((wt, idx) => (
+                    <div key={idx} className="flex justify-between items-center p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                      <span className="font-bold text-slate-700">{wt.day}</span>
+                      <span className="text-slate-600 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-sm font-medium">
+                        {wt.time_in} - {wt.time_out}
+                      </span>
+                    </div>
+                  ));
+                })()}
+              </div>
             </div>
 
-            <div className="mt-4 text-right">
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
               <button
                 type="button"
                 onClick={() => setShowWorkTimesModal(false)}
-                className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
+                className="bg-white border border-slate-300 text-slate-700 px-5 py-2 rounded-xl hover:bg-slate-100 transition-colors font-medium shadow-sm"
               >
                 ปิด
               </button>
@@ -1425,7 +1495,7 @@ function EditPharmacist_admin() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
