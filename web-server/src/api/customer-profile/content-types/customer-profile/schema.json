@@ -70,6 +70,28 @@
       "relation": "oneToMany",
       "target": "api::medication-schedule.medication-schedule",
       "mappedBy": "customer"
+    },
+    "morning_meal_time": {
+      "type": "string",
+      "default": "08:00"
+    },
+    "lunch_meal_time": {
+      "type": "string",
+      "default": "12:00"
+    },
+    "evening_meal_time": {
+      "type": "string",
+      "default": "18:00"
+    },
+    "bedtime_time": {
+      "type": "string",
+      "default": "21:00"
+    },
+    "temp_full_name": {
+      "type": "string"
+    },
+    "temp_phone": {
+      "type": "string"
     }
   }
 }

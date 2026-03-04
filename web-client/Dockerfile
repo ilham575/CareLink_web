@@ -3,8 +3,9 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 
 # Build arguments from Cloud Build
-ARG REACT_APP_API_URL=https://carelink-server-944248488635.asia-southeast1.run.app
-ARG REACT_APP_SOCKET_URL=https://carelink-server-944248488635.asia-southeast1.run.app
+# ⚠️ ส่ง --build-arg ตอน build หรือ Cloud Build จะ inject ค่านี้อัตโนมัติ
+ARG REACT_APP_API_URL=https://carelink-server-j7mi5c6znq-as.a.run.app
+ARG REACT_APP_SOCKET_URL=https://carelink-server-j7mi5c6znq-as.a.run.app
 
 # Copy package files
 COPY package*.json ./

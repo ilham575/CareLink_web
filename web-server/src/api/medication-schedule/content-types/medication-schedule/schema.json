@@ -33,6 +33,12 @@
       "relation": "manyToOne",
       "target": "api::customer-profile.customer-profile",
       "inversedBy": "medication_schedules"
+    },
+    "meal_relation": {
+      "type": "string"
+    },
+    "dosage_per_time": {
+      "type": "string"
     }
   }
 }

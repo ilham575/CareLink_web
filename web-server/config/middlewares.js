@@ -18,7 +18,10 @@ module.exports = [
     name: 'strapi::cors',
     config: {
       origin: [
-        'https://carelink-web-485714.web.app',
+        'https://carelink-web-489111.web.app',
+        'https://carelink-web-489111.firebaseapp.com',
+        'https://carelink-server-j7mi5c6znq-as.a.run.app',
+        // เพิ่ม custom domain ถ้ามี เช่น 'https://carelink.yourdomain.com',
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:5173'

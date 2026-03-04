@@ -1,0 +1,97 @@
+# ============================================================
+# Cloud Build — CareLink Web Server (Strapi)
+# Project: carelink-web-489111  |  Region: asia-southeast1
+# ============================================================
+
+substitutions:
+  _PROJECT_ID: "carelink-web-489111"
+  _REGION: "asia-southeast1"
+  _SERVICE_NAME: "carelink-server"
+  _REPO_NAME: "carelink-repo"
+  _CLOUDSQL_INSTANCE: "carelink-web-489111:asia-southeast1:carelink-db"
+  _IMAGE: "asia-southeast1-docker.pkg.dev/carelink-web-489111/carelink-repo/carelink-server"
+
+steps:
+  # -----------------------------------------------------------
+  # Step 1: Build Docker Image
+  # PUBLIC_URL จะถูก pass มาจาก --substitutions ตอน trigger
+  # -----------------------------------------------------------
+  - name: "gcr.io/cloud-builders/docker"
+    id: "build-image"
+    args:
+      - "build"
+      - "--platform=linux/amd64"
+      - "--build-arg"
+      - "PUBLIC_URL=${_PUBLIC_URL}"
+      - "-t"
+      - "${_IMAGE}:${BUILD_ID}"
+      - "-t"
+      - "${_IMAGE}:latest"
+      - "."
+
+  # -----------------------------------------------------------
+  # Step 2: Push Image to Artifact Registry
+  # -----------------------------------------------------------
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push-image"
+    args:
+      - "push"
+      - "--all-tags"
+      - "${_IMAGE}"
+    waitFor: ["build-image"]
+
+  # -----------------------------------------------------------
+  # Step 3: Deploy to Cloud Run
+  # -----------------------------------------------------------
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: "deploy-cloud-run"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "${_SERVICE_NAME}"
+      - "--image=${_IMAGE}:${BUILD_ID}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--allow-unauthenticated"
+      # Cloud SQL Socket (ไม่ต้องใช้ Cloud SQL Auth Proxy แยก)
+      - "--add-cloudsql-instances=${_CLOUDSQL_INSTANCE}"
+      # Resources — ประหยัดแต่ไม่ช้า
+      - "--memory=512Mi"
+      - "--cpu=1"
+      - "--concurrency=80"
+      # Min 1 instance เพื่อหลีกเลี่ยง cold start (ปรับเป็น 0 ถ้าต้องการประหยัดสุด)
+      - "--min-instances=1"
+      - "--max-instances=3"
+      - "--timeout=300"
+      - "--port=1337"
+      # Service Account ที่มีสิทธิ์ Cloud SQL + GCS
+      - "--service-account=carelink-sa@carelink-web-489111.iam.gserviceaccount.com"
+      # ========= Environment Variables ==========
+      - "--set-env-vars=NODE_ENV=production"
+      - "--set-env-vars=HOST=0.0.0.0"
+      - "--set-env-vars=DATABASE_CLIENT=postgres"
+      - "--set-env-vars=DATABASE_HOST=/cloudsql/${_CLOUDSQL_INSTANCE}"
+      - "--set-env-vars=DATABASE_PORT=5432"
+      - "--set-env-vars=DATABASE_NAME=carelink_db"
+      - "--set-env-vars=DATABASE_USERNAME=carelink_user"
+      - "--set-env-vars=DATABASE_SCHEMA=public"
+      - "--set-env-vars=GCS_BUCKET_NAME=carelink-uploads-489111"
+      - "--set-env-vars=PUBLIC_URL=${_PUBLIC_URL}"
+      # Secrets (ดึงจาก Secret Manager)
+      - "--set-secrets=DATABASE_PASSWORD=carelink-db-password:latest"
+      - "--set-secrets=APP_KEYS=carelink-app-keys:latest"
+      - "--set-secrets=API_TOKEN_SALT=carelink-api-token-salt:latest"
+      - "--set-secrets=ADMIN_JWT_SECRET=carelink-admin-jwt-secret:latest"
+      - "--set-secrets=TRANSFER_TOKEN_SALT=carelink-transfer-token-salt:latest"
+      - "--set-secrets=JWT_SECRET=carelink-jwt-secret:latest"
+    waitFor: ["push-image"]
+
+images:
+  - "${_IMAGE}:${BUILD_ID}"
+  - "${_IMAGE}:latest"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: "E2_HIGHCPU_8"
+  substitution_option: ALLOW_LOOSE

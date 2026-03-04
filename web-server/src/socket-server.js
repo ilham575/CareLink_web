@@ -30,7 +30,8 @@ function initializeSocketIO(strapiInstance, httpServer) {
   const allowedOrigins = process.env.SOCKET_ALLOWED_ORIGINS
     ? process.env.SOCKET_ALLOWED_ORIGINS.split(',')
     : [
-        'https://carelink-web-485714.web.app',
+        'https://carelink-web-489111.web.app',
+        'https://carelink-web-489111.firebaseapp.com',
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:5173'

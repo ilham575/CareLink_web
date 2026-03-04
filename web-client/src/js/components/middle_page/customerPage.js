@@ -439,7 +439,7 @@ function CustomerPage({ id }) {
                 customer.users_permissions_user?.id ||
                 customer.attributes?.users_permissions_user?.id ||
                 null;
-              const customerName = user?.full_name || 'ลูกค้า';
+              const customerName = user?.full_name || customer.temp_full_name || customer.attributes?.temp_full_name || 'ลูกค้า';
               const followUpDate = customer.Follow_up_appointment_date || customer.attributes?.Follow_up_appointment_date;
               const congenitalDisease = customer.congenital_disease || customer.attributes?.congenital_disease;
               const allergicDrugs = customer.Allergic_drugs || customer.attributes?.Allergic_drugs;
@@ -453,20 +453,22 @@ function CustomerPage({ id }) {
                   <div className="flex items-start gap-5 mb-6">
                     <div className="relative">
                       <div className="w-16 h-16 rounded-2xl bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center text-2xl font-black text-indigo-600 shadow-inner">
-                        {(user?.full_name?.charAt(0) || 'C').toUpperCase()}
+                        {(customerName.charAt(0) || 'C').toUpperCase()}
                       </div>
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
-                        <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                      </div>
+                      {user && (
+                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
+                          <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-grow min-w-0">
                       <h3 className="text-xl font-black text-slate-800 truncate leading-tight mb-0.5">
-                        {user?.full_name || 'ไม่พบนามบริษัท/ชื่อ'}
+                        {customerName}
                       </h3>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">UID:</span>
                         <span className="text-xs font-black text-indigo-500/80 bg-indigo-50 px-2 py-0.5 rounded-md truncate">
-                          {user?.username || 'user'}
+                          {user?.username || 'Manual Record'}
                         </span>
                       </div>
                     </div>
@@ -480,14 +482,14 @@ function CustomerPage({ id }) {
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                           <span className="text-[10px] font-black uppercase tracking-wider">เบอร์โทรศัพท์</span>
                         </div>
-                        <p className="text-sm font-bold text-slate-700">{user?.phone || 'ไม่ระบุ'}</p>
+                        <p className="text-sm font-bold text-slate-700">{user?.phone || customer.temp_phone || customer.attributes?.temp_phone || 'ไม่ระบุ'}</p>
                       </div>
                       <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 group hover:bg-white hover:border-indigo-100 transition-all">
                         <div className="flex items-center gap-2 text-slate-400 mb-1">
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                           <span className="text-[10px] font-black uppercase tracking-wider">อีเมล</span>
                         </div>
-                        <p className="text-sm font-bold text-slate-700 truncate">{user?.email || 'ไม่ระบุ'}</p>
+                        <p className="text-sm font-bold text-slate-700 truncate">{user?.email || 'ไม่มีบัญชี'}</p>
                       </div>
                     </div>
 

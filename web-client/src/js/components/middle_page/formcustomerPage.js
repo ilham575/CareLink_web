@@ -12,6 +12,7 @@ function FormCustomerPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [customerId, setCustomerId] = useState(null);
   const [customerDocumentId, setCustomerDocumentId] = useState(null);
+  const [createAccount, setCreateAccount] = useState(true);
   
   // Helper: Convert string to JSON safely
   const parseJsonField = (value) => {
@@ -93,9 +94,13 @@ function FormCustomerPage() {
         
         setCustomerId(customer.id || customer.attributes?.id);
         setCustomerDocumentId(customer.documentId || customer.attributes?.documentId);
+        
+        const hasUser = !!user;
+        setCreateAccount(hasUser);
+
         setFormData({
-          full_name: user?.full_name || "",
-          phone: user?.phone || "",
+          full_name: user?.full_name || customer.temp_full_name || "",
+          phone: user?.phone || customer.temp_phone || "",
           username: user?.username || "",
           password: "", // Don't load password for security
           email: user?.email || "",
@@ -118,7 +123,10 @@ function FormCustomerPage() {
   };
 
   const validateForm = () => {
-    const required = ['full_name', 'phone', 'username'];
+    const required = ['full_name', 'phone'];
+    if (createAccount) {
+      required.push('username');
+    }
     // Remove password from required fields since we'll use phone as default
     
     for (const field of required) {
@@ -128,14 +136,16 @@ function FormCustomerPage() {
       }
     }
     
-    // Auto-generate email if not provided
-    const emailToValidate = formData.email?.trim() || `${formData.username}@example.com`;
-    
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailToValidate)) {
-      toast.error('รูปแบบอีเมลไม่ถูกต้อง');
-      return false;
+    // Auto-generate email if account is needed
+    if (createAccount) {
+      const emailToValidate = formData.email?.trim() || `${formData.username}@example.com`;
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailToValidate)) {
+        toast.error('รูปแบบอีเมลไม่ถูกต้อง');
+        return false;
+      }
     }
     
     return true;
@@ -223,82 +233,111 @@ function FormCustomerPage() {
       throw new Error('ไม่พบข้อมูลร้านยา');
     }
 
-    // *** เพิ่ม: ค้นหา customer role ID แทนการใช้ hardcode ***
-    const roleRes = await fetch(API.roles.list(), {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const roleData = await roleRes.json();
+    let newUserDocId = null;
+    let newUserId = null;
 
-    const customerRole = roleData.roles.find(r => r.name === 'customer');
-    const targetRoleId = customerRole?.id;
+    if (createAccount) {
+      // *** เพิ่ม: ค้นหา customer role ID แทนการใช้ hardcode ***
+      const roleRes = await fetch(API.roles.list(), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const roleData = await roleRes.json();
 
-    if (!targetRoleId) {
-      throw new Error('ไม่พบ role สำหรับลูกค้า');
-    }
+      const customerRole = roleData.roles.find(r => r.name === 'customer');
+      const targetRoleId = customerRole?.id;
 
-    // Auto-generate email if not provided
-    const emailToUse = formData.email?.trim() || `${formData.username}@example.com`;
-    
-    // Use phone number as default password if no password provided
-    const passwordToUse = formData.password?.trim() || formData.phone;
+      if (!targetRoleId) {
+        throw new Error('ไม่พบ role สำหรับลูกค้า');
+      }
 
-    // Create user with basic fields only
-    const createUserResponse = await fetch(API.auth.register, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: formData.username,
-        email: emailToUse,
-        password: passwordToUse
-      })
-    });
+      // Auto-generate email if not provided
+      const emailToUse = formData.email?.trim() || `${formData.username}@example.com`;
+      
+      // Use phone number as default password if no password provided
+      const passwordToUse = formData.password?.trim() || formData.phone;
 
-    if (!createUserResponse.ok) {
-      const errorData = await createUserResponse.json();
-      throw new Error(errorData.error?.message || 'ไม่สามารถสร้างบัญชีผู้ใช้ได้');
-    }
-
-    const newUserData = await createUserResponse.json();
-
-    try {
-      // Update user with additional fields
-      const updateUserResponse = await fetch(API.users.getById(newUserData.user.id), {
-        method: 'PUT',
+      // Create user with basic fields only
+      const createUserResponse = await fetch(API.auth.register, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          full_name: formData.full_name,
-          phone: formData.phone,
-          role: targetRoleId // *** เปลี่ยนจาก hardcode 4 เป็น dynamic role ID ***
+          username: formData.username,
+          email: emailToUse,
+          password: passwordToUse
         })
       });
 
-      if (!updateUserResponse.ok) {
-        // If user update fails, try to clean up the created user
-        try {
-          await fetch(API.users.getById(newUserData.user.id), {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
-          });
-        } catch (cleanupError) {
-          console.error('Failed to cleanup user after update failure:', cleanupError);
-        }
-        
-        const errorData = await updateUserResponse.json();
-        throw new Error(errorData.error?.message || 'ไม่สามารถอัปเดตข้อมูลผู้ใช้ได้');
+      if (!createUserResponse.ok) {
+        const errorData = await createUserResponse.json();
+        throw new Error(errorData.error?.message || 'ไม่สามารถสร้างบัญชีผู้ใช้ได้');
       }
 
+      const newUserData = await createUserResponse.json();
+      newUserId = newUserData.user.id;
+      newUserDocId = newUserData.user.documentId;
+
+      try {
+        // Update user with additional fields
+        const updateUserResponse = await fetch(API.users.getById(newUserId), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            full_name: formData.full_name,
+            phone: formData.phone,
+            role: targetRoleId // *** เปลี่ยนจาก hardcode 4 เป็น dynamic role ID ***
+          })
+        });
+
+        if (!updateUserResponse.ok) {
+          // If user update fails, try to clean up the created user
+          try {
+            await fetch(API.users.getById(newUserId), {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          } catch (cleanupError) {
+            console.error('Failed to cleanup user after update failure:', cleanupError);
+          }
+          
+          const errorData = await updateUserResponse.json();
+          throw new Error(errorData.error?.message || 'ไม่สามารถอัปเดตข้อมูลผู้ใช้ได้');
+        }
+      } catch (error) {
+        // Cleanup if update fails
+        if (newUserId) {
+          try {
+            await fetch(API.users.getById(newUserId), {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          } catch (cleanupError) {
+            console.error('Failed to cleanup user:', cleanupError);
+          }
+        }
+        throw error;
+      }
+    }
+
+    try {
       // Create customer profile with pharmacy_profile
       const profileData = {
-        users_permissions_user: newUserData.user.documentId,
         drug_stores: [targetStore.documentId],
         congenital_disease: formData.congenital_disease,
-        Allergic_drugs: parseJsonField(formData.Allergic_drugs)
+        Allergic_drugs: parseJsonField(formData.Allergic_drugs),
+        temp_full_name: createAccount ? null : formData.full_name,
+        temp_phone: createAccount ? null : formData.phone,
+        publishedAt: new Date().toISOString() // Force publish immediately
       };
+
+      // Connect user if created
+      if (newUserDocId) {
+        profileData.users_permissions_user = newUserDocId;
+      }
 
       // Add pharmacy_profile if found
       if (pharmacyProfileDocumentId) {
@@ -318,13 +357,15 @@ function FormCustomerPage() {
 
       if (!profileResponse.ok) {
         // If profile creation fails, try to clean up the user
-        try {
-          await fetch(API.users.getById(newUserData.user.id), {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
-          });
-        } catch (cleanupError) {
-          console.error('Failed to cleanup user after profile creation failure:', cleanupError);
+        if (newUserId) {
+          try {
+            await fetch(API.users.getById(newUserId), {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          } catch (cleanupError) {
+            console.error('Failed to cleanup user after profile creation failure:', cleanupError);
+          }
         }
         
         const errorData = await profileResponse.json();
@@ -332,18 +373,22 @@ function FormCustomerPage() {
       }
 
       toast.success('เพิ่มลูกค้าสำเร็จ');
+      
+      // *** แก้ไข: ใช้ Path ที่ตรงกับ App.js (เพิ่ม /followup-customers) ***
       navigate(`/drug_store_pharmacy/${targetStore.documentId}/followup-customers`, {
         state: { toastMessage: 'เพิ่มลูกค้าสำเร็จ' }
       });
     } catch (error) {
       // If anything fails after user creation, try to clean up the user
-      try {
-        await fetch(API.users.getById(newUserData.user.id), {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } catch (cleanupError) {
-        console.error('Failed to cleanup user:', cleanupError);
+      if (newUserId) {
+        try {
+          await fetch(API.users.getById(newUserId), {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        } catch (cleanupError) {
+          console.error('Failed to cleanup user:', cleanupError);
+        }
       }
       throw error;
     }
@@ -541,6 +586,29 @@ function FormCustomerPage() {
                   <h3 className="text-xl font-black text-slate-800 tracking-tight">ข้อมูลส่วนตัว</h3>
                 </div>
 
+                {!isEditMode && (
+                  <div className="mb-6 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white border border-indigo-100 flex items-center justify-center text-indigo-500 shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M16 11h6"/></svg>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none block mb-1">สิทธิ์การใช้งาน</span>
+                        <p className="text-sm font-black text-indigo-900">สร้างบัญชีผู้ใช้สำหรับลูกค้า</p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={createAccount}
+                        onChange={(e) => setCreateAccount(e.target.checked)}
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+                )}
+
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ชื่อ-นามสกุล <span className="text-rose-500">*</span></label>
@@ -571,55 +639,67 @@ function FormCustomerPage() {
               </div>
 
               {/* Section 2: ข้อมูลบัญชี */}
-              <div className="bg-white rounded-[2.5rem] p-8 shadow-md border border-slate-100 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-2 h-full bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              {(!isEditMode && !createAccount) ? (
+                <div className="bg-slate-50/50 rounded-[2.5rem] p-8 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="w-16 h-16 rounded-[2rem] bg-white border border-slate-100 flex items-center justify-center text-slate-300 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                   </div>
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight">ข้อมูลเข้าใช้งาน</h3>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Username <span className="text-rose-500">*</span></label>
-                    <input
-                      type="text"
-                      name="username"
-                      value={formData.username}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-800 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
-                      placeholder="กำหนดชื่อผู้ใช้งาน..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Password {!isEditMode && '(เว้นเพื่อใช้เบอร์โทร)'}</label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-800 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
-                      placeholder={isEditMode ? "เว้นว่างไว้หากไม่เปลี่ยน" : "กำหนดรหัสผ่าน..."}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">อีเมล</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-800 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
-                      placeholder="ระบุอีเมล (ไม่บังคับ)..."
-                    />
+                  <div>
+                    <h4 className="text-lg font-black text-slate-400">ข้ามการสร้างบัญชี</h4>
+                    <p className="text-sm font-medium text-slate-400 max-w-[200px]">ระบบจะเก็บเฉพาะข้อมูลพื้นฐานสำหรับการติดตามอาการและพิมพ์บัตร</p>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white rounded-[2.5rem] p-8 shadow-md border border-slate-100 relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-2 h-full bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">ข้อมูลเข้าใช้งาน</h3>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Username <span className="text-rose-500">*</span></label>
+                      <input
+                        type="text"
+                        name="username"
+                        value={formData.username}
+                        onChange={handleInputChange}
+                        required={createAccount}
+                        className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-800 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
+                        placeholder="กำหนดชื่อผู้ใช้งาน..."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Password {!isEditMode && '(เว้นเพื่อใช้เบอร์โทร)'}</label>
+                      <input
+                        type="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-800 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
+                        placeholder={isEditMode ? "เว้นว่างไว้หากไม่เปลี่ยน" : "กำหนดรหัสผ่าน..."}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">อีเมล</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-800 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
+                        placeholder="ระบุอีเมล (ไม่บังคับ)..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Column 2: Medical Information */}

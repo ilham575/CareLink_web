@@ -263,7 +263,7 @@ function VisitHistory() {
                 </div>
                 <div>
                   <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
-                    {user?.full_name || 'ไม่พบชื่อ'}
+                    {user?.full_name || customer.temp_full_name || 'ไม่พบชื่อ'}
                   </h2>
                   <p className="text-blue-100/80 font-medium">ข้อมูลลูกค้า</p>
                 </div>
@@ -272,7 +272,7 @@ function VisitHistory() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10 hover:bg-white/15 transition-colors">
                   <span className="text-xl">📱</span>
-                  <span className="font-semibold">{user?.phone || '-'}</span>
+                  <span className="font-semibold">{user?.phone || customer.temp_phone || '-'}</span>
                 </div>
                 <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10 hover:bg-white/15 transition-colors">
                   <span className="text-xl">⚠️</span>

@@ -15,6 +15,12 @@ function EditProfileCustomer() {
     email: "",
     congenital_disease: "",
   });
+  const [mealTimes, setMealTimes] = useState({
+    morning: '08:00',
+    lunch:   '12:00',
+    evening: '18:00',
+    bedtime: '21:00',
+  });
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -52,6 +58,7 @@ function EditProfileCustomer() {
 
         let cDocId = null;
         let congenital = "";
+        let mealTimesData = { morning: '08:00', lunch: '12:00', evening: '18:00', bedtime: '21:00' };
 
         if (profileRes.ok) {
           const profileData = await profileRes.json();
@@ -59,9 +66,18 @@ function EditProfileCustomer() {
             const profile = profileData.data[0];
             cDocId = profile.documentId || profile.id;
             congenital = profile.attributes?.congenital_disease || profile.congenital_disease || "";
+            // Load meal times
+            mealTimesData = {
+              morning: profile.attributes?.morning_meal_time || profile.morning_meal_time || '08:00',
+              lunch:   profile.attributes?.lunch_meal_time   || profile.lunch_meal_time   || '12:00',
+              evening: profile.attributes?.evening_meal_time || profile.evening_meal_time || '18:00',
+              bedtime: profile.attributes?.bedtime_time      || profile.bedtime_time      || '21:00',
+            };
             setCustomerDocId(cDocId);
           }
         }
+
+        setMealTimes(mealTimesData);
 
         setForm({
           firstName: fName,
@@ -110,8 +126,6 @@ function EditProfileCustomer() {
         }),
       });
 
-      if (!userUpdateRes.ok) throw new Error('ไม่สามารถอัปเดตข้อมูลผู้ใช้ได้');
-
       // 2. Update Customer Profile Record
       if (customerDocId) {
         await fetchWithAuth(API.customerProfiles.update(customerDocId), {
@@ -119,9 +133,10 @@ function EditProfileCustomer() {
           body: JSON.stringify({
             data: {
               congenital_disease: form.congenital_disease,
-              // full_name is also often kept mirrored in profile for easier query
-              full_name: fullName,
-              phone: form.phone
+              morning_meal_time: mealTimes.morning,
+              lunch_meal_time:   mealTimes.lunch,
+              evening_meal_time: mealTimes.evening,
+              bedtime_time:      mealTimes.bedtime,
             }
           }),
         });
@@ -242,6 +257,52 @@ function EditProfileCustomer() {
                 className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none transition-all font-bold resize-none"
                 placeholder="ระบุโรคประจำตัว (ถ้ามี)"
               />
+            </div>
+
+            {/* Meal Times Section */}
+            <div className="bg-amber-50 border-2 border-amber-100 rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🍽️</span>
+                  <div>
+                    <h4 className="text-sm font-black text-amber-900">เวลาอาหารเฉลี่ย</h4>
+                    <p className="text-[11px] text-amber-600 font-bold">ใช้สำหรับคำนวณเวลาแจ้งเตือนทานยา</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { key: 'morning', label: 'เช้า',     icon: '🌅' },
+                  { key: 'lunch',   label: 'เที่ยง',   icon: '☀️' },
+                  { key: 'evening', label: 'เย็น',     icon: '🌆' },
+                  { key: 'bedtime', label: 'ก่อนนอน', icon: '🌙' },
+                ].map(slot => (
+                  <div key={slot.key} className="space-y-1.5">
+                    <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-1">
+                      <span>{slot.icon}</span>{slot.label}
+                    </label>
+                    <input
+                      type="time"
+                      value={mealTimes[slot.key]}
+                      onChange={e => setMealTimes(prev => ({ ...prev, [slot.key]: e.target.value }))}
+                      className="w-full px-3 py-2.5 bg-white border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 outline-none transition-all font-bold text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 text-[10px]">
+                <div className="flex items-start gap-1.5 bg-white px-2 py-1.5 rounded-lg border border-rose-100">
+                  <span>💊➡️🍽️</span> <span className="text-rose-700 font-bold">ก่อน: 30 นาทีก่อนถึงเวลา</span>
+                </div>
+                <div className="flex items-start gap-1.5 bg-white px-2 py-1.5 rounded-lg border border-emerald-100">
+                  <span>🍽️➡️💊</span> <span className="text-emerald-700 font-bold">หลัง: 30 นาทีหลังเวลา</span>
+                </div>
+                <div className="flex items-start gap-1.5 bg-white px-2 py-1.5 rounded-lg border border-sky-100">
+                  <span>🍽️💊</span> <span className="text-sky-700 font-bold">พร้อม: แจ้งเตือนตรงเวลา</span>
+                </div>
+              </div>
             </div>
 
             {customerDocId && (

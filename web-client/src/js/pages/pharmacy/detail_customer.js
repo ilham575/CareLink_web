@@ -124,7 +124,16 @@ function CustomerDetail() {
     open: false,
     allergies: []
   });
-  
+
+  // State สำหรับตั้งค่าเวลาอาหารเฉลี่ยของลูกค้า (ใช้คำนวณเวลาแจ้งเตือนยา)
+  const [mealTimes, setMealTimes] = useState({
+    morning: '08:00',
+    lunch:   '12:00',
+    evening: '18:00',
+    bedtime: '21:00',
+  });
+  const [savingMealTimes, setSavingMealTimes] = useState(false);
+
   // Get pharmacyId from URL params
   const searchParams = new URLSearchParams(location.search);
   const pharmacyId = searchParams.get('pharmacyId');
@@ -1028,6 +1037,54 @@ function CustomerDetail() {
     }
   }, [customer, newVisit]);
 
+  // Sync เวลาอาหารจาก customer profile เมื่อโหลดข้อมูล
+  useEffect(() => {
+    if (customer) {
+      setMealTimes({
+        morning: customer.morning_meal_time || '08:00',
+        lunch:   customer.lunch_meal_time   || '12:00',
+        evening: customer.evening_meal_time || '18:00',
+        bedtime: customer.bedtime_time      || '21:00',
+      });
+    }
+  }, [customer?.documentId]); // sync เฉพาะตอน customer เปลี่ยน (ไม่ overwrite ขณะ user กำลัง edit)
+
+  // บันทึกเวลาอาหารของลูกค้า และ force-sync schedules โดยส่ง prescribed_drugs ซ้ำ
+  const handleSaveMealTimes = async () => {
+    if (!customerDocumentId || notifId) return; // ไม่บันทึกเมื่อดู history
+    setSavingMealTimes(true);
+    try {
+      const token = localStorage.getItem('jwt');
+      const res = await fetch(API.customerProfiles.update(customerDocumentId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          data: {
+            morning_meal_time: mealTimes.morning,
+            lunch_meal_time:   mealTimes.lunch,
+            evening_meal_time: mealTimes.evening,
+            bedtime_time:      mealTimes.bedtime,
+            // ส่ง prescribed_drugs ซ้ำเพื่อ trigger lifecycle sync schedules ด้วยเวลาใหม่
+            ...(customer?.prescribed_drugs?.length > 0 ? { prescribed_drugs: customer.prescribed_drugs } : {}),
+          }
+        })
+      });
+      if (!res.ok) throw new Error('บันทึกไม่สำเร็จ');
+      setCustomer(prev => ({
+        ...prev,
+        morning_meal_time: mealTimes.morning,
+        lunch_meal_time:   mealTimes.lunch,
+        evening_meal_time: mealTimes.evening,
+        bedtime_time:      mealTimes.bedtime,
+      }));
+      toast.success('✅ บันทึกเวลาอาหารและอัปเดตตารางแจ้งเตือนแล้ว');
+    } catch (err) {
+      toast.error('บันทึกเวลาอาหารไม่สำเร็จ');
+    } finally {
+      setSavingMealTimes(false);
+    }
+  };
+
   const handleSaveAddDrug = async () => {
     if (staffWorkStatus.prepared) {
       toast.error('ไม่สามารถแก้ไขยาได้ เนื่องจากพนักงานจัดส่งยาเรียบร้อยแล้ว');
@@ -1805,7 +1862,16 @@ function CustomerDetail() {
                 drugId: drugId,
                 drugName: drugInfo?.name_th || 'ยาไม่ทราบชื่อ',
                 quantity: quantity || 1,
-                unit: drugInfo?.unit || 'เม็ด'
+                unit: drugInfo?.unit || 'เม็ด',
+                // Snapshot current dosage and schedule settings
+                take_morning: prescribedItem.take_morning || false,
+                take_lunch: prescribedItem.take_lunch || false,
+                take_evening: prescribedItem.take_evening || false,
+                take_bedtime: prescribedItem.take_bedtime || false,
+                meal_relation: prescribedItem.meal_relation || 'after',
+                dosage_per_time: prescribedItem.dosage_per_time || '',
+                frequency_hours: prescribedItem.frequency_hours || 0,
+                reminder_time: prescribedItem.reminder_time || ''
               };
             });
             console.log('✅ prescribedDrugsSnapshot created:', snapshot);
@@ -1823,7 +1889,16 @@ function CustomerDetail() {
         const fallback = (drugsToSnapshot || []).map(item => ({
           drugId: typeof item === 'string' ? item : (item.drugId || item),
           quantity: typeof item === 'object' ? item.quantity : 1,
-          drugName: typeof item === 'object' ? item.drugName : undefined
+          drugName: typeof item === 'object' ? item.drugName : undefined,
+          // Snapshot current dosage and schedule settings (fallback)
+          take_morning: item.take_morning || false,
+          take_lunch: item.take_lunch || false,
+          take_evening: item.take_evening || false,
+          take_bedtime: item.take_bedtime || false,
+          meal_relation: item.meal_relation || 'after',
+          dosage_per_time: item.dosage_per_time || '',
+          frequency_hours: item.frequency_hours || 0,
+          reminder_time: item.reminder_time || ''
         }));
         console.log('⚠️ Using fallback prescribedDrugsSnapshot:', fallback);
         return fallback;
@@ -2121,6 +2196,9 @@ function CustomerDetail() {
   }
 
   const user = customer.users_permissions_user;
+  const customerName = user?.full_name || customer.temp_full_name || 'ไม่พบชื่อ';
+  const customerPhone = user?.phone || customer.temp_phone || 'ไม่ระบุเบอร์';
+  const hasAccount = !!user;
 
   return (
     <div className="min-h-screen bg-slate-50 font-prompt">
@@ -2136,15 +2214,29 @@ function CustomerDetail() {
           <div className="relative p-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="flex items-center gap-5">
               {/* Avatar */}
-              <div className="w-20 h-20 rounded-[1.5rem] bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-indigo-200 ring-4 ring-white">
-                {user?.full_name?.charAt(0)?.toUpperCase() || 'C'}
+              <div className="relative group">
+                <div className="w-20 h-20 rounded-[1.5rem] bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-indigo-200 ring-4 ring-white">
+                  {customerName.charAt(0)?.toUpperCase() || 'C'}
+                </div>
+                {!hasAccount && (
+                  <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-slate-800 text-white text-[9px] font-black rounded-full shadow-lg border-2 border-white uppercase tracking-tighter">
+                    No Acc
+                  </div>
+                )}
               </div>
               
               <div className="space-y-1">
-                <h1 className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tight">{user?.full_name || 'ไม่พบชื่อ'}</h1>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tight">{customerName}</h1>
+                  {!hasAccount && (
+                    <span className="px-2 py-0.5 bg-slate-100 text-slate-400 text-[10px] font-bold rounded border border-slate-200 uppercase tracking-tighter">
+                      Manual Record
+                    </span>
+                  )}
+                </div>
                 <p className="text-slate-500 font-medium flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                  {user?.phone || 'ไม่ระบุเบอร์'}
+                  {customerPhone}
                 </p>
                 {(() => {
                   const displayNotification = currentNotification || latestNotification;
@@ -2320,11 +2412,11 @@ function CustomerDetail() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between py-2 border-b border-dashed border-slate-100">
                       <label className="text-sm font-bold text-slate-500">ชื่อ-นามสกุล:</label>
-                      <span className="text-sm font-semibold text-slate-800">{user?.full_name || 'ไม่มีข้อมูล'}</span>
+                      <span className="text-sm font-semibold text-slate-800">{customerName}</span>
                     </div>
                     <div className="flex items-center justify-between py-2 border-b border-dashed border-slate-100">
                       <label className="text-sm font-bold text-slate-500">เบอร์โทรศัพท์:</label>
-                      <span className="text-sm font-semibold text-slate-800">{user?.phone || 'ไม่มีข้อมูล'}</span>
+                      <span className="text-sm font-semibold text-slate-800">{customerPhone}</span>
                     </div>
                   </div>
                 </div>
@@ -2654,6 +2746,69 @@ function CustomerDetail() {
           </Tabs.TabPane>
           <Tabs.TabPane tab={<span className="flex items-center gap-2">💊 ยาและการดำเนินการ <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">{customer?.prescribed_drugs?.length || 0}</span></span>} key="3">
             <div className="space-y-6">
+
+              {/* ─── ตั้งค่าเวลาอาหารเฉลี่ยของลูกค้า ─── */}
+              <div className="bg-white rounded-2xl border-2 border-amber-100 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-3 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4 border-b border-amber-100">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-xl">🕐</div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-800">ตั้งค่าเวลาอาหารเฉลี่ย</h3>
+                    <p className="text-xs text-slate-500">ระบบจะคำนวณเวลาแจ้งเตือนยาอัตโนมัติจากเวลาเหล่านี้</p>
+                  </div>
+                  {notifId && (
+                    <span className="ml-auto px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-full">ดูอย่างเดียว (History)</span>
+                  )}
+                </div>
+
+                <div className="p-5">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    {[
+                      { key: 'morning', label: 'เช้า',     icon: '🌅', hint: 'เวลาอาหารเช้า' },
+                      { key: 'lunch',   label: 'เที่ยง',   icon: '☀️', hint: 'เวลาอาหารกลางวัน' },
+                      { key: 'evening', label: 'เย็น',     icon: '🌆', hint: 'เวลาอาหารเย็น' },
+                      { key: 'bedtime', label: 'ก่อนนอน', icon: '🌙', hint: 'เวลาเข้านอน (ไม่ offset)' },
+                    ].map(slot => (
+                      <div key={slot.key} className="flex flex-col gap-1.5">
+                        <label className="text-[11px] font-black text-slate-500 flex items-center gap-1">
+                          <span>{slot.icon}</span>{slot.label}
+                        </label>
+                        <input
+                          type="time"
+                          value={mealTimes[slot.key]}
+                          onChange={e => setMealTimes(prev => ({ ...prev, [slot.key]: e.target.value }))}
+                          disabled={!!notifId}
+                          title={slot.hint}
+                          className="w-full bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-amber-300 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* คำอธิบาย offset */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4 text-[11px]">
+                    <div className="flex items-center gap-2 bg-rose-50 px-3 py-2 rounded-xl text-rose-700 font-bold">
+                      <span>💊➡️🍽️</span> ก่อนอาหาร: แจ้งเตือน 30 นาทีก่อนถึงเวลา
+                    </div>
+                    <div className="flex items-center gap-2 bg-emerald-50 px-3 py-2 rounded-xl text-emerald-700 font-bold">
+                      <span>🍽️➡️💊</span> หลังอาหาร: แจ้งเตือน 30 นาทีหลังเวลา
+                    </div>
+                    <div className="flex items-center gap-2 bg-sky-50 px-3 py-2 rounded-xl text-sky-700 font-bold">
+                      <span>🍽️💊</span> พร้อมอาหาร: แจ้งเตือนตรงเวลา
+                    </div>
+                  </div>
+
+                  {!notifId && (
+                    <button
+                      onClick={handleSaveMealTimes}
+                      disabled={savingMealTimes}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {savingMealTimes ? '⏳ กำลังบันทึก...' : '💾 บันทึกเวลาอาหาร & อัปเดตตารางแจ้งเตือน'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* แสดงรายการยาที่กำหนดแล้วในรูปแบบ Card Layout */}
               {customer.prescribed_drugs && customer.prescribed_drugs.length > 0 ? (
                 <div>

@@ -7,17 +7,25 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { API } from "../../../utils/apiConfig";
 
-// 🟢 helper function ดึง URL รูปภาพ
-function getImageUrl(photoAttr) {
-  if (!photoAttr) return null;
-  // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
-  if (photoAttr.documentId) {
-    return `${API.BASE_URL}/api/upload/files/${photoAttr.documentId}/serve`;
+// 🟢 helper function ดึง URL รูปภาพ (รองรับทั้ง object และ array จาก Strapi v5)
+function getImageUrl(photo) {
+  if (!photo) return null;
+  // Strapi v5 อาจส่งมาเป็น array (multiple media)
+  if (Array.isArray(photo)) {
+    if (photo.length === 0) return null;
+    return getImageUrl(photo[0]);
   }
-  // Fallback สำหรับข้อมูลเก่า
-  if (photoAttr.formats?.medium?.url) return photoAttr.formats.medium.url;
-  if (photoAttr.url) return photoAttr.url;
-  if (photoAttr.formats?.thumbnail?.url) return photoAttr.formats.thumbnail.url;
+  // ใช้ documentId บังคับสำหรับการดึงรูปผ่าน custom endpoint
+  if (photo.documentId) {
+    return `${API.BASE_URL}/api/upload/files/${photo.documentId}/serve`;
+  }
+  // Fallback สำหรับ Strapi v4 (.data.attributes)
+  if (photo.data?.attributes) return getImageUrl(photo.data.attributes);
+  if (photo.data && Array.isArray(photo.data) && photo.data.length > 0) return getImageUrl(photo.data[0]?.attributes);
+  // Fallback url
+  if (photo.formats?.medium?.url) return photo.formats.medium.url;
+  if (photo.url) return photo.url;
+  if (photo.formats?.thumbnail?.url) return photo.formats.thumbnail.url;
   return null;
 }
 
@@ -296,8 +304,8 @@ function PharmacistDetail_admin() {
         ) : (
           <div className="grid grid-cols-1 gap-6">
             {pharmacists.map((pharmacist) => {
-              const imgUrl = pharmacist.profileimage?.data?.attributes
-                ? getImageUrl(pharmacist.profileimage.data.attributes)
+              const imgUrl = pharmacist.profileimage
+                ? getImageUrl(pharmacist.profileimage)
                 : null;
 
               return (

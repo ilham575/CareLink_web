@@ -97,6 +97,12 @@ function CustomerDetailCustomer() {
     allergies: [] 
   });
   const [notifData, setNotifData] = useState(null);
+  const [mealTimes, setMealTimes] = useState({
+    morning: '08:00',
+    lunch:   '12:00',
+    evening: '18:00',
+    bedtime: '21:00',
+  });
 
   const searchParams = new URLSearchParams(location.search);
   const notifId = searchParams.get('notifId');
@@ -138,6 +144,17 @@ function CustomerDetailCustomer() {
         
         const customerData = await customerRes.json();
         setCustomer(customerData.data);
+
+        // โหลดเวลาอาหารจาก customer profile
+        const custData = customerData.data?.attributes || customerData.data;
+        if (custData) {
+          setMealTimes({
+            morning: custData.morning_meal_time || '08:00',
+            lunch:   custData.lunch_meal_time   || '12:00',
+            evening: custData.evening_meal_time || '18:00',
+            bedtime: custData.bedtime_time      || '21:00',
+          });
+        }
 
         // ดึงชื่อร้านยาและเภสัชกรที่ติดตามอาการ
         const custAttrs = customerData.data?.attributes || customerData.data;
@@ -738,6 +755,157 @@ function CustomerDetailCustomer() {
                 key: '4',
                 label: (
                   <div className="flex flex-col items-center py-2 px-1">
+                    <span className="text-xl mb-1">⏰</span>
+                    <span className="text-xs uppercase tracking-widest font-black">ตารางแจ้งเตือน</span>
+                  </div>
+                ),
+                children: (
+                  <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-5 duration-700">
+                    {/* Meal Times Display */}
+                    <div className="bg-white/60 backdrop-blur-2xl p-6 rounded-[2rem] border border-white shadow-lg">
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-xl">🕐</div>
+                          <div>
+                            <h3 className="text-xl font-black text-slate-800 tracking-tight">เวลาอาหารของคุณ</h3>
+                            <p className="text-slate-400 font-medium text-xs">ใช้สำหรับคำนวณเวลาแจ้งเตือนยา</p>
+                          </div>
+                        </div>
+                        {!notifData && (
+                          <button 
+                            onClick={() => navigate('/customer/edit_profile')}
+                            className="bg-amber-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg active:scale-95"
+                          >
+                            ✏️ แก้ไข
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        {[
+                          { key: 'morning', label: 'เช้า',     icon: '🌅', hint: 'เวลาอาหารเช้า' },
+                          { key: 'lunch',   label: 'เที่ยง',   icon: '☀️', hint: 'เวลาอาหารกลางวัน' },
+                          { key: 'evening', label: 'เย็น',     icon: '🌆', hint: 'เวลาอาหารเย็น' },
+                          { key: 'bedtime', label: 'ก่อนนอน', icon: '🌙', hint: 'เวลาเข้านอน' },
+                        ].map(slot => (
+                          <div key={slot.key} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-white to-amber-50 rounded-2xl border border-amber-100 shadow-sm">
+                            <span className="text-2xl">{slot.icon}</span>
+                            <span className="text-xs font-black text-slate-600">{slot.label}</span>
+                            <span className="text-lg font-black text-amber-600">{mealTimes[slot.key]}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Offset Explanation */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                        <div className="flex items-center gap-2 bg-rose-50 px-3 py-2 rounded-xl text-rose-700 font-bold border border-rose-100">
+                          <span>💊➡️🍽️</span> ก่อนอาหาร: แจ้งเตือน 30 นาทีก่อน
+                        </div>
+                        <div className="flex items-center gap-2 bg-emerald-50 px-3 py-2 rounded-xl text-emerald-700 font-bold border border-emerald-100">
+                          <span>🍽️➡️💊</span> หลังอาหาร: แจ้งเตือน 30 นาทีหลัง
+                        </div>
+                        <div className="flex items-center gap-2 bg-sky-50 px-3 py-2 rounded-xl text-sky-700 font-bold border border-sky-100">
+                          <span>🍽️💊</span> พร้อมอาหาร: แจ้งเตือนตรงเวลา
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Medication Schedule */}
+                    {displayData.prescribed_drugs && displayData.prescribed_drugs.length > 0 ? (
+                      <div className="bg-white/60 backdrop-blur-2xl p-6 rounded-[2rem] border border-white shadow-lg">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-xl">🔔</div>
+                          <div>
+                            <h3 className="text-xl font-black text-slate-800 tracking-tight">ตารางแจ้งเตือนยา</h3>
+                            <p className="text-slate-400 font-medium text-xs">เวลาที่ระบบจะแจ้งเตือนให้คุณทานยา</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {displayData.prescribed_drugs.map((drugItem, index) => {
+                            const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
+                            const drug = availableDrugs.find(d => d.documentId === drugId || d.id === drugId);
+                            
+                            // Calculate meal times based on drug settings
+                            const schedules = [];
+                            const mealRelation = drugItem.meal_relation || drug?.meal_relation || 'after';
+                            const dosagePerTime = drugItem.dosage_per_time || drug?.dosage_per_time || '';
+
+                            if (drugItem.reminder_time) {
+                              schedules.push({ time: drugItem.reminder_time, label: 'เวลาเฉพาะ' });
+                            } else if (drugItem.frequency_hours > 0) {
+                              for (let h = 0; h < 24; h += drugItem.frequency_hours) {
+                                schedules.push({ time: String(h).padStart(2, '0') + ':00', label: `ทุก ${drugItem.frequency_hours} ชั่วโมง` });
+                              }
+                            } else {
+                              const timeOffsets = {
+                                before:    { offset: -30, label: 'ก่อนอาหาร 30 นาที' },
+                                after:     { offset: 30,  label: 'หลังอาหาร 30 นาที' },
+                                with_meal: { offset: 0,   label: 'พร้อมอาหาร' },
+                              };
+                              const offset = timeOffsets[mealRelation]?.offset ?? 0;
+                              const offsetLabel = timeOffsets[mealRelation]?.label ?? '';
+
+                              if (drugItem.take_morning || drug?.take_morning) {
+                                const [h, m] = mealTimes.morning.split(':').map(Number);
+                                const totalMin = h * 60 + m + offset;
+                                const newH = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
+                                const newM = String(totalMin % 60).padStart(2, '0');
+                                schedules.push({ time: `${newH}:${newM}`, label: `เช้า ${offsetLabel}` });
+                              }
+                              if (drugItem.take_lunch || drug?.take_lunch) {
+                                const [h, m] = mealTimes.lunch.split(':').map(Number);
+                                const totalMin = h * 60 + m + offset;
+                                const newH = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
+                                const newM = String(totalMin % 60).padStart(2, '0');
+                                schedules.push({ time: `${newH}:${newM}`, label: `เที่ยง ${offsetLabel}` });
+                              }
+                              if (drugItem.take_evening || drug?.take_evening) {
+                                const [h, m] = mealTimes.evening.split(':').map(Number);
+                                const totalMin = h * 60 + m + offset;
+                                const newH = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
+                                const newM = String(totalMin % 60).padStart(2, '0');
+                                schedules.push({ time: `${newH}:${newM}`, label: `เย็น ${offsetLabel}` });
+                              }
+                              if (drugItem.take_bedtime || drug?.take_bedtime) {
+                                const [h, m] = mealTimes.bedtime.split(':').map(Number);
+                                const totalMin = h * 60 + m;
+                                const newH = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
+                                const newM = String(totalMin % 60).padStart(2, '0');
+                                schedules.push({ time: `${newH}:${newM}`, label: 'ก่อนนอน' });
+                              }
+                            }
+
+                            if (schedules.length === 0) return null;
+
+                            return (
+                              <div key={drugId || index} className="p-4 bg-white rounded-2xl border border-indigo-100 shadow-sm">
+                                <div className="flex items-start justify-between mb-3">
+                                  <div className="flex-1">
+                                    <h4 className="text-base font-black text-slate-800">{drug?.name_th || 'กำลังโหลด'}</h4>
+                                    {dosagePerTime && <p className="text-xs text-slate-500 font-bold">💊 ครั้งละ {dosagePerTime}</p>}
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {schedules.map((sched, idx) => (
+                                    <span key={idx} className="px-3 py-1.5 bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-700 rounded-lg text-[10px] font-black border border-indigo-100">
+                                      🔔 {sched.time} น. ({sched.label})
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              },
+              {
+                key: '5',
+                label: (
+                  <div className="flex flex-col items-center py-2 px-1">
                     <span className="text-xl mb-1">⚡</span>
                     <span className="text-xs uppercase tracking-widest font-black">ดำเนินการ</span>
                   </div>
@@ -753,7 +921,7 @@ function CustomerDetailCustomer() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <button 
                           onClick={handleBack}
                           className="group p-6 bg-white border-2 border-slate-50 rounded-[1.8rem] text-left transition-all hover:border-slate-200 hover:shadow-lg hover:-translate-y-0.5"
@@ -762,6 +930,17 @@ function CustomerDetailCustomer() {
                           <h4 className="text-lg font-black text-slate-800 mb-1">{notifId ? 'กลับไปรายการประวัติ' : 'กลับไปที่หน้าหลัก'}</h4>
                           <p className="text-slate-400 font-medium text-xs">ย้อนกลับไปยังเมนูก่อนหน้า</p>
                         </button>
+
+                        {!notifData && (
+                          <button 
+                            onClick={() => navigate('/customer/edit_profile')}
+                            className="group p-6 bg-white border-2 border-amber-50 rounded-[1.8rem] text-left transition-all hover:border-amber-200 hover:shadow-lg hover:-translate-y-0.5"
+                          >
+                            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-xl mb-4 transition-colors group-hover:bg-amber-500 group-hover:text-white">🕐</div>
+                            <h4 className="text-lg font-black text-slate-800 mb-1">ตั้งค่าเวลาอาหาร</h4>
+                            <p className="text-slate-400 font-medium text-xs">ปรับเวลาอาหารเฉลี่ยของคุณ</p>
+                          </button>
+                        )}
 
                         <button 
                           onClick={handleOpenEditSymptoms}

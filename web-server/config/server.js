@@ -2,6 +2,7 @@ module.exports = ({ env }) => ({
   host: env('HOST', '0.0.0.0'),
   port: env.int('PORT', 1337),
   cron: { enabled: true },
+
   // การตั้งค่า Proxy (จำเป็นมากสำหรับ Cloud Run)
   proxy: {
     enabled: true,

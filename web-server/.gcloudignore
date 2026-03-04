@@ -1,34 +1,50 @@
-.git
-.gitignore
+# gcloudignore สำหรับ web-server
+# ไฟล์/โฟลเดอร์เหล่านี้จะไม่ถูก upload ไป Cloud Build
+
+# Node modules — ใหญ่มาก, Cloud Build จะ install เอง
 node_modules/
-.env
-.env.*.local
-.cache/
-build/
-dist/
-.strapi/
-.DS_Store
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Build output
+build/
+dist/
+.cache/
+
+# Git
+.git/
+.gitignore
+
+# Docker files ไม่จำเป็นต้อง upload (ยกเว้น Dockerfile ที่ใช้ build)
+docker-compose.yml
+docker-compose*.yml
+Dockerfile.dev
+
+# Logs
+logs/
+*.log
+
+# Environment files ที่มี secrets จริง (ใช้ Secret Manager แทน)
+.env
+.env.local
+env-vars.yaml
+
+# Editor / OS
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
-.env.gcp
+*.DS_Store
+Thumbs.db
 
-# Docker
-.dockerignore
-
-# Database
-database/migrations/*
-!database/migrations/.gitkeep
-
-# Uploads (optional - can use Cloud Storage)
-public/uploads/*
-!public/uploads/.gitkeep
-
-# Strapi temp files
+# Strapi cache
+.strapi/
 .strapi-updater.json
+
+# Test / Coverage
+coverage/
+.nyc_output/
+
+# certs (ถ้ามี)
+certs/*.pem
+certs/*.key
+certs/*.crt
