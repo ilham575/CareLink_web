@@ -27,6 +27,14 @@
     "price": {
       "type": "decimal"
     },
+    "drug_unit": {
+      "type": "string",
+      "default": "tablet"
+    },
+    "drug_unit_custom": {
+      "type": "string",
+      "description": "ชื่อหน่วยกรณีเลือก other"
+    },
     "suggested_time": {
       "type": "time"
     },

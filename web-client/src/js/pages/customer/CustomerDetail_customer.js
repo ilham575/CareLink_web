@@ -708,7 +708,7 @@ function CustomerDetailCustomer() {
                                   {drugItem.dosage_per_time && (
                                     <div className="flex items-center gap-1.5">
                                       <span className="px-2.5 py-1 bg-cyan-50 text-cyan-700 rounded-xl text-[10px] font-bold border border-cyan-100">
-                                        💊 ครั้งละ {drugItem.dosage_per_time}
+                                        💊 ครั้งละ {drugItem.dosage_per_time}{drug?.drug_unit && ` (${drug.drug_unit === 'other' ? (drug.drug_unit_custom || '') : drug.drug_unit})`}
                                       </span>
                                     </div>
                                   )}
@@ -883,7 +883,7 @@ function CustomerDetailCustomer() {
                                 <div className="flex items-start justify-between mb-3">
                                   <div className="flex-1">
                                     <h4 className="text-base font-black text-slate-800">{drug?.name_th || 'กำลังโหลด'}</h4>
-                                    {dosagePerTime && <p className="text-xs text-slate-500 font-bold">💊 ครั้งละ {dosagePerTime}</p>}
+                                    {dosagePerTime && <p className="text-xs text-slate-500 font-bold">💊 ครั้งละ {dosagePerTime}{drug?.drug_unit && ` (${drug.drug_unit === 'other' ? (drug.drug_unit_custom || '') : drug.drug_unit})`}</p>}
                                   </div>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">

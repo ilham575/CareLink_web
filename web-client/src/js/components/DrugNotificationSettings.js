@@ -12,8 +12,10 @@ import React from 'react';
  */
 function DrugNotificationSettings({
   formData,
-  handleInputChange
+  handleInputChange,
+  drugUnit
 }) {
+  const unitLabel = drugUnit || 'เม็ด';
   return (
     <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100 space-y-6">
       {/* Meal Relation Selector */}
@@ -114,7 +116,7 @@ function DrugNotificationSettings({
           name="dosage_per_time"
           value={formData.dosage_per_time || ''}
           onChange={handleInputChange}
-          placeholder="เช่น 1 เม็ด, 2 ช้อนชา, 10 ml"
+          placeholder={`เช่น 1 ${unitLabel}, 2 ${unitLabel}`}
           className="w-full bg-white border-2 border-slate-100 rounded-xl p-3 text-slate-800 font-bold focus:border-indigo-500 transition-all outline-none text-sm placeholder:font-medium placeholder:text-slate-300"
         />
       </div>

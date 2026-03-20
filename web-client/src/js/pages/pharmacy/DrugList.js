@@ -7,6 +7,35 @@ import { API } from '../../../utils/apiConfig';
 
 /* eslint-disable no-undef */
 
+// ==================== Drug Unit Options ====================
+const DRUG_UNIT_OPTIONS = [
+  { value: 'tablet',     label: 'เม็ด',           icon: '💊' },
+  { value: 'capsule',    label: 'แคปซูล',         icon: '💊' },
+  { value: 'blister',    label: 'แผง',            icon: '📋' },
+  { value: 'box',        label: 'กล่อง',          icon: '📦' },
+  { value: 'sachet',     label: 'ซอง',            icon: '📦' },
+  { value: 'bottle',     label: 'ขวด',            icon: '🍶' },
+  { value: 'jar',        label: 'กระปุก',         icon: '🫙' },
+  { value: 'tube',       label: 'หลอด',           icon: '🧴' },
+  { value: 'patch',      label: 'แผ่น',           icon: '🩹' },
+  { value: 'ml',         label: 'มิลลิลิตร (ml)', icon: '💧' },
+  { value: 'cc',         label: 'ซีซี (cc)',       icon: '💉' },
+  { value: 'drop',       label: 'หยด',            icon: '💧' },
+  { value: 'teaspoon',   label: 'ช้อนชา',         icon: '🥄' },
+  { value: 'tablespoon', label: 'ช้อนโต๊ะ',       icon: '🥄' },
+  { value: 'puff',       label: 'พ่น',            icon: '🌬️' },
+  { value: 'gram',       label: 'กรัม (g)',        icon: '⚖️' },
+  { value: 'mg',         label: 'มิลลิกรัม (mg)', icon: '⚖️' },
+  { value: 'piece',      label: 'ชิ้น',           icon: '🧩' },
+  { value: 'other',      label: 'อื่นๆ',          icon: '📝' },
+];
+
+const getDrugUnitLabel = (unit, customUnit) => {
+  if (unit === 'other' && customUnit) return customUnit;
+  const found = DRUG_UNIT_OPTIONS.find(o => o.value === unit);
+  return found ? found.label : 'เม็ด';
+};
+
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   try {
@@ -246,6 +275,7 @@ export default function DrugList() {
   const [xlsxFileName, setXlsxFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0, errors: [] });
+  const [importErrorModal, setImportErrorModal] = useState({ open: false, errors: [], total: 0 });
   // Drug mode selection: 'existing' or 'new'
   const [drugMode, setDrugMode] = useState('new');
   const [selectedExistingDrugId, setSelectedExistingDrugId] = useState(null);
@@ -255,6 +285,8 @@ export default function DrugList() {
     description: '',
     manufacturer: '',
     price: '',
+    drug_unit: 'tablet',
+    drug_unit_custom: '',
     suggested_time: '',
     take_morning: false,
     take_lunch: false,
@@ -418,10 +450,11 @@ export default function DrugList() {
       'ชื่อยา (อังกฤษ)',
       'ข้อบ่งใช้',
       'ชื่อยี่ห้อ',
-      'ราคา'
+      'ราคา',
+      'หน่วยยา'
     ];
-    const sample1 = ['พาราเซตามอล','Paracetamol','แก้ปวด ลดไข้','ยา ดี','150.50'];
-    const sample2 = ['พาราเซตามอล','Paracetamol','แก้ปวด ลดไข้','ยา สุข','145.00'];
+    const sample1 = ['พาราเซตามอล','Paracetamol','แก้ปวด ลดไข้','ยา ดี','150.50','tablet'];
+    const sample2 = ['พาราเซตามอล','Paracetamol','แก้ปวด ลดไข้','ยา สุข','145.00','capsule'];
 
     if (type === 'csv') {
       const csv = [header.join(','), sample1.map(s => `"${String(s).replace(/"/g,'""')}"`).join(','), sample2.map(s => `"${String(s).replace(/"/g,'""')}"`).join(',')].join('\n');
@@ -614,6 +647,22 @@ export default function DrugList() {
           const p = getFieldValue(rec, 'price', 'ราคา', 'ราคา (บาท)');
           return p ? (isNaN(parseFloat(p)) ? null : parseFloat(p)) : null;
         })(),
+        drug_unit: (() => {
+          const raw = (getFieldValue(rec, 'drug_unit', 'หน่วยยา', 'หน่วย') || '').trim();
+          if (!raw) return 'tablet';
+          // 1) ตรงกับ value (English) เลย
+          const byValue = DRUG_UNIT_OPTIONS.find(o => o.value === raw);
+          if (byValue) return byValue.value;
+          // 2) ตรงกับ label (ภาษาไทย) ไม่ case-sensitive
+          const byLabel = DRUG_UNIT_OPTIONS.find(o => o.label.toLowerCase() === raw.toLowerCase());
+          if (byLabel) return byLabel.value;
+          // 3) ตรงบางส่วน เช่น "มล" → ml
+          const partial = DRUG_UNIT_OPTIONS.find(o =>
+            o.label.replace(/\s*\(.*\)/, '').trim().toLowerCase() === raw.toLowerCase()
+          );
+          if (partial) return partial.value;
+          return 'tablet';
+        })(),
         drug_store: storeRelationId
       };
       
@@ -662,25 +711,7 @@ export default function DrugList() {
     } else {
       showWarn(`นำเข้าเสร็จ แต่มีข้อผิดพลาด ${errors.length} รายการ`);
       console.error('Import errors:', errors);
-      try {
-        const header = Object.keys(records[0] || {}).join(',');
-        const lines = [header];
-        for (const eItem of errors) {
-          const row = header.split(',').map(h => `"${String(eItem.rec[h]||'').replace(/"/g,'""')}"`).join(',');
-          lines.push(row);
-        }
-        const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'drug_import_errors.csv';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      } catch (e) {
-        console.error('Failed to generate error CSV', e);
-      }
+      setImportErrorModal({ open: true, errors, total: done });
     }
 
       // refetch list after import to ensure we have server's canonical state
@@ -809,6 +840,8 @@ export default function DrugList() {
         description: drug.description || '',
         manufacturer: drug.manufacturer || '',
         price: drug.price ? String(drug.price) : '',
+        drug_unit: drug.drug_unit || 'tablet',
+        drug_unit_custom: drug.drug_unit_custom || '',
         suggested_time: drug.suggested_time ? drug.suggested_time.slice(0, 5) : '',
         take_morning: !!drug.take_morning,
         take_lunch: !!drug.take_lunch,
@@ -829,6 +862,8 @@ export default function DrugList() {
         description: '',
         manufacturer: '',
         price: '',
+        drug_unit: 'tablet',
+        drug_unit_custom: '',
         suggested_time: '',
         take_morning: false,
         take_lunch: false,
@@ -1551,7 +1586,7 @@ export default function DrugList() {
                               <span className="text-lg font-black text-slate-800 tracking-tight">
                                 {drug.price ? `${drug.price.toLocaleString()} ฿` : '-'}
                               </span>
-                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">ต่อหน่วย</span>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">ต่อ{getDrugUnitLabel(drug.drug_unit, drug.drug_unit_custom)}</span>
                             </div>
                           </td>
                           <td className="px-6 py-5 leading-none">
@@ -1644,7 +1679,7 @@ export default function DrugList() {
                           <span className="text-lg font-black text-indigo-600 tracking-tight">
                             {drug.price ? `${drug.price.toLocaleString()} ฿` : '-'}
                           </span>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase">ราคาต่อหน่วย</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">ราคาต่อ{getDrugUnitLabel(drug.drug_unit, drug.drug_unit_custom)}</span>
                         </div>
                       </div>
 
@@ -1794,6 +1829,8 @@ export default function DrugList() {
                                 description: selected.description || '',
                                 manufacturer: '',
                                 price: '',
+                                drug_unit: selected.drug_unit || 'tablet',
+                                drug_unit_custom: selected.drug_unit_custom || '',
                                 suggested_time: selected.suggested_time ? selected.suggested_time.slice(0, 5) : '',
                                 take_morning: !!selected.take_morning,
                                 take_lunch: !!selected.take_lunch,
@@ -1898,6 +1935,40 @@ export default function DrugList() {
                   </div>
                 </div>
 
+                {/* Drug Unit Selector */}
+                <div className="space-y-3">
+                  <label className="text-sm font-black text-slate-600 uppercase tracking-widest leading-none">
+                    📦 หน่วยยา
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {DRUG_UNIT_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, drug_unit: opt.value, ...(opt.value !== 'other' && { drug_unit_custom: '' }) }))}
+                        className={`flex flex-col items-center gap-1 p-2.5 rounded-2xl border-2 cursor-pointer transition-all text-center ${
+                          formData.drug_unit === opt.value
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200'
+                            : 'bg-white border-slate-100 text-slate-500 hover:border-indigo-200'
+                        }`}
+                      >
+                        <span className="text-lg">{opt.icon}</span>
+                        <span className="text-[10px] font-black uppercase leading-tight">{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {formData.drug_unit === 'other' && (
+                    <input
+                      type="text"
+                      name="drug_unit_custom"
+                      value={formData.drug_unit_custom}
+                      onChange={handleInputChange}
+                      placeholder="ระบุหน่วยยา เช่น ขวด, หลอด..."
+                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-slate-800 font-bold focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                    />
+                  )}
+                </div>
+
                 <div className="flex gap-3 pt-4">
                   <button 
                     type="button" 
@@ -1926,7 +1997,137 @@ export default function DrugList() {
           handleInputChange={handleNotifInputChange}
           drugName={notifEditDrug ? (notifEditDrug.name_th || notifEditDrug.name_en) : undefined}
           saving={notifSaving}
+          drugUnit={getDrugUnitLabel(notifEditDrug?.drug_unit, notifEditDrug?.drug_unit_custom)}
         />
+
+        {/* Import Error Modal */}
+        {importErrorModal.open && (
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4"
+            onClick={() => setImportErrorModal(prev => ({ ...prev, open: false }))}
+          >
+            <div
+              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="px-8 pt-8 pb-5 border-b border-slate-100 flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center text-2xl flex-shrink-0">⚠️</div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 leading-tight">นำเข้าไม่สำเร็จทั้งหมด</h3>
+                    <p className="text-sm text-slate-500 font-medium mt-0.5">
+                      สำเร็จ {importErrorModal.total - importErrorModal.errors.length} รายการ
+                      &nbsp;•&nbsp;
+                      <span className="text-rose-500 font-black">ผิดพลาด {importErrorModal.errors.length} รายการ</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all flex-shrink-0"
+                  onClick={() => setImportErrorModal(prev => ({ ...prev, open: false }))}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-auto max-h-[55vh] px-8 py-5">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-slate-100">
+                      <th className="pb-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-8">#</th>
+                      <th className="pb-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">ชื่อยา (ไทย)</th>
+                      <th className="pb-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">ยี่ห้อ</th>
+                      <th className="pb-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">ราคา</th>
+                      <th className="pb-3 text-left text-[10px] font-black text-rose-400 uppercase tracking-widest">สาเหตุข้อผิดพลาด</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {importErrorModal.errors.map((eItem, idx) => {
+                      const errMsg = (() => {
+                        if (!eItem.error) return 'ไม่ทราบ';
+                        if (typeof eItem.error === 'string') return eItem.error;
+                        if (eItem.error?.error?.message) return eItem.error.error.message;
+                        if (eItem.error?.message) return eItem.error.message;
+                        const details = eItem.error?.error?.details?.errors;
+                        if (Array.isArray(details) && details.length > 0) {
+                          return details.map(d => `${d.path?.join('.')}: ${d.message}`).join('; ');
+                        }
+                        return JSON.stringify(eItem.error).slice(0, 150);
+                      })();
+                      return (
+                        <tr key={idx} className="hover:bg-rose-50/30 transition-colors">
+                          <td className="py-3 pr-3 text-xs font-black text-slate-300">{idx + 1}</td>
+                          <td className="py-3 pr-3 font-bold text-slate-700 max-w-[150px]">
+                            <span className="block truncate">{eItem.rec?.['ชื่อยา (ไทย)'] || eItem.rec?.name_th || <span className="text-slate-300 italic">ไม่ระบุ</span>}</span>
+                          </td>
+                          <td className="py-3 pr-3 text-slate-500 max-w-[120px]">
+                            <span className="block truncate">{eItem.rec?.['ชื่อยี่ห้อ'] || eItem.rec?.manufacturer || '-'}</span>
+                          </td>
+                          <td className="py-3 pr-3 text-slate-500 whitespace-nowrap">
+                            {eItem.rec?.['ราคา'] || eItem.rec?.price || '-'}
+                          </td>
+                          <td className="py-3 text-rose-600 font-bold text-xs">
+                            <span className="block leading-relaxed">{errMsg}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer */}
+              <div className="px-8 pb-8 pt-3 flex gap-3">
+                <button
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all active:scale-95"
+                  onClick={() => setImportErrorModal(prev => ({ ...prev, open: false }))}
+                >
+                  ปิด
+                </button>
+                <button
+                  className="flex-1 py-3.5 bg-indigo-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
+                  onClick={() => {
+                    const header = 'ชื่อยา (ไทย),ชื่อยา (อังกฤษ),ยี่ห้อ,ราคา,สาเหตุข้อผิดพลาด';
+                    const esc = v => `"${String(v || '').replace(/"/g, '""')}"`;
+                    const rows = importErrorModal.errors.map(eItem => {
+                      const errMsg = (() => {
+                        if (!eItem.error) return 'ไม่ทราบ';
+                        if (typeof eItem.error === 'string') return eItem.error;
+                        if (eItem.error?.error?.message) return eItem.error.error.message;
+                        if (eItem.error?.message) return eItem.error.message;
+                        const details = eItem.error?.error?.details?.errors;
+                        if (Array.isArray(details) && details.length > 0) {
+                          return details.map(d => `${d.path?.join('.')}: ${d.message}`).join('; ');
+                        }
+                        return JSON.stringify(eItem.error).slice(0, 150);
+                      })();
+                      return [
+                        esc(eItem.rec?.['ชื่อยา (ไทย)'] || eItem.rec?.name_th || ''),
+                        esc(eItem.rec?.['ชื่อยา (อังกฤษ)'] || eItem.rec?.name_en || ''),
+                        esc(eItem.rec?.['ชื่อยี่ห้อ'] || eItem.rec?.manufacturer || ''),
+                        esc(eItem.rec?.['ราคา'] || eItem.rec?.price || ''),
+                        esc(errMsg),
+                      ].join(',');
+                    });
+                    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'drug_import_errors.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  ⬇️ ดาวน์โหลด CSV
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {(confirmDialog.visible || confirmDialog.closing) && (
           <div 
@@ -2047,7 +2248,7 @@ export default function DrugList() {
                             <div className="p-4 bg-slate-50 rounded-2xl flex flex-col items-center">
                               <span className="text-[10px] font-black text-slate-400 uppercase mb-1">คงเหลือ</span>
                               <span className="text-lg font-black text-slate-800">{batchData.quantity || 0}</span>
-                              <span className="text-[10px] font-bold text-slate-400">หน่วย</span>
+                              <span className="text-[10px] font-bold text-slate-400">{getDrugUnitLabel(batchDetailsModalDrug?.drug_unit, batchDetailsModalDrug?.drug_unit_custom)}</span>
                             </div>
                             <div className="p-4 bg-slate-50 rounded-2xl flex flex-col items-center">
                               <span className="text-[10px] font-black text-slate-400 uppercase mb-1">วันที่ผลิต</span>

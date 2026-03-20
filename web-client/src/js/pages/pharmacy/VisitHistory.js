@@ -100,16 +100,17 @@ function VisitHistory() {
         }
       }
       
-      // Load all visits (notifications) for this customer at this pharmacy
-      // ⚠️ เฉพาะ customer_assignment (การมอบหมายใหม่) และ message (บันทึกข้อมูล)
-      // ❌ ไม่รวม customer_assignment_update เพราะมันคือการอัพเดตของ visit เดียวกัน
-      // (ถ้าใส่ customer_assignment_update มันจะแสดงสองครั้งในรายการ visit)
+      // Load all history notifications for this customer at this pharmacy.
+      // Normally we show only base rows (customer_assignment/message).
+      // But if base rows are gone and only legacy update rows remain,
+      // fallback to show update rows so UI won't display 0 while backend still has history.
       const notifRes = await fetch(
         API.notifications.list(
           `filters[customer_profile][documentId][$eq]=${customerDocumentId}` +
           `&filters[drug_store][documentId][$eq]=${pharmacyId}` +
           `&filters[type][$in][0]=customer_assignment` +
           `&filters[type][$in][1]=message` +
+          `&filters[type][$in][2]=customer_assignment_update` +
           `&populate=*` +
           `&sort[0]=createdAt:desc`
         ),
@@ -119,10 +120,21 @@ function VisitHistory() {
       if (notifRes.ok) {
         const notifData = await notifRes.json();
         const notifications = notifData.data || [];
+
+        const baseNotifications = notifications.filter(
+          (n) => n.type === 'customer_assignment' || n.type === 'message'
+        );
+        const updateOnlyNotifications = notifications.filter(
+          (n) => n.type === 'customer_assignment_update'
+        );
+
+        const visibleNotifications = baseNotifications.length > 0
+          ? baseNotifications
+          : updateOnlyNotifications;
         
         // แต่ละ notification คือ 1 visit (ไม่ group)
         // เพราะแต่ละครั้งที่ส่งข้อมูลให้พนักงาน ถือเป็นการมาใหม่
-        const visits = notifications.map(notif => ({
+        const visits = visibleNotifications.map(notif => ({
           id: notif.id,
           notifications: [notif], // wrap ใน array เพื่อให้ compatible กับ UI
           latestNotification: notif,
@@ -169,14 +181,21 @@ function VisitHistory() {
     if (!deleteConfirmModal.visit) return;
 
     setDeleteConfirmModal(prev => ({ ...prev, loading: true }));
+    let timeoutId = null;
 
     try {
       const token = localStorage.getItem('jwt');
-      const notifId = deleteConfirmModal.visit.latestNotification.documentId;
+      const latestNotif = deleteConfirmModal.visit.latestNotification;
+      const notifId = latestNotif?.documentId || latestNotif?.id;
+      if (!notifId) throw new Error('ไม่พบรายการประวัติที่ต้องการลบ');
+
+      const controller = new AbortController();
+      timeoutId = setTimeout(() => controller.abort(), 20000);
 
       const res = await fetch(API.notifications.delete(notifId), {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal
       });
 
       if (!res.ok) throw new Error('ลบข้อมูลไม่สำเร็จ');
@@ -188,8 +207,14 @@ function VisitHistory() {
       loadData();
 
     } catch (error) {
-      toast.error(error.message || 'เกิดข้อผิดพลาดในการลบข้อมูล');
+      if (error?.name === 'AbortError') {
+        toast.error('การลบใช้เวลานานเกินไป ระบบยังประมวลผลอยู่ กรุณาลองใหม่อีกครั้ง');
+      } else {
+        toast.error(error.message || 'เกิดข้อผิดพลาดในการลบข้อมูล');
+      }
       setDeleteConfirmModal(prev => ({ ...prev, loading: false }));
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
   };
 

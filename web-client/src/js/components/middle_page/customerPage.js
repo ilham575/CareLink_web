@@ -192,8 +192,8 @@ function CustomerPage({ id }) {
           };
 
           const removeRelation = async () => {
-            if (!customerId) return;
-            // ตัดความสัมพันธ์ many-to-many กับ drug_stores
+            if (!customerDocumentId) return;
+
             const res = await fetch(
               API.customerProfiles.update(customerDocumentId),
               {
@@ -205,22 +205,20 @@ function CustomerPage({ id }) {
                 body: JSON.stringify({
                   data: {
                     users_permissions_user: null,
-                    drug_stores: {
-                      disconnect: []
-                    }
                   },
                 }),
               }
             );
-            if (!res.ok) {
-              throw new Error("ตัดความสัมพันธ์กับ user ไม่สำเร็จ");
+
+            if (!res.ok && res.status !== 404) {
+              throw new Error("ตัดความสัมพันธ์กับบัญชีผู้ใช้ไม่สำเร็จ");
             }
           };
 
           const deleteCustomerProfile = async () => {
             if (!customerDocumentId) return;
             const res = await fetch(
-              API.customerProfiles.update(customerDocumentId),
+              API.customerProfiles.delete(customerDocumentId),
               { method: "DELETE", headers: authHeaders }
             );
             if (!res.ok && res.status !== 404) {
@@ -257,44 +255,52 @@ function CustomerPage({ id }) {
               return;
             }
             try {
-              console.log('[deleteRelatedNotifications] Starting for customerDocumentId:', customerDocumentId);
-              
-              // หา notification ทั้งหมดที่เกี่ยวกับลูกค้าคนนี้
-              const notifRes = await fetch(
-                API.notifications.list(`filters[customer_profile][documentId][$eq]=${customerDocumentId}&pagination[pageSize]=100`),
-                { headers: authHeaders }
-              );
-              
-              console.log('[deleteRelatedNotifications] Query response status:', notifRes.status);
-              
-              if (!notifRes.ok) {
-                console.warn('[deleteRelatedNotifications] Query failed with status:', notifRes.status);
-                return;
-              }
-              
-              const notifData = await notifRes.json();
-              const notifications = Array.isArray(notifData?.data) ? notifData.data : [];
-              
-              console.log('[deleteRelatedNotifications] Found notifications:', notifications.length);
-              
-              // ลบ notification ทั้งหมด
-              for (const notif of notifications) {
-                try {
-                  console.log('[deleteRelatedNotifications] Deleting notification:', notif.documentId);
-                  const deleteRes = await fetch(
-                    API.notifications.delete(notif.documentId),
-                    { method: "DELETE", headers: authHeaders }
-                  );
-                  console.log('[deleteRelatedNotifications] Delete response status:', deleteRes.status);
-                  if (!deleteRes.ok) {
-                    console.warn('[deleteRelatedNotifications] Failed to delete:', deleteRes.status);
-                  }
-                } catch (err) {
-                  console.warn('Failed to delete notification:', notif.documentId, err);
+              const notifications = [];
+              const pageSize = 200;
+              let page = 1;
+
+              while (true) {
+                const listRes = await fetch(
+                  API.notifications.list(
+                    `filters[customer_profile][documentId][$eq]=${customerDocumentId}` +
+                    `&fields[0]=documentId&pagination[page]=${page}&pagination[pageSize]=${pageSize}`
+                  ),
+                  { headers: authHeaders }
+                );
+
+                if (!listRes.ok) {
+                  console.warn('[deleteRelatedNotifications] Query failed with status:', listRes.status);
+                  return;
                 }
+
+                const listJson = await listRes.json();
+                const pageItems = Array.isArray(listJson?.data) ? listJson.data : [];
+                if (pageItems.length === 0) break;
+
+                notifications.push(...pageItems);
+                if (pageItems.length < pageSize) break;
+                page += 1;
               }
-              
-              console.log('[deleteRelatedNotifications] All notifications deleted successfully');
+
+              const CONCURRENCY = 8;
+              for (let i = 0; i < notifications.length; i += CONCURRENCY) {
+                const batch = notifications.slice(i, i + CONCURRENCY);
+                await Promise.all(
+                  batch.map(async (notif) => {
+                    try {
+                      const deleteRes = await fetch(
+                        API.notifications.delete(notif.documentId),
+                        { method: "DELETE", headers: authHeaders }
+                      );
+                      if (!deleteRes.ok) {
+                        console.warn('[deleteRelatedNotifications] Failed to delete:', notif.documentId, deleteRes.status);
+                      }
+                    } catch (err) {
+                      console.warn('Failed to delete notification:', notif.documentId, err);
+                    }
+                  })
+                );
+              }
             } catch (error) {
               console.warn('Error deleting related notifications:', error);
               // ไม่แสดง error toast เพราะเป็น cleanup ที่ไม่จำเป็น
@@ -364,7 +370,10 @@ function CustomerPage({ id }) {
             await deleteRelatedNotifications(); // เพิ่มการลบ notification
             await deleteCustomerProfile();
             await deleteUser();
-            await refreshList();
+
+            // อัปเดต UI ให้ตอบสนองทันที แล้วค่อยรีเฟรชรายการแบบ background
+            setCustomerList((prev) => prev.filter((c) => c.id !== customerId));
+            refreshList().catch(() => {});
 
             Modal.success({ content: "ลบลูกค้าและบัญชีผู้ใช้สำเร็จ" });
             resolve();

@@ -67,6 +67,7 @@ function DrugStoresDetail_staff() {
       try {
         // 1. ดึงข้อมูลร้าน - check if id is valid before making request
         let storeRes, storeJson, store;
+        const isNumericId = /^\d+$/.test(String(id || '').trim());
         
         if (!id || id === 'undefined' || id === 'null') {
           throw new Error('Invalid store ID');
@@ -76,13 +77,15 @@ function DrugStoresDetail_staff() {
         try {
           storeRes = await fetch(API.drugStores.getByDocumentId(id));
           storeJson = await storeRes.json();
-          store = storeJson.data?.[0];
+          store = Array.isArray(storeJson?.data)
+            ? storeJson.data.find((item) => String(item?.documentId) === String(id)) || storeJson.data[0]
+            : null;
         } catch (err) {
           console.error('Error fetching by documentId:', err);
         }
 
-        // If not found by documentId and id is a valid integer, try regular id
-        if (!store && !isNaN(parseInt(id))) {
+        // If not found by documentId and id is strictly numeric, try regular id
+        if (!store && isNumericId) {
           storeRes = await fetch(API.drugStores.getById(id));
           storeJson = await storeRes.json();
           store = storeJson.data;

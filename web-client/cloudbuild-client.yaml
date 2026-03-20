@@ -42,14 +42,12 @@ steps:
   # -----------------------------------------------------------
   # Step 3: Deploy to Firebase Hosting
   # -----------------------------------------------------------
-  - name: "gcr.io/${_PROJECT_ID}/firebase"
+  - name: "node:18-alpine"
     id: "firebase-deploy"
+    entrypoint: "sh"
     args:
-      - "deploy"
-      - "--only"
-      - "hosting"
-      - "--project=${_PROJECT_ID}"
-      - "--token=$$FIREBASE_TOKEN"
+      - "-c"
+      - "npm install -g firebase-tools && firebase deploy --only hosting --project=${_PROJECT_ID} --token=$$FIREBASE_TOKEN"
     dir: "web-client"
     secretEnv: ["FIREBASE_TOKEN"]
     waitFor: ["npm-build"]

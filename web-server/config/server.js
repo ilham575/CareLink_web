@@ -16,7 +16,7 @@ module.exports = ({ env }) => ({
   // ถ้าไม่มี (เช่นตอนรัน Local) จะไปใช้ localhost แทน
   url: env('PUBLIC_URL', env('URL', 'http://localhost:1337')),
   app: {
-    keys: env.array('APP_KEYS'),
+    keys: env.array('APP_KEYS', ['carelink-dev-key-1', 'carelink-dev-key-2']),
   },
   webhooks: {
     populateRelations: env.bool('WEBHOOKS_POPULATE_RELATIONS', false),

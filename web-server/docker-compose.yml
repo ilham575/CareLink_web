@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "1337:1337"
+    env_file:
+      - .env
     volumes:
       - .:/app
       - /app/node_modules

@@ -8,7 +8,7 @@
     "description": "Schedule for customer medication reminders"
   },
   "options": {
-    "draftAndPublish": true
+    "draftAndPublish": false
   },
   "pluginOptions": {},
   "attributes": {
@@ -28,6 +28,9 @@
       "type": "boolean",
       "default": true
     },
+    "customer_document_id": {
+      "type": "string"
+    },
     "customer": {
       "type": "relation",
       "relation": "manyToOne",
@@ -39,6 +42,13 @@
     },
     "dosage_per_time": {
       "type": "string"
+    },
+    "dosage_unit": {
+      "type": "string"
+    },
+    "take_until_finished": {
+      "type": "boolean",
+      "default": false
     }
   }
 }

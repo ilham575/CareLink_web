@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
@@ -23,6 +23,140 @@ function formatThaiDate(dateStr) {
   const month = months[d.month() + 1];
   const year = d.year() + 543;
   return `${day} ${month} ${year}`;
+}
+
+function hasReminderConfig(drugItem) {
+  if (!drugItem || typeof drugItem !== 'object') return false;
+  if (drugItem.reminder_time && String(drugItem.reminder_time).trim() !== '') return true;
+  if (Number(drugItem.frequency_hours || 0) > 0) return true;
+  return !!(drugItem.take_morning || drugItem.take_lunch || drugItem.take_evening || drugItem.take_bedtime);
+}
+
+function buildPrescribedDrugMergeKey(item) {
+  const drugId = item?.drugId || item?.documentId || item?.id || '';
+  const reminderTime = item?.reminder_time || '';
+  const frequencyHours = Number(item?.frequency_hours || 0);
+  const mealRelation = item?.meal_relation || 'after';
+  const takeUntilFinished = item?.take_until_finished ? 'U' : 'N';
+  const slots = [
+    item?.take_morning ? 'M' : '',
+    item?.take_lunch ? 'L' : '',
+    item?.take_evening ? 'E' : '',
+    item?.take_bedtime ? 'B' : ''
+  ].join('');
+
+  return [drugId, reminderTime, frequencyHours, mealRelation, slots, takeUntilFinished].join('|');
+}
+
+function mergePrescribedDrugLists(baseList = [], incomingList = []) {
+  const merged = new Map();
+
+  [...(Array.isArray(baseList) ? baseList : []), ...(Array.isArray(incomingList) ? incomingList : [])]
+    .forEach((item) => {
+      if (!item) return;
+
+      const normalized = typeof item === 'string'
+        ? {
+            drugId: item,
+            quantity: 1,
+            reminder_time: '',
+            take_morning: false,
+            take_lunch: false,
+            take_evening: false,
+            take_bedtime: false,
+            meal_relation: 'after',
+            dosage_per_time: '',
+            frequency_hours: 0,
+            take_until_finished: false
+          }
+        : {
+            ...item,
+            drugId: item.drugId || item.documentId || item.id,
+            quantity: item.quantity || 1,
+            reminder_time: item.reminder_time || '',
+            take_morning: !!item.take_morning,
+            take_lunch: !!item.take_lunch,
+            take_evening: !!item.take_evening,
+            take_bedtime: !!item.take_bedtime,
+            meal_relation: item.meal_relation || 'after',
+            dosage_per_time: item.dosage_per_time || '',
+            frequency_hours: Number(item.frequency_hours || 0),
+            take_until_finished: !!item.take_until_finished
+          };
+
+      if (!normalized.drugId) return;
+      const key = buildPrescribedDrugMergeKey(normalized);
+      merged.set(key, normalized);
+    });
+
+  return Array.from(merged.values());
+}
+
+function buildPrescribedDrugSyncSignature(list = []) {
+  const normalized = (Array.isArray(list) ? list : [])
+    .map((item) => {
+      if (!item) return null;
+      const base = typeof item === 'string'
+        ? {
+            drugId: item,
+            quantity: 1,
+            reminder_time: '',
+            take_morning: false,
+            take_lunch: false,
+            take_evening: false,
+            take_bedtime: false,
+            meal_relation: 'after',
+            dosage_per_time: '',
+            frequency_hours: 0,
+            take_until_finished: false,
+            days_of_week: []
+          }
+        : {
+            ...item,
+            drugId: item.drugId || item.documentId || item.id,
+            quantity: item.quantity || 1,
+            reminder_time: item.reminder_time || '',
+            take_morning: !!item.take_morning,
+            take_lunch: !!item.take_lunch,
+            take_evening: !!item.take_evening,
+            take_bedtime: !!item.take_bedtime,
+            meal_relation: item.meal_relation || 'after',
+            dosage_per_time: item.dosage_per_time || '',
+            frequency_hours: Number(item.frequency_hours || 0),
+            take_until_finished: !!item.take_until_finished,
+            days_of_week: Array.isArray(item.days_of_week) ? item.days_of_week : []
+          };
+
+      if (!base.drugId) return null;
+
+      return [
+        buildPrescribedDrugMergeKey(base),
+        `q=${Number(base.quantity || 1)}`,
+        `dose=${base.dosage_per_time || ''}`,
+        `days=${(base.days_of_week || []).join(',')}`
+      ].join('|');
+    })
+    .filter(Boolean)
+    .sort();
+
+  return normalized.join('||');
+}
+
+async function fetchWithClientTimeout(url, options = {}, timeoutMs = 8000) {
+  let timeoutHandle;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      const err = new Error('REQUEST_TIMEOUT');
+      err.code = 'REQUEST_TIMEOUT';
+      reject(err);
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([fetch(url, options), timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
 }
 
 function CustomerDetail() {
@@ -59,7 +193,9 @@ function CustomerDetail() {
     loading: false,
     assignNote: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [assignedByStaff, setAssignedByStaff] = useState(null);
+  const [existingPrescribedDrugs, setExistingPrescribedDrugs] = useState([]);
   const [staffWorkStatus, setStaffWorkStatus] = useState({
     received: false,
     prepared: false,
@@ -92,6 +228,11 @@ function CustomerDetail() {
     selectedDrugs: [],
     filterBy: 'all'
   });
+  const [scheduleChoiceModal, setScheduleChoiceModal] = useState({
+    open: false,
+    targetStaffId: null,
+    isUpdate: false
+  });
   // Modal สำหรับตั้งค่าเวลาทานยา (แยกออกมา)
   const [drugNotificationModal, setDrugNotificationModal] = useState({
     open: false,
@@ -106,6 +247,7 @@ function CustomerDetail() {
     quantity: 1,
     dosage_per_time: '',
     frequency_hours: 0,
+    take_until_finished: false,
     useDefaults: true,
     drugDefaults: {}
   });
@@ -138,7 +280,15 @@ function CustomerDetail() {
   const searchParams = new URLSearchParams(location.search);
   const pharmacyId = searchParams.get('pharmacyId');
   const notifId = searchParams.get('notifId');
-  const newVisit = searchParams.get('newVisit') === '1' || searchParams.get('newVisit') === 'true';
+  // notifId always means this page is bound to an existing historical round.
+  // If both notifId and newVisit appear in URL, prefer notifId to avoid wrong mode.
+  const rawNewVisit = searchParams.get('newVisit') === '1' || searchParams.get('newVisit') === 'true';
+  const newVisit = rawNewVisit && !notifId;
+  const isViewingHistoricalRound = Boolean(notifId);
+  const isDraftEnabled = newVisit;
+  const activeNotificationDocId = isViewingHistoricalRound
+    ? (currentNotification?.documentId || latestNotification?.documentId || notifId)
+    : latestNotification?.documentId;
 
   const defaultStaffStatus = {
     received: false,
@@ -151,6 +301,134 @@ function CustomerDetail() {
     cancelled_at: null,
     cancelled_note: ''
   };
+
+  // Normalize work status from server — old records may not have outOfStock field
+  const normalizeWorkStatus = (status) => ({
+    ...defaultStaffStatus,
+    ...(status || {}),
+    outOfStock: Array.isArray(status?.outOfStock) ? status.outOfStock : [],
+  });
+
+  // ─── Draft Auto-Save System (ป้องกันข้อมูลหายเมื่อรีเฟรช/เปลี่ยนหน้า) ───
+  const draftKey = `carelink_draft_${customerDocumentId || 'unknown'}`;
+  const hasDirtyData = useRef(false);
+  const [isDraftSaved, setIsDraftSaved] = useState(false);
+  // Keep a ref mirror of customer so unmount cleanup can access latest value
+  const customerRef = useRef(null);
+  const addDrugModalRef = useRef(addDrugModal);
+  const drugQuantitiesRef = useRef(drugQuantities);
+  useEffect(() => { customerRef.current = customer; }, [customer]);
+  useEffect(() => { addDrugModalRef.current = addDrugModal; }, [addDrugModal]);
+  useEffect(() => { drugQuantitiesRef.current = drugQuantities; }, [drugQuantities]);
+
+  // Save draft to localStorage (uses refs so it works from cleanup/unmount)
+  const saveDraftNow = useCallback(() => {
+    const c = customerRef.current;
+    if (!isDraftEnabled || !c || !hasDirtyData.current) return;
+    const draft = {
+      savedAt: new Date().toISOString(),
+      customerDocumentId,
+      pharmacyId,
+      notifId,
+      newVisit,
+      symptoms: {
+        main: c.Customers_symptoms || '',
+        history: c.symptom_history || '',
+        note: c.symptom_note || ''
+      },
+      prescribed_drugs: c.prescribed_drugs || [],
+      Allergic_drugs: c.Allergic_drugs || '',
+      congenital_disease: c.congenital_disease || '',
+      Follow_up_appointment_date: c.Follow_up_appointment_date || null,
+      selectedDrugs: addDrugModalRef.current.selectedDrugs || [],
+      drugQuantities: drugQuantitiesRef.current
+    };
+    try {
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+      setIsDraftSaved(true);
+    } catch (e) { /* quota exceeded — ignore */ }
+  }, [draftKey, customerDocumentId, pharmacyId, notifId, newVisit, isDraftEnabled]);
+
+  const clearDraft = useCallback(() => {
+    const keysToRemove = new Set([draftKey, 'carelink_draft_unknown']);
+    if (customerDocumentId) {
+      keysToRemove.add(`carelink_draft_${customerDocumentId}`);
+      // ลบ staffStatus ที่ staff page เก็บไว้สำหรับ cross-tab sync
+      // เมื่อส่งข้อมูลใหม่ไปยัง staff แล้ว สถานะเก่าต้องถูกล้างออก
+      keysToRemove.add(`staffStatus_${customerDocumentId}`);
+    }
+
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+    if (customerDocumentId) {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (key.startsWith('carelink_draft_') && !keysToRemove.has(key)) {
+          try {
+            const raw = localStorage.getItem(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            if (parsed?.customerDocumentId === customerDocumentId) {
+              localStorage.removeItem(key);
+            }
+          } catch (e) {
+            // ignore malformed draft entries
+          }
+        }
+      }
+    }
+
+    hasDirtyData.current = false;
+    setIsDraftSaved(false);
+  }, [draftKey, customerDocumentId]);
+
+  // Save draft on component unmount (กดไปหน้าอื่นผ่าน React Router)
+  useEffect(() => {
+    if (!isDraftEnabled) return;
+    return () => {
+      if (hasDirtyData.current) {
+        saveDraftNow();
+      }
+    };
+  }, [saveDraftNow, isDraftEnabled]);
+
+  // beforeunload — warn when leaving page / closing tab / refresh
+  useEffect(() => {
+    if (!isDraftEnabled) return;
+    const handler = (e) => {
+      if (hasDirtyData.current) {
+        saveDraftNow();
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [saveDraftNow, isDraftEnabled]);
+
+  // Mark dirty + auto-save when customer visit data changes (skip initial load)
+  // NOTE: combined into one effect to avoid race condition where auto-save ran before mark-dirty
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (!isDraftEnabled || !customer) return;
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      // ถ้าตอน load เสร็จมี hasDirtyData = true (มาจาก draft restore) → save ทันที
+      if (!hasDirtyData.current) return;
+    }
+    hasDirtyData.current = true;
+    const t = setTimeout(() => saveDraftNow(), 800);
+    return () => clearTimeout(t);
+  }, [customer?.Customers_symptoms, customer?.symptom_history, customer?.symptom_note,
+      customer?.prescribed_drugs, customer?.Allergic_drugs, customer?.congenital_disease,
+      customer?.Follow_up_appointment_date, drugQuantities, isDraftEnabled, saveDraftNow]);
+
+  useEffect(() => {
+    if (isDraftEnabled) return;
+    hasDirtyData.current = false;
+    setIsDraftSaved(false);
+  }, [isDraftEnabled]);
 
   useEffect(() => {
     console.log('useEffect triggered with customerDocumentId:', customerDocumentId, 'pharmacyId:', pharmacyId, 'notifId:', notifId);
@@ -172,9 +450,14 @@ function CustomerDetail() {
 
       if (notifId) {
         try {
-          const nRes = await fetch(API.notifications.getById(notifId), {
+          let nRes = await fetch(API.notifications.getByDocumentId(notifId), {
             headers: { Authorization: token ? `Bearer ${token}` : "" }
           });
+          if (!nRes.ok && /^\d+$/.test(String(notifId))) {
+            nRes = await fetch(API.notifications.getById(notifId), {
+              headers: { Authorization: token ? `Bearer ${token}` : "" }
+            });
+          }
           if (nRes.ok) {
             const nJson = await nRes.json();
             initialNotification = nJson.data || nJson;
@@ -225,8 +508,10 @@ function CustomerDetail() {
         }
 
         console.log('Customer data loaded:', customer);
+        setExistingPrescribedDrugs(Array.isArray(customer.prescribed_drugs) ? customer.prescribed_drugs : []);
         // If newVisit flag is present, clear visit-specific data (prescribed_drugs AND symptoms)
         // เพื่อให้เริ่มกระดาษใหม่โดยไม่มีข้อมูลจากแผ่นเก่าติดมา
+        let draftWasRestored = false;
         if (newVisit) {
           const cleared = { 
             ...customer, 
@@ -236,7 +521,49 @@ function CustomerDetail() {
             symptom_note: '',
             Follow_up_appointment_date: null
           };
-          setCustomer(cleared);
+
+          // ─── Draft Restore: กู้คืนข้อมูลร่างที่บันทึกไว้ก่อนรีเฟรช/เปลี่ยนหน้า ───
+          const savedDraftKey = `carelink_draft_${customerDocumentId || 'unknown'}`;
+          try {
+            const raw = localStorage.getItem(savedDraftKey);
+            if (raw) {
+              const draft = JSON.parse(raw);
+              const age = Date.now() - new Date(draft.savedAt).getTime();
+              if (age < 24 * 60 * 60 * 1000 && draft.customerDocumentId === customerDocumentId) {
+                // ไม่ลบ draft จาก localStorage — เก็บไว้เพื่อ:
+                // 1) Strict Mode run ครั้งที่ 2 จะยังเจอ draft เดิม (ไม่ถูก cleared ทับ)
+                // 2) auto-save จะ update draft ต่อเมื่อ user แก้ไข
+                // 3) clearDraft() จะลบเมื่อส่งข้อมูลสำเร็จ
+                const restored = {
+                  ...cleared,
+                  Customers_symptoms: draft.symptoms?.main || '',
+                  symptom_history: draft.symptoms?.history || '',
+                  symptom_note: draft.symptoms?.note || '',
+                  prescribed_drugs: draft.prescribed_drugs || [],
+                  Allergic_drugs: draft.Allergic_drugs || '',
+                  congenital_disease: draft.congenital_disease || cleared.congenital_disease,
+                  Follow_up_appointment_date: draft.Follow_up_appointment_date || null
+                };
+                setCustomer(restored);
+                if (draft.selectedDrugs?.length) {
+                  setAddDrugModal(prev => ({ ...prev, selectedDrugs: draft.selectedDrugs }));
+                }
+                if (draft.drugQuantities && Object.keys(draft.drugQuantities).length > 0) {
+                  setDrugQuantities(draft.drugQuantities);
+                }
+                draftWasRestored = true;
+                hasDirtyData.current = true;
+                toast.info('📋 กู้คืนข้อมูลร่างที่เคยบันทึกไว้แล้ว', { autoClose: 4000 });
+              } else {
+                localStorage.removeItem(savedDraftKey);
+                setCustomer(cleared);
+              }
+            } else {
+              setCustomer(cleared);
+            }
+          } catch (e) {
+            setCustomer(cleared);
+          }
         } else if (initialNotification?.data) {
           // ถ้ามี notification snapshot ให้ใช้ข้อมูลจาก notification (กระดาษแผ่นนั้นๆ)
           // แทนที่จะใช้ customer profile ปัจจุบัน
@@ -306,7 +633,21 @@ function CustomerDetail() {
           console.log('New visit mode: clearing assigned_by_staff and visit-specific state');
           setAssignedByStaff(null);
         } else {
-          if (customer?.assigned_by_staff && customer.assigned_by_staff.documentId) {
+          const snapshotStaff =
+            initialNotification?.staff_profile?.data ||
+            initialNotification?.staff_profile ||
+            initialNotification?.data?.staff_profile?.data ||
+            initialNotification?.data?.staff_profile ||
+            currentNotification?.staff_profile?.data ||
+            currentNotification?.staff_profile ||
+            currentNotification?.data?.staff_profile?.data ||
+            currentNotification?.data?.staff_profile ||
+            null;
+
+          if (isViewingHistoricalRound && snapshotStaff?.documentId) {
+            console.log('Using assigned staff from historical notification snapshot:', snapshotStaff);
+            setAssignedByStaff(snapshotStaff);
+          } else if (customer?.assigned_by_staff && customer.assigned_by_staff.documentId) {
             console.log('Customer has assigned_by_staff:', customer.assigned_by_staff);
             setAssignedByStaff(customer.assigned_by_staff);
           } else {
@@ -345,19 +686,58 @@ function CustomerDetail() {
             setAddDrugModal(prev => ({ ...prev, availableDrugs: drugsNormalized }));
           }
           
-          // โหลด staff work status จาก latest notification (หรือ notification ที่ระบุ) (ยกเว้น newVisit)
-          if (!newVisit && (initialNotification?.documentId || customer?.assigned_by_staff?.documentId)) {
-            // Priority 1: Use specific notification if provided in URL (History/Specific Round Mode)
-            if (initialNotification && initialNotification.documentId) {
+          // โหลด staff work status จาก notification ที่กำลังดู (history) หรือ latest (live) (ยกเว้น newVisit)
+          if (!newVisit && (isViewingHistoricalRound || initialNotification?.documentId || customer?.assigned_by_staff?.documentId)) {
+            // History mode: lock to the specific round in URL
+            if (isViewingHistoricalRound) {
+              let historyNotification = initialNotification;
+
+              if (!historyNotification && notifId) {
+                try {
+                  let historyRes = await fetch(API.notifications.getByDocumentId(notifId), {
+                    headers: { Authorization: token ? `Bearer ${token}` : "" }
+                  });
+                  if (!historyRes.ok && /^\d+$/.test(String(notifId))) {
+                    historyRes = await fetch(API.notifications.getById(notifId), {
+                      headers: { Authorization: token ? `Bearer ${token}` : "" }
+                    });
+                  }
+
+                  if (historyRes.ok) {
+                    const historyJson = await historyRes.json();
+                    historyNotification = historyJson.data || historyJson;
+                  }
+                } catch (historyErr) {
+                  console.warn('Error loading historical notification:', historyErr);
+                }
+              }
+
+              if (historyNotification) {
+                setLatestNotification(historyNotification);
+                setCurrentNotification(historyNotification);
+                if (historyNotification.staff_work_status) {
+                  setStaffWorkStatus(normalizeWorkStatus(historyNotification.staff_work_status));
+                } else {
+                  setStaffWorkStatus(defaultStaffStatus);
+                }
+              } else {
+                setLatestNotification(null);
+                setCurrentNotification(null);
+                setStaffWorkStatus(defaultStaffStatus);
+              }
+            }
+            // Specific notification already loaded
+            else if (initialNotification && initialNotification.documentId) {
                console.log('Using explicit notification for work status:', initialNotification.documentId);
                setLatestNotification(initialNotification);
+               setCurrentNotification(initialNotification);
                if (initialNotification.staff_work_status) {
-                 setStaffWorkStatus(initialNotification.staff_work_status);
+                 setStaffWorkStatus(normalizeWorkStatus(initialNotification.staff_work_status));
                } else {
                  setStaffWorkStatus(defaultStaffStatus);
                }
-            } 
-            // Priority 2: Fetch latest active assignment (Live Dashboard Mode)
+            }
+            // Live mode: fetch latest active assignment
             else {
               console.log('Loading staff work status for assigned_by_staff:', customer.assigned_by_staff.documentId);
               try {
@@ -368,7 +748,7 @@ function CustomerDetail() {
                     headers: { Authorization: token ? `Bearer ${token}` : "" }
                   }
                 );
-                
+
                 console.log('Notification API response status:', notificationRes.status);
                 if (notificationRes.ok) {
                   const notifData = await notificationRes.json();
@@ -380,7 +760,7 @@ function CustomerDetail() {
                     setLatestNotification(notification);
                     if (notification.staff_work_status) {
                       console.log('Setting staff work status from notification:', notification.staff_work_status);
-                      setStaffWorkStatus(notification.staff_work_status);
+                      setStaffWorkStatus(normalizeWorkStatus(notification.staff_work_status));
                     } else {
                       // Initialize with default empty status if notification exists but no status yet
                       console.log('Notification exists but no staff_work_status, initializing defaults');
@@ -418,13 +798,16 @@ function CustomerDetail() {
           }
 
           // If newVisit, clear visit-related UI state so page looks like a blank form
+          // ⚠️ ข้าม selectedDrugs/drugQuantities ถ้า restore จาก draft ไว้แล้ว
           if (newVisit) {
             setLatestNotification(null);
-            setCurrentNotification(null); // 🔒 Clear currentNotification so UI shows customer profile (which is cleared)
+            setCurrentNotification(null);
             setStaffWorkStatus(defaultStaffStatus);
             setAssignedByStaff(null);
-            setAddDrugModal(prev => ({ ...prev, selectedDrugs: [] }));
-            setDrugQuantities({});
+            if (!draftWasRestored) {
+              setAddDrugModal(prev => ({ ...prev, selectedDrugs: [] }));
+              setDrugQuantities({});
+            }
             setEditSymptomModal({ open: false, main: '', history: '', note: '' });
             setAllergyModal(prev => ({ ...prev, allergies: [] }));
             setAllergyDetailModal({ open: false, allergies: [] });
@@ -441,73 +824,61 @@ function CustomerDetail() {
       }
     };
 
-    if (customerDocumentId) {
+    if (customerDocumentId || notifId) {
       loadCustomerData();
     }
-  }, [customerDocumentId, pharmacyId]);
+  }, [customerDocumentId, pharmacyId, notifId, newVisit, isViewingHistoricalRound]);
 
   // Socket.IO Connection for real-time staff status updates
   const socketRef = useRef(null);
 
   useEffect(() => {
-    if (!latestNotification?.documentId) return;
+    if (!activeNotificationDocId) return;
 
     const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:1337';
     const token = localStorage.getItem('jwt') || '';
-
-    console.log('[Socket] Attempting connection to:', socketUrl, 'with token:', !!token);
 
     socketRef.current = io(socketUrl, {
       auth: { token },
       transports: ['websocket'],
       reconnection: true,
-      // Faster reconnection to reduce downtime and speed up status propagation
-      reconnectionDelay: 500,
-      reconnectionDelayMax: 2000,
-      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 30,
       forceNew: false
     });
 
     socketRef.current.on('connect', () => {
-      console.log('[Socket] Connected to Strapi server');
-      
       // Join rooms for this notification and customer
-      const notifRoom = `notification:${latestNotification.documentId}`;
+      const notifRoom = `notification:${activeNotificationDocId}`;
       const customerRoom = `customer:${customerDocumentId}`;
       
       socketRef.current.emit('join', notifRoom);
       socketRef.current.emit('join', customerRoom);
     });
 
-    // Handle connection error
+    // Handle connection error (silent — reconnection handles recovery)
     socketRef.current.on('connect_error', (error) => {
-      console.error('[Socket] Connection error:', error.message || error);
-      console.error('[Socket] Full error object:', error);
-      toast.error('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ - กรุณารีโหลดหน้า');
+      console.error('[Socket] Connection error:', error?.message);
     });
 
     // Handle disconnect
     socketRef.current.on('disconnect', (reason) => {
-      console.log('[Socket] Disconnected from server:', reason);
     });
 
     // Listen for notification updates from staff
     socketRef.current.on('notification:update', (updatedNotif) => {
-      console.log('[Socket] 📨 Received notification update from staff:', updatedNotif);
       
       if (!updatedNotif) return;
 
       // Verify the update is for this customer
       if (updatedNotif.customerDocumentId && updatedNotif.customerDocumentId !== customerDocumentId) {
-        console.log('[Socket] Ignoring update for different customer:', updatedNotif.customerDocumentId);
         return;
       }
 
       // If this is the same notification we're viewing, update it immediately
-      if (updatedNotif.documentId === latestNotification?.documentId || 
+        if (updatedNotif.documentId === activeNotificationDocId || 
           updatedNotif.id === latestNotification?.id) {
-        
-        console.log('[Socket] ✅ This is the current notification, updating UI in real-time');
         
         // Update notification state
         setLatestNotification(prev => ({
@@ -517,6 +888,15 @@ function CustomerDetail() {
           batches_selected: updatedNotif.batches_selected || prev?.batches_selected,
           is_read: updatedNotif.is_read ?? prev?.is_read
         }));
+        if (isViewingHistoricalRound) {
+          setCurrentNotification(prev => ({
+            ...prev,
+            ...updatedNotif,
+            staff_work_status: updatedNotif.staff_work_status || prev?.staff_work_status,
+            batches_selected: updatedNotif.batches_selected || prev?.batches_selected,
+            is_read: updatedNotif.is_read ?? prev?.is_read
+          }));
+        }
         
         // Update staff work status state immediately
         if (updatedNotif.staff_work_status) {
@@ -543,42 +923,39 @@ function CustomerDetail() {
           
           if (showToast) {
             toast.info('🔄 ' + message);
-            console.log('[Socket] 📢 Toast:', message);
           }
           
           // Always update staff work status
-          setStaffWorkStatus(newStatus);
+          setStaffWorkStatus(normalizeWorkStatus(newStatus));
         }
         
-        // Log batches_selected if available
         if (updatedNotif.batches_selected) {
-          console.log('[Socket] 📦 Lots selection updated:', updatedNotif.batches_selected);
         }
       }
     });
 
     return () => {
       if (socketRef.current) {
-        const notifRoom = `notification:${latestNotification.documentId}`;
+        const notifRoom = `notification:${activeNotificationDocId}`;
         const customerRoom = `customer:${customerDocumentId}`;
         socketRef.current.emit('leave', notifRoom);
         socketRef.current.emit('leave', customerRoom);
         socketRef.current.disconnect();
       }
     };
-  }, [latestNotification?.documentId, customerDocumentId]);
+  }, [activeNotificationDocId, customerDocumentId, latestNotification?.id, isViewingHistoricalRound]);
 
   // Force refresh เมื่อ window ได้ focus (user switch tab กลับมา)
   // This ensures we catch any updates that happened while the tab was inactive
   useEffect(() => {
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && customerDocumentId && latestNotification?.documentId) {
+      if (document.visibilityState === 'visible' && customerDocumentId && activeNotificationDocId) {
         console.log('[VisibilityChange] Tab is now visible, checking for updates...');
         
         try {
           const token = localStorage.getItem('jwt') || '';
           const notifRes = await fetch(
-            API.notifications.getById(latestNotification.documentId),
+            API.notifications.getByDocumentId(activeNotificationDocId),
             { headers: { Authorization: token ? `Bearer ${token}` : '' } }
           );
 
@@ -589,7 +966,10 @@ function CustomerDetail() {
             if (updatedNotif?.staff_work_status) {
               console.log('[VisibilityChange] 🔄 Detected updates from staff:', updatedNotif.staff_work_status);
               setLatestNotification(updatedNotif);
-              setStaffWorkStatus(updatedNotif.staff_work_status);
+              if (isViewingHistoricalRound) {
+                setCurrentNotification(updatedNotif);
+              }
+              setStaffWorkStatus(normalizeWorkStatus(updatedNotif.staff_work_status));
               toast.info('🔄 ข้อมูลถูกอัพเดทจากพนักงาน');
             }
           }
@@ -601,7 +981,7 @@ function CustomerDetail() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [customerDocumentId, latestNotification?.documentId]);
+  }, [customerDocumentId, activeNotificationDocId, isViewingHistoricalRound]);
 
   // Listen for staff status update events from staff detail page
   useEffect(() => {
@@ -612,12 +992,12 @@ function CustomerDetail() {
       if (updatedCustomerId === customerDocumentId && staffStatus) {
         // GUIDELINE: If the current view is bound to a specific notification (latestNotification),
         // we must ensure the update belongs to THAT notification.
-        if (latestNotification?.documentId && notificationId && notificationId !== latestNotification.documentId) {
-           console.log('[Event] Ignoring staff status update for different notification:', notificationId, 'Current:', latestNotification.documentId);
+        if (activeNotificationDocId && notificationId && notificationId !== activeNotificationDocId) {
+          console.log('[Event] Ignoring staff status update for different notification:', notificationId, 'Current:', activeNotificationDocId);
            return;
         }
 
-        setStaffWorkStatus(staffStatus);
+        setStaffWorkStatus(normalizeWorkStatus(staffStatus));
         toast.info('🔄 ข้อมูลสถานะจากพนักงานได้รับการอัพเดต');
       }
     };
@@ -632,12 +1012,12 @@ function CustomerDetail() {
           const { staffStatus, notificationId } = JSON.parse(event.newValue);
           if (staffStatus) {
             // GUIDELINE: Check notification ID match
-            if (latestNotification?.documentId && notificationId && notificationId !== latestNotification.documentId) {
+            if (activeNotificationDocId && notificationId && notificationId !== activeNotificationDocId) {
                 console.log('[Storage] Ignoring staff status update for different notification:', notificationId);
                 return;
             }
 
-            setStaffWorkStatus(staffStatus);
+            setStaffWorkStatus(normalizeWorkStatus(staffStatus));
             toast.info('🔄 ข้อมูลสถานะจากพนักงานได้รับการอัพเดต');
           }
         } catch (error) {
@@ -652,7 +1032,7 @@ function CustomerDetail() {
       window.removeEventListener('staffStatusUpdated', handleStaffStatusUpdate);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [customerDocumentId, latestNotification?.documentId]);
+  }, [customerDocumentId, activeNotificationDocId]);
 
   const handleEdit = () => {
     navigate(`/form_customer?documentId=${customerDocumentId}&pharmacyId=${pharmacy?.documentId || pharmacyId}`);
@@ -665,6 +1045,42 @@ function CustomerDetail() {
       navigate(-1);
     }
   };
+
+  // Lightweight polling fallback: re-sync staff status every 15s in case Socket.IO misses an update
+  // (e.g. after server restart when reconnection takes time)
+  useEffect(() => {
+    if (!activeNotificationDocId) return;
+    const notifDocId = activeNotificationDocId;
+
+    const poll = async () => {
+      try {
+        const token = localStorage.getItem('jwt') || '';
+        const res = await fetch(
+          API.notifications.getStatusOnly(notifDocId),
+          { headers: { Authorization: token ? `Bearer ${token}` : '' } }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const status = data?.data?.staff_work_status;
+        if (status) {
+          setStaffWorkStatus(prev => {
+            // Only update if something actually changed to avoid unnecessary re-renders
+            if (JSON.stringify(prev) !== JSON.stringify(status)) {
+              setLatestNotification(n => n ? { ...n, staff_work_status: status } : n);
+              if (isViewingHistoricalRound) {
+                setCurrentNotification(n => n ? { ...n, staff_work_status: status } : n);
+              }
+              return status;
+            }
+            return prev;
+          });
+        }
+      } catch (_) {}
+    };
+
+    const interval = setInterval(poll, 15000);
+    return () => clearInterval(interval);
+  }, [activeNotificationDocId, isViewingHistoricalRound]);
 
   // Helper: get pharmacist name from pharmacy object
   const getPharmacistName = (pharmacyObj) => {
@@ -868,7 +1284,7 @@ function CustomerDetail() {
         return;
       }
 
-      const res = await fetch(API.customerProfiles.update(customer.id), {
+      const res = await fetch(API.customerProfiles.update(customerDocumentId), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1025,17 +1441,43 @@ function CustomerDetail() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [addDrugModal.open, addDrugModal.selectedDrugs, activeTab, pharmacy, pharmacyId]);
 
-  // Keep assignedByStaff synced with customer data whenever customer changes
+  // Keep assignedByStaff synced with current mode.
+  // In historical mode, prefer staff from the bound notification snapshot.
   useEffect(() => {
-    // Don't sync with customer.assigned_by_staff if newVisit mode (keep null)
     if (newVisit) {
       setAssignedByStaff(null);
-    } else if (customer?.assigned_by_staff && customer.assigned_by_staff.documentId) {
+      return;
+    }
+
+    if (isViewingHistoricalRound) {
+      const snapshotStaff =
+        currentNotification?.staff_profile?.data ||
+        currentNotification?.staff_profile ||
+        currentNotification?.data?.staff_profile?.data ||
+        currentNotification?.data?.staff_profile ||
+        latestNotification?.staff_profile?.data ||
+        latestNotification?.staff_profile ||
+        latestNotification?.data?.staff_profile?.data ||
+        latestNotification?.data?.staff_profile ||
+        null;
+
+      if (snapshotStaff?.documentId) {
+        setAssignedByStaff(snapshotStaff);
+        return;
+      }
+
+      if (customer?.assigned_by_staff?.documentId) {
+        setAssignedByStaff(customer.assigned_by_staff);
+      }
+      return;
+    }
+
+    if (customer?.assigned_by_staff?.documentId) {
       setAssignedByStaff(customer.assigned_by_staff);
     } else {
       setAssignedByStaff(null);
     }
-  }, [customer, newVisit]);
+  }, [customer, newVisit, isViewingHistoricalRound, currentNotification, latestNotification]);
 
   // Sync เวลาอาหารจาก customer profile เมื่อโหลดข้อมูล
   useEffect(() => {
@@ -1066,7 +1508,8 @@ function CustomerDetail() {
             bedtime_time:      mealTimes.bedtime,
             // ส่ง prescribed_drugs ซ้ำเพื่อ trigger lifecycle sync schedules ด้วยเวลาใหม่
             ...(customer?.prescribed_drugs?.length > 0 ? { prescribed_drugs: customer.prescribed_drugs } : {}),
-          }
+          },
+          status: 'published'
         })
       });
       if (!res.ok) throw new Error('บันทึกไม่สำเร็จ');
@@ -1122,7 +1565,8 @@ function CustomerDetail() {
           take_bedtime: typeof item === 'object' ? !!item.take_bedtime : !!drugInfo?.take_bedtime,
           meal_relation: typeof item === 'object' ? (item.meal_relation || drugInfo?.meal_relation || 'after') : (drugInfo?.meal_relation || 'after'),
           dosage_per_time: typeof item === 'object' ? (item.dosage_per_time || drugInfo?.dosage_per_time || '') : (drugInfo?.dosage_per_time || ''),
-          frequency_hours: typeof item === 'object' ? (item.frequency_hours || drugInfo?.frequency_hours || 0) : (drugInfo?.frequency_hours || 0)
+          frequency_hours: typeof item === 'object' ? (item.frequency_hours || drugInfo?.frequency_hours || 0) : (drugInfo?.frequency_hours || 0),
+          take_until_finished: typeof item === 'object' ? !!item.take_until_finished : false
         };
       });
       
@@ -1157,6 +1601,7 @@ function CustomerDetail() {
       }
       
       // ถ้าไม่มี notifId และไม่ใช่ newVisit → บันทึกลง customer database ตามปกติ
+      // ⚠️ IMPORTANT: ต้องส่ง status: 'published' เพื่อให้ lifecycle hook trigger (customer-profile มี draftAndPublish=true)
       const res = await fetch(API.customerProfiles.update(customerDocumentId), { method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1165,7 +1610,8 @@ function CustomerDetail() {
         body: JSON.stringify({
           data: {
             prescribed_drugs: prescribedDrugs
-          }
+          },
+          status: 'published'
         })
       });
       if (!res.ok) throw new Error('บันทึกยาไม่สำเร็จ');
@@ -1733,8 +2179,11 @@ function CustomerDetail() {
 
   // ฟังก์ชันเปิด modal ส่งข้อมูลให้พนักงาน (หรือส่งอัพเดตถ้าเคยส่งมาก่อน)
   const handleOpenStaffAssignModal = async () => {
+    // ป้องกันกดซ้ำ
+    if (isSubmitting) return;
+    
     // If we already have a previous notification for this customer/staff (and NOT in newVisit mode), send update directly
-    if (!newVisit && latestNotification && latestNotification.id) {
+    if (!newVisit && activeNotificationDocId) {
       // send update directly to same staff
       const staffDocId = assignedByStaff?.documentId || (latestNotification.staff_profile && latestNotification.staff_profile.documentId);
       await handleAssignToStaff(staffDocId, true);
@@ -1781,7 +2230,10 @@ function CustomerDetail() {
   };
 
   // ฟังก์ชันส่งข้อมูลผู้ป่วยให้พนักงาน
-  const handleAssignToStaff = async (staffIdOverride = null, isUpdate = false) => {
+  const handleAssignToStaff = async (staffIdOverride = null, isUpdate = false, scheduleDecision = null) => {
+    // ป้องกันกดซ้ำ
+    if (isSubmitting) return;
+    
     // ใช้ staffId ที่ส่งมาหรือจาก state
     const targetStaffId = staffIdOverride || staffAssignModal.selectedStaffId;
     
@@ -1790,372 +2242,421 @@ function CustomerDetail() {
       return;
     }
 
+    const token = localStorage.getItem('jwt');
+    const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+
+    // ถ้าเป็นรอบใหม่และมียาเตือนเวลา ให้ถามก่อนว่าจะลบตารางเดิมหรือเก็บรวม
+    const currentRoundDrugs = Array.isArray(customer?.prescribed_drugs) ? customer.prescribed_drugs : [];
+    const hasReminderDrugsInCurrentRound = currentRoundDrugs.some(hasReminderConfig);
+
+    if (newVisit && !isUpdate && !scheduleDecision && hasReminderDrugsInCurrentRound) {
+      try {
+        const query =
+          `filters[customer_profile][documentId][$eq]=${customerDocumentId}` +
+          `&filters[drug_store][documentId][$eq]=${pharmacyId}` +
+          `&filters[type][$in][0]=customer_assignment` +
+          `&filters[type][$in][1]=customer_assignment_update` +
+          `&pagination[limit]=1` +
+          `&sort[0]=createdAt:desc`;
+
+        const previousRes = await fetch(API.notifications.list(query), { headers: authHeader });
+        const previousJson = previousRes.ok ? await previousRes.json() : null;
+        const hasPreviousHistory = Array.isArray(previousJson?.data) && previousJson.data.length > 0;
+
+        if (hasPreviousHistory) {
+          setStaffAssignModal(prev => ({ ...prev, open: false }));
+          setScheduleChoiceModal({
+            open: true,
+            targetStaffId,
+            isUpdate
+          });
+          return;
+        }
+      } catch (modalCheckErr) {
+        console.warn('Unable to check previous history for schedule-choice modal:', modalCheckErr);
+      }
+    }
+
+    setIsSubmitting(true);
+    const startTime = performance.now();
     try {
-      const token = localStorage.getItem('jwt');
-      
-      // Logic การสร้าง/อัพเดต notification:
-      // 1. ถ้าไม่มี latestNotification → สร้างใหม่ (customer_assignment)
-      // 2. ถ้ามี latestNotification และพนักงานยังไม่ทำเสร็จ (prepared=false) → UPDATE เดิม (ยังคงเป็น customer_assignment)
-      // 3. ถ้ามี latestNotification และพนักงานทำเสร็จแล้ว (prepared=true) → สร้างใหม่ (customer_assignment)
-      
       const hasExistingNotification = !!latestNotification?.documentId;
       const staffFinished = staffWorkStatus?.prepared === true;
-      
-      // ถ้าพนักงานทำเสร็จแล้ว ให้สร้างใหม่เสมอ (กระดาษแผ่นใหม่)
-      // ถ้ายังไม่เสร็จ ให้อัพเดตเดิม (กระดาษแผ่นเดิม) แต่ยังคง type เป็น customer_assignment
       const shouldUpdate = hasExistingNotification && !staffFinished;
-      const notificationType = 'customer_assignment'; // ✅ ไม่เปลี่ยน type เมื่ออัพเดต เพื่อให้ปรากฏในหน้า history
-      const actionLabel = shouldUpdate ? 'อัพเดต' : 'มอบหมาย';
+      const notificationType = 'customer_assignment';
+      console.log(`[TIMING] Starting handleAssignToStaff: shouldUpdate=${shouldUpdate}`);
+
+      const drugsToSnapshot = notifId && latestNotification?.data?.data?.prescribed_drugs
+        ? latestNotification.data.data.prescribed_drugs
+        : customer.prescribed_drugs || [];
       
-      console.log('handleAssignToStaff - hasExisting:', hasExistingNotification, 'staffFinished:', staffFinished, 'shouldUpdate:', shouldUpdate, 'action:', actionLabel);
+      // ═══ Step 1: Resolve lightweight local references (no extra blocking fetch) ═══
+      const cachedPharmacyProfileId = pharmacy?.pharmacy_profiles?.[0]?.documentId || null;
+      const cachedDrugs = Array.isArray(addDrugModal?.availableDrugs) ? addDrugModal.availableDrugs : [];
+      const pharmacyProfileId = cachedPharmacyProfileId || null;
+      const allDrugs = cachedDrugs.map((item) =>
+        item?.attributes
+          ? { id: item.id, documentId: item.documentId, ...item.attributes }
+          : item
+      );
+      const drugByKey = new Map();
+      allDrugs.forEach((d) => {
+        if (!d) return;
+        if (d.documentId) drugByKey.set(String(d.documentId), d);
+        if (d.id !== undefined && d.id !== null) drugByKey.set(String(d.id), d);
+      });
       
-      // ดึง pharmacy profile จาก localStorage (ถ้ามี) หรือจากข้อมูลที่โหลดมา
-      const userDocumentId = localStorage.getItem('user_documentId');
-      let pharmacyProfileId = null;
-      
-      // ถ้าเป็น pharmacy role ให้ดึง pharmacy_profile จาก localStorage หรือ API
-      if (userDocumentId) {
-        const pharmacyProfileRes = await fetch(
-          API.pharmacyProfiles.getByUserDocumentId(userDocumentId),
-          {
-            headers: { Authorization: token ? `Bearer ${token}` : '' }
-          }
-        );
-        if (pharmacyProfileRes.ok) {
-          const pharmacyProfileData = await pharmacyProfileRes.json();
-          pharmacyProfileId = pharmacyProfileData.data?.[0]?.documentId || null;
-        }
-      }
-      
-      console.log('Pharmacy Profile ID:', pharmacyProfileId);
-      console.log('User Document ID:', userDocumentId);
-      
-      // เตรียมข้อมูลยาพร้อมชื่อและรายละเอียด (snapshot ณ ขณะนั้น)
-      // ⚠️ ถ้ามี notifId (viewing notification) ให้ใช้ snapshot จากแผ่นปัจจุบัน
-      // ถ้าไม่มี notifId ให้ใช้ customer.prescribed_drugs ปัจจุบัน
-      const prescribedDrugsSnapshot = await (async () => {
-        try {
-          const token = localStorage.getItem('jwt');
-          const drugsRes = await fetch(
-            API.drugs.list(`filters[drug_store][documentId][$eq]=${pharmacyId}&populate[0]=drug_batches&populate[1]=drug_store`),
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          
-          if (drugsRes.ok) {
-            const drugsData = await drugsRes.json();
-            const allDrugs = drugsData.data || [];
-            
-            // ถ้ามี notifId (viewing notification) ใช้ drugs จาก notification snapshot
-            const drugsToSnapshot = notifId && latestNotification?.data?.data?.prescribed_drugs 
-              ? latestNotification.data.data.prescribed_drugs 
-              : customer.prescribed_drugs || [];
-            
-            console.log('📋 Using drugs from:', notifId ? 'notification snapshot' : 'customer profile');
-            
-            // Map prescribed_drugs เป็น object ที่มีชื่อยาและปริมาณ
-            const snapshot = (drugsToSnapshot || []).map(prescribedItem => {
-              const drugId = typeof prescribedItem === 'string' ? prescribedItem : (prescribedItem.drugId || prescribedItem);
-              const quantity = typeof prescribedItem === 'object' ? prescribedItem.quantity : 1;
-              const drugInfo = allDrugs.find(d => d.documentId === drugId || d.id === drugId);
-              
-              return {
-                drugId: drugId,
-                drugName: drugInfo?.name_th || 'ยาไม่ทราบชื่อ',
-                quantity: quantity || 1,
-                unit: drugInfo?.unit || 'เม็ด',
-                // Snapshot current dosage and schedule settings
-                take_morning: prescribedItem.take_morning || false,
-                take_lunch: prescribedItem.take_lunch || false,
-                take_evening: prescribedItem.take_evening || false,
-                take_bedtime: prescribedItem.take_bedtime || false,
-                meal_relation: prescribedItem.meal_relation || 'after',
-                dosage_per_time: prescribedItem.dosage_per_time || '',
-                frequency_hours: prescribedItem.frequency_hours || 0,
-                reminder_time: prescribedItem.reminder_time || ''
-              };
-            });
-            console.log('✅ prescribedDrugsSnapshot created:', snapshot);
-            return snapshot;
-          }
-        } catch (err) {
-          console.error('Failed to fetch drug details:', err);
-        }
+      // ═══ Step 2: สร้าง drug snapshot (ใช้ข้อมูลที่ดึงมาแล้ว ไม่ต้อง fetch เพิ่ม) ═══
+      const prescribedDrugsSnapshot = (drugsToSnapshot || []).map(prescribedItem => {
+        const drugId = typeof prescribedItem === 'string'
+          ? prescribedItem
+          : (prescribedItem.drugId || prescribedItem.documentId || prescribedItem.id || prescribedItem);
+        const quantity = typeof prescribedItem === 'object' ? prescribedItem.quantity : 1;
+        const drugIdStr = String(drugId);
+        const drugInfo = drugByKey.get(drugIdStr);
         
-        // Fallback: ถ้าดึงข้อมูลไม่สำเร็จ
-        const drugsToSnapshot = notifId && latestNotification?.data?.data?.prescribed_drugs 
-          ? latestNotification.data.data.prescribed_drugs 
-          : customer.prescribed_drugs || [];
-        
-        const fallback = (drugsToSnapshot || []).map(item => ({
-          drugId: typeof item === 'string' ? item : (item.drugId || item),
-          quantity: typeof item === 'object' ? item.quantity : 1,
-          drugName: typeof item === 'object' ? item.drugName : undefined,
-          // Snapshot current dosage and schedule settings (fallback)
-          take_morning: item.take_morning || false,
-          take_lunch: item.take_lunch || false,
-          take_evening: item.take_evening || false,
-          take_bedtime: item.take_bedtime || false,
-          meal_relation: item.meal_relation || 'after',
-          dosage_per_time: item.dosage_per_time || '',
-          frequency_hours: item.frequency_hours || 0,
-          reminder_time: item.reminder_time || ''
-        }));
-        console.log('⚠️ Using fallback prescribedDrugsSnapshot:', fallback);
-        return fallback;
-      })();
+        return {
+          drugId,
+          drugName: drugInfo?.name_th || (typeof prescribedItem === 'object' ? prescribedItem.drugName : undefined) || 'ยาไม่ทราบชื่อ',
+          quantity: quantity || 1,
+          unit: drugInfo?.unit || (typeof prescribedItem === 'object' ? prescribedItem.unit : undefined) || 'เม็ด',
+          take_morning: prescribedItem.take_morning || false,
+          take_lunch: prescribedItem.take_lunch || false,
+          take_evening: prescribedItem.take_evening || false,
+          take_bedtime: prescribedItem.take_bedtime || false,
+          meal_relation: prescribedItem.meal_relation || 'after',
+          dosage_per_time: prescribedItem.dosage_per_time || '',
+          frequency_hours: prescribedItem.frequency_hours || 0,
+          reminder_time: prescribedItem.reminder_time || '',
+          take_until_finished: !!prescribedItem.take_until_finished
+        };
+      });
+
+      const existingScheduleMode =
+        latestNotification?.data?.data?.medication_schedule_mode ||
+        latestNotification?.data?.medication_schedule_mode;
+      const effectiveScheduleMode =
+        scheduleDecision === 'append' || scheduleDecision === 'replace'
+          ? scheduleDecision
+          : (existingScheduleMode === 'append' ? 'append' : 'replace');
+      const prescribedDrugsForCustomerProfile = (newVisit && effectiveScheduleMode === 'append')
+        ? mergePrescribedDrugLists(existingPrescribedDrugs, prescribedDrugsSnapshot)
+        : prescribedDrugsSnapshot;
+
+      const persistedDrugsForSync = newVisit
+        ? existingPrescribedDrugs
+        : (customer?.prescribed_drugs || []);
+      const currentDrugsSignature = buildPrescribedDrugSyncSignature(persistedDrugsForSync);
+      const nextDrugsSignature = buildPrescribedDrugSyncSignature(prescribedDrugsForCustomerProfile);
+      const shouldForceCustomerProfileSync = newVisit;
+      const shouldSyncPrescribedDrugs = shouldForceCustomerProfileSync || currentDrugsSignature !== nextDrugsSignature;
+      const persistedAssignedStaffDocId = customer?.assigned_by_staff?.documentId || null;
+      const currentAssignedStaffDocId = shouldForceCustomerProfileSync
+        ? persistedAssignedStaffDocId
+        : (customer?.assigned_by_staff?.documentId || assignedByStaff?.documentId || null);
+      const shouldSyncAssignedStaff = shouldForceCustomerProfileSync
+        ? !!targetStaffId
+        : String(currentAssignedStaffDocId || '') !== String(targetStaffId || '');
+      // On update, always sync customer profile so the customer-profile afterUpdate lifecycle
+      // fires and rebuilds medication schedules with the latest drug timings.
+      // (The signature comparison is unreliable for update because handleSaveAddDrug already
+      // pushed new values into local state — making current & next signatures identical.)
+      // newVisit has the same problem: the page edits local-only state first, so we must always
+      // sync once on assignment to persist the round and trigger schedule rebuild on the server.
+      const shouldRunCustomerProfileSync = shouldForceCustomerProfileSync || shouldUpdate
+        ? true
+        : (shouldSyncAssignedStaff || shouldSyncPrescribedDrugs);
       
-      console.log('📦 prescribedDrugsSnapshot final:', prescribedDrugsSnapshot);
-      
-      // 🔍 DEBUG: ตรวจสอบค่า symptoms ที่จะส่ง
-      console.log('🔍 DEBUG symptoms values:');
-      console.log('  - customer.Customers_symptoms:', customer.Customers_symptoms);
-      console.log('  - customer.symptom_history:', customer.symptom_history);
-      console.log('  - customer.symptom_note:', customer.symptom_note);
-      console.log('  - newVisit mode:', newVisit);
-      
-      // เตรียมข้อมูลสำหรับ notification
-      // ⚠️ Strapi ไม่ accept relations fields ที่ไม่ระบุแบบ explicit
-      // ✅ วิธีแก้: เก็บ relation IDs เข้า data JSON field + set actual relations เพื่อ filter/query ต่างชื่นแบบปกติ
+      // ═══ Step 3: สร้าง/อัพเดต notification (ต้องรอ step 1-2 เสร็จ) ═══
+      const existingOOS = Array.isArray(staffWorkStatus?.outOfStock) ? [...new Set([...staffWorkStatus.outOfStock])] : [];
+      // Always include prescribed_drugs — ensures DB never has stale/empty drug list
+      // and that staff always receives full drug+timing data on every send/update
+      const notificationMetaData = {
+        staff_profile_id: targetStaffId,
+        pharmacy_profile_id: pharmacyProfileId,
+        customer_profile_id: customerDocumentId,
+        drug_store_id: pharmacyId,
+        customer_documentId: customerDocumentId,
+        customer_name: user?.full_name || '',
+        customer_phone: user?.phone || '',
+        symptoms: {
+          main: customer.Customers_symptoms || '',
+          history: customer.symptom_history || '',
+          note: customer.symptom_note || ''
+        },
+        note: staffAssignModal.assignNote || '',
+        allergy: customer.Allergic_drugs || '',
+        disease: customer.congenital_disease || '',
+        appointment_date: customer.Follow_up_appointment_date || null,
+        prescribed_drugs: Array.isArray(prescribedDrugsSnapshot) ? prescribedDrugsSnapshot : [],
+        medication_schedule_mode: effectiveScheduleMode,
+      };
+
       const safeNotificationData = {
-        data: {
-          // Basic fields
-          type: notificationType,
-          title: shouldUpdate ? 'อัพเดตข้อมูลผู้ป่วย' : 'ได้รับมอบหมายข้อมูลผู้ป่วย',
-          // 🔒 ถ้า newVisit ไม่ต้องแสดง symptom เก่าใน message
-          message: `${shouldUpdate ? 'ได้รับอัพเดต' : 'ได้รับมอบหมายดูแล'}ผู้ป่วย: ${user?.full_name || 'ผู้ป่วย'}${newVisit ? '' : `\nอาการ: ${customer.Customers_symptoms || 'ไม่ระบุ'}`}\n${staffAssignModal.assignNote ? `หมายเหตุ: ${staffAssignModal.assignNote}` : ''}`,
-          
-          // Actual relations (ต้องระบุให้ API รู้ว่า notification นี้เกี่ยวกับตัวไหน)
-          customer_profile: customerDocumentId,
-          staff_profile: targetStaffId,
-          drug_store: pharmacyId,
-          
-          // JSON field - เก็บ snapshot + relation IDs ณ ขณะนั้น
-          data: {
-            // Relations IDs - เก็บไว้ใน JSON field สำหรับ snapshot/history
-            staff_profile_id: targetStaffId,
-            pharmacy_profile_id: pharmacyProfileId,
-            customer_profile_id: customerDocumentId,
-            drug_store_id: pharmacyId,
-            
-            customer_documentId: customerDocumentId,
-            customer_name: user?.full_name || '',
-            customer_phone: user?.phone || '',
-            // ✅ ใช้ symptoms จาก customer state (ที่เก็บไว้ใน local state หลังบันทึก)
-            // สำหรับทั้ง newVisit และ old visit
-            symptoms: {
-              main: customer.Customers_symptoms || '',
-              history: customer.symptom_history || '',
-              note: customer.symptom_note || ''
-            },
-            // 🎯 เก็บ snapshot ของยา ณ ขณะที่ส่งข้อมูล
-            prescribed_drugs: Array.isArray(prescribedDrugsSnapshot) ? prescribedDrugsSnapshot : [],
-            assigned_at: notificationType === 'customer_assignment_update' ? new Date().toISOString() : undefined,
-            updated_at: notificationType === 'customer_assignment_update' ? new Date().toISOString() : undefined,
-            note: staffAssignModal.assignNote || '',
-            allergy: customer.Allergic_drugs || '',
-            disease: customer.congenital_disease || '',
-            appointment_date: customer.Follow_up_appointment_date || null
-          },
-          
-          // staff_work_status - JSON field
-          staff_work_status: (function() {
-            const existingOOS = Array.isArray(staffWorkStatus?.outOfStock) ? [...new Set([...staffWorkStatus.outOfStock])] : [];
-            if (notificationType === 'customer_assignment') {
-              return {
-                received: false,
-                prepared: false,
-                received_at: null,
-                prepared_at: null,
-                prepared_note: '',
-                outOfStock: existingOOS
-              };
-            }
-            return {
+        data: shouldUpdate
+          ? {
+            type: notificationType,
+            title: 'อัพเดตข้อมูลผู้ป่วย',
+            message: `${'ได้รับอัพเดต'}ผู้ป่วย: ${user?.full_name || 'ผู้ป่วย'}${newVisit ? '' : `\nอาการ: ${customer.Customers_symptoms || 'ไม่ระบุ'}`}\n${staffAssignModal.assignNote ? `หมายเหตุ: ${staffAssignModal.assignNote}` : ''}`,
+            customer_profile: customerDocumentId,
+            drug_store: pharmacyId,
+            ...(shouldSyncAssignedStaff ? { staff_profile: targetStaffId } : {}),
+            data: notificationMetaData,
+            staff_work_status: {
               received: false,
               prepared: false,
               received_at: null,
               prepared_at: null,
               prepared_note: '',
               outOfStock: existingOOS,
-              cancelled: false,
-              cancelled_at: null,
-              cancelled_note: ''
-            };
-          })(),
-          
-          // Status fields
-          is_read: false,
-          priority: 'normal'
-        }
+            },
+            is_read: false,
+            priority: 'normal'
+          }
+          : {
+            type: notificationType,
+            title: 'ได้รับมอบหมายข้อมูลผู้ป่วย',
+            message: `${'ได้รับมอบหมายดูแล'}ผู้ป่วย: ${user?.full_name || 'ผู้ป่วย'}${newVisit ? '' : `\nอาการ: ${customer.Customers_symptoms || 'ไม่ระบุ'}`}\n${staffAssignModal.assignNote ? `หมายเหตุ: ${staffAssignModal.assignNote}` : ''}`,
+            customer_profile: customerDocumentId,
+            staff_profile: targetStaffId,
+            drug_store: pharmacyId,
+            data: notificationMetaData,
+            staff_work_status: {
+              received: false,
+              prepared: false,
+              received_at: null,
+              prepared_at: null,
+              prepared_note: '',
+              outOfStock: existingOOS,
+            },
+            is_read: false,
+            priority: 'normal'
+          }
       };
 
-      console.log('Sending notification:', safeNotificationData);
-      console.log('notificationType:', notificationType, 'shouldUpdate:', shouldUpdate);
-      console.log('DEBUG: safeNotificationData.data.data.prescribed_drugs =', safeNotificationData.data.data.prescribed_drugs);
-
-      // ถ้า shouldUpdate=true ให้ UPDATE notification เดิม (กระดาษแผ่นเดิม)
-      // ถ้า shouldUpdate=false ให้ CREATE notification ใหม่ (กระดาษแผ่นใหม่)
       const notificationEndpoint = shouldUpdate
-        ? API.notifications.updateByDocumentId(latestNotification.documentId)
+        ? (latestNotification?.documentId
+          ? API.notifications.updateByDocumentId(latestNotification.documentId)
+          : API.notifications.update(latestNotification.id))
         : API.notifications.create();
-      
-      const requestBody = JSON.stringify({ data: safeNotificationData.data });
-      console.log('📤 REQUEST BODY that will be sent:', requestBody);
-      console.log('📤 REQUEST BODY PARSED:', JSON.parse(requestBody));
-      
       const notificationMethod = shouldUpdate ? 'PUT' : 'POST';
+      const responseFields = 'fields[0]=documentId&fields[1]=staff_work_status&fields[2]=updatedAt';
+      const notificationEndpointWithFields = `${notificationEndpoint}${notificationEndpoint.includes('?') ? '&' : '?'}${responseFields}`;
 
-      const notificationRes = await fetch(
-        notificationEndpoint,
-        {
-          method: notificationMethod,
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+      let notificationRes;
+      const notificationFetchStart = performance.now();
+      console.log(`[TIMING] About to fetch notification (${notificationMethod} ${shouldUpdate ? 'UPDATE' : 'CREATE'}), payload size: ${JSON.stringify(safeNotificationData).length} bytes`);
+
+      try {
+        notificationRes = await fetchWithClientTimeout(
+          notificationEndpointWithFields,
+          {
+            method: notificationMethod,
+            headers: { 'Content-Type': 'application/json', ...authHeader },
+            body: JSON.stringify(safeNotificationData)
           },
-          body: (() => {
-              try {
-                const jsonBody = JSON.stringify(safeNotificationData);
-                console.log('📤 Actual JSON body being sent:', jsonBody);
-                return jsonBody;
-              } catch (e) {
-                console.error('Error serializing notification data:', e);
-                // Return a safe fallback
-                return JSON.stringify({
-                  data: {
-                    type: notificationType,
-                    title: 'Notification',
-                    message: 'Error in data serialization',
-                    data: {},
-                    staff_work_status: {},
-                    is_read: false,
-                    priority: 'normal'
-                  }
-                });
-              }
-            })()
-        }
-      );
+          8000
+        );
+        console.log(`[TIMING] Notification fetch completed in ${(performance.now() - notificationFetchStart).toFixed(0)}ms`);
+        console.log(`[TIMING] Notification fetch returned status ${notificationRes.status}`);
+      } catch (requestErr) {
+        console.log(`[TIMING] Notification fetch failed after ${(performance.now() - notificationFetchStart).toFixed(0)}ms`);
+        const isTimeout = requestErr?.code === 'REQUEST_TIMEOUT';
+        console.log(`[TIMING] Notification fetch error: ${isTimeout ? 'TIMEOUT' : 'OTHER'}, message: ${requestErr?.message}`);
+        if (isTimeout && shouldUpdate) {
+          console.log('[TIMING] Attempting fallback retry with lightweight payload...');
+          const notificationFallbackStart = performance.now();
+          const lightweightFallbackPayload = {
+            data: {
+              type: notificationType,
+              title: 'อัพเดตข้อมูลผู้ป่วย',
+              message: `${'ได้รับอัพเดต'}ผู้ป่วย: ${user?.full_name || 'ผู้ป่วย'}${newVisit ? '' : `\nอาการ: ${customer.Customers_symptoms || 'ไม่ระบุ'}`}\n${staffAssignModal.assignNote ? `หมายเหตุ: ${staffAssignModal.assignNote}` : ''}`,
+              ...(shouldSyncAssignedStaff ? { staff_profile: targetStaffId } : {}),
+              data: {
+                staff_profile_id: targetStaffId,
+                customer_profile_id: customerDocumentId,
+                drug_store_id: pharmacyId,
+                customer_documentId: customerDocumentId,
+                note: staffAssignModal.assignNote || '',
+                symptoms: {
+                  main: customer.Customers_symptoms || '',
+                  history: customer.symptom_history || '',
+                  note: customer.symptom_note || ''
+                }
+              },
+              staff_work_status: {
+                received: false,
+                prepared: false,
+                received_at: null,
+                prepared_at: null,
+                prepared_note: '',
+                outOfStock: existingOOS,
+              },
+              is_read: false,
+              priority: 'normal'
+            }
+          };
 
-      let result = null;
-      if (notificationRes.ok) {
-        result = await notificationRes.json();
-        console.log('Notification ' + (shouldUpdate ? 'updated' : 'created') + ':', result);
-        console.log('✅ Success - documentId:', result.data?.documentId);
-        console.log('✅ Type:', result.data?.type);
-        console.log('📦 Returned data.data.prescribed_drugs:', result.data?.data?.prescribed_drugs);
-      } else {
+          notificationRes = await fetchWithClientTimeout(
+            notificationEndpointWithFields,
+            {
+              method: notificationMethod,
+              headers: { 'Content-Type': 'application/json', ...authHeader },
+              body: JSON.stringify(lightweightFallbackPayload)
+            },
+            6000
+          );
+          console.log(`[TIMING] Notification fallback completed in ${(performance.now() - notificationFallbackStart).toFixed(0)}ms`);
+          console.log(`[TIMING] Fallback retry returned status ${notificationRes.status}`);
+        } else {
+          throw requestErr;
+        }
+      }
+
+      if (!notificationRes.ok) {
         const errorData = await notificationRes.json().catch(() => ({}));
-        const errorMsg = errorData.error?.message || notificationRes.statusText;
-        console.error('❌ Notification ' + (shouldUpdate ? 'update' : 'create') + ' failed:', {
-          status: notificationRes.status,
-          method: notificationMethod,
-          endpoint: notificationEndpoint,
-          error: errorMsg
-        });
-        toast.error('❌ ส่งข้อมูล' + (shouldUpdate ? 'อัพเดต' : '') + 'ไม่สำเร็จ: ' + errorMsg);
+        toast.error('❌ ส่งข้อมูลไม่สำเร็จ: ' + (errorData.error?.message || notificationRes.statusText));
         return;
       }
 
-      // ใช้ result ที่ได้มาแล้ว ไม่ต้อง read json อีกครั้ง
-      console.log('Processing notification result...');
+      const result = await notificationRes.json().catch(() => ({}));
+      console.log(`[TIMING] Notification response parsed, got documentId: ${result?.data?.documentId || result?.documentId}`);
+
+      // ═══ Step 4: อัพเดต customer profile + fetch staff profile ใน parallel ═══
+      // (ทำพร้อมกันเพราะไม่ต้องรอกัน — ใช้ targetStaffId ที่มีอยู่แล้ว)
+      const postTasks = [];
       
-          // Also update customer profile with assigned_by_staff (สำหรับทุกครั้ง)
-      if (notificationType === 'customer_assignment') {
-        try {
-          // Fetch the staff profile with populated user relation so we have name/avatar
-          const staffRes = await fetch(
-            API.staffProfiles.getByDocumentIdWithUser(targetStaffId),
-            { headers: { Authorization: token ? `Bearer ${token}` : '' } }
-          );
+      if (notificationType === 'customer_assignment' && shouldRunCustomerProfileSync) {
+        console.log(`[TIMING] Starting customer profile sync (shouldSyncAssignedStaff=${shouldSyncAssignedStaff}, shouldSyncPrescribedDrugs=${shouldSyncPrescribedDrugs})`);
+        // Sync customer profile only when assigned staff or prescribed drugs actually changed
+        postTasks.push(
+          (async () => {
+            let staffProfileId = customer?.assigned_by_staff?.id || assignedByStaff?.id || null;
 
-          if (staffRes.ok) {
-            const staffData = await staffRes.json();
-            const staffProfile = staffData.data?.[0];
-
-            if (staffProfile) {
-              // Update customer profile using the internal numeric id for relation
-              const updateRes = await fetch(
-                API.customerProfiles.update(customerDocumentId), { method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                  },
-                  body: JSON.stringify({
-                    data: {
-                      // use numeric id to set relation cleanly
-                      assigned_by_staff: staffProfile.id
-                    }
-                  })
+            if (shouldSyncAssignedStaff || !staffProfileId) {
+              const staffProfileFetchStart = performance.now();
+              const staffRes = await fetch(API.staffProfiles.getByDocumentIdWithUser(targetStaffId), { headers: authHeader });
+              console.log(`[TIMING] Staff profile fetch completed in ${(performance.now() - staffProfileFetchStart).toFixed(0)}ms`);
+              if (staffRes.ok) {
+                const staffData = await staffRes.json();
+                const staffProfile = staffData.data?.[0];
+                if (staffProfile) {
+                  staffProfileId = staffProfile.id;
+                  setAssignedByStaff(staffProfile);
+                  console.log('[TIMING] Staff profile fetched and set');
                 }
-              );
-
-              if (updateRes.ok) {
-                console.log('Customer profile updated with assigned_by_staff (id)', staffProfile.id);
-                // Update local state with the populated staff profile so UI shows name/avatar
-                setAssignedByStaff(staffProfile);
               } else {
-                console.error('Failed to update customer.assigned_by_staff', updateRes.status);
+                throw new Error(`โหลดข้อมูลพนักงานไม่สำเร็จ (${staffRes.status})`);
               }
             }
-          } else {
-            console.error('Failed to fetch staff profile for assignment', staffRes.status);
-          }
-        } catch (err) {
-          console.error('Error updating assigned_by_staff:', err);
-        }
+
+            const customerPayload = {};
+            if (shouldSyncAssignedStaff && staffProfileId) {
+              customerPayload.assigned_by_staff = staffProfileId;
+            }
+            // Always send prescribed_drugs on update so the customer-profile afterUpdate
+            // lifecycle fires and rebuilds medication schedules with latest timings.
+            // (shouldSyncPrescribedDrugs is unreliable for updates because handleSaveAddDrug
+            // already pushed new values into local state before this runs.)
+            if (shouldForceCustomerProfileSync || shouldUpdate || shouldSyncPrescribedDrugs) {
+              customerPayload.prescribed_drugs = prescribedDrugsForCustomerProfile;
+            }
+
+            if (Object.keys(customerPayload).length === 0) {
+              console.log('[TIMING] Customer profile sync not needed (no payload)');
+              return;
+            }
+
+            const customerProfilePutStart = performance.now();
+            const customerUpdateRes = await fetch(API.customerProfiles.update(customerDocumentId), {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', ...authHeader },
+              body: JSON.stringify({ data: customerPayload, status: 'published' })
+            });
+            console.log(`[TIMING] Customer profile update completed in ${(performance.now() - customerProfilePutStart).toFixed(0)}ms`);
+            if (!customerUpdateRes.ok) {
+              const errorText = await customerUpdateRes.text().catch(() => '');
+              throw new Error(`อัพเดต customer profile ไม่สำเร็จ (${customerUpdateRes.status}) ${errorText}`.trim());
+            }
+            console.log('[TIMING] Customer profile updated');
+          })()
+        );
       }
       
-      // update latestNotification state from created notification result (if backend returns it)
-      try {
-        const createdEntry = result.data || result;
-        console.log('Notification response data:', createdEntry);
-        setLatestNotification(createdEntry);
-        
-        // Also update staffWorkStatus from the notification's staff_work_status field
-        if (createdEntry.staff_work_status) {
-          console.log('Updating staffWorkStatus from notification:', createdEntry.staff_work_status);
-          setStaffWorkStatus(prev => ({
-            ...prev,
-            received: createdEntry.staff_work_status.received || false,
-            prepared: createdEntry.staff_work_status.prepared || false,
-            received_at: createdEntry.staff_work_status.received_at || null,
-            prepared_at: createdEntry.staff_work_status.prepared_at || null,
-            prepared_note: createdEntry.staff_work_status.prepared_note || '',
-            outOfStock: createdEntry.staff_work_status.outOfStock || [],
-            cancelled: createdEntry.staff_work_status.cancelled || false,
-            cancelled_at: createdEntry.staff_work_status.cancelled_at || null,
-            cancelled_note: createdEntry.staff_work_status.cancelled_note || ''
-          }));
-        } else {
-          console.warn('NO staff_work_status in notification response - initializing defaults');
-          setStaffWorkStatus({
-            received: false,
-            prepared: false,
-            received_at: null,
-            prepared_at: null,
-            prepared_note: '',
-            outOfStock: [],
-            cancelled: false,
-            cancelled_at: null,
-            cancelled_note: ''
-          });
-        }
-      } catch (e) {
-        console.warn('Could not set latestNotification from response', e);
+      if (postTasks.length > 0) {
+        console.log('[TIMING] Awaiting customer profile sync before final UI success state');
+        await Promise.all(postTasks);
+        console.log('[TIMING] Customer profile sync finished');
+      }
+      
+      // ═══ Step 5: อัพเดต UI state ทันที (ไม่ต้องรอ postTasks) ═══
+      const uiStateUpdateStart = performance.now();
+      const createdEntry = result.data || result;
+      setLatestNotification(createdEntry);
+      
+      if (createdEntry.staff_work_status) {
+        setStaffWorkStatus(prev => ({
+          ...prev,
+          received: createdEntry.staff_work_status.received || false,
+          prepared: createdEntry.staff_work_status.prepared || false,
+          received_at: createdEntry.staff_work_status.received_at || null,
+          prepared_at: createdEntry.staff_work_status.prepared_at || null,
+          prepared_note: createdEntry.staff_work_status.prepared_note || '',
+          outOfStock: createdEntry.staff_work_status.outOfStock || [],
+          cancelled: createdEntry.staff_work_status.cancelled || false,
+          cancelled_at: createdEntry.staff_work_status.cancelled_at || null,
+          cancelled_note: createdEntry.staff_work_status.cancelled_note || ''
+        }));
+      } else {
+        setStaffWorkStatus({
+          received: false, prepared: false,
+          received_at: null, prepared_at: null, prepared_note: '',
+          outOfStock: [], cancelled: false, cancelled_at: null, cancelled_note: ''
+        });
       }
 
-      toast.success(notificationType === 'customer_assignment_update' ? '✅ อัพเดตข้อมูลให้พนักงานสำเร็จ' : '✅ ส่งข้อมูลให้พนักงานสำเร็จ');
+      toast.success(shouldUpdate ? '✅ อัพเดตข้อมูลให้พนักงานสำเร็จ' : '✅ ส่งข้อมูลให้พนักงานสำเร็จ');
+      clearDraft();
       setStaffAssignModal({
-        open: false,
-        availableStaff: [],
-        selectedStaffId: null,
-        loading: false,
-        assignNote: ''
+        open: false, availableStaff: [], selectedStaffId: null, loading: false, assignNote: ''
       });
+      setScheduleChoiceModal({ open: false, targetStaffId: null, isUpdate: false });
+      console.log(`[TIMING] UI_STATE_UPDATE: ${(performance.now() - uiStateUpdateStart).toFixed(3)} ms`);
+      console.log('[TIMING] UI state updated and toast shown');
+
+      // ตัด newVisit ออกจาก URL + ใส่ notifId
+      try {
+        const urlUpdateStart = performance.now();
+        const createdNotifId = result?.data?.documentId || result?.documentId;
+        const shouldRefreshUrl = newVisit || !notifId || String(createdNotifId || '') !== String(notifId || '');
+
+        if (!shouldRefreshUrl) {
+          console.log(`[TIMING] URL_UPDATE: ${(performance.now() - urlUpdateStart).toFixed(3)} ms`);
+          console.log('[TIMING] URL not changing (shouldRefreshUrl=false)');
+          return;
+        }
+
+        const newParams = new URLSearchParams();
+        if (customerDocumentId) newParams.set('documentId', customerDocumentId);
+        if (pharmacyId) newParams.set('pharmacyId', pharmacyId);
+        if (createdNotifId) newParams.set('notifId', createdNotifId);
+        navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
+        console.log(`[TIMING] URL_UPDATE: ${(performance.now() - urlUpdateStart).toFixed(3)} ms`);
+        console.log('[TIMING] URL updated and navigation happened');
+      } catch (navErr) {
+        console.warn('Could not update URL after assignment:', navErr);
+      }
     } catch (error) {
       console.error('Error assigning to staff:', error);
-      toast.error('เกิดข้อผิดพลาดในการส่งข้อมูล');
+      if (error?.code === 'REQUEST_TIMEOUT') {
+        toast.error('⏱️ ระบบตอบสนองช้า กรุณาลองใหม่อีกครั้ง');
+      } else {
+        toast.error('เกิดข้อผิดพลาดในการส่งข้อมูล');
+      }
+    } finally {
+      const endTime = performance.now();
+      console.log(`[TIMING] ===== TOTAL TIME: ${(endTime - startTime).toFixed(0)}ms =====`);
+      setIsSubmitting(false);
     }
   };
 
@@ -2276,8 +2777,16 @@ function CustomerDetail() {
           </div>
         </div>
 
+        {/* Draft auto-save indicator */}
+        {isDraftEnabled && isDraftSaved && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 mb-4 flex items-center gap-3">
+            <span className="text-amber-500 text-lg">💾</span>
+            <span className="text-amber-700 text-sm font-bold">ข้อมูลร่างถูกบันทึกอัตโนมัติแล้ว — หากรีเฟรชหน้า ระบบจะกู้คืนข้อมูลให้</span>
+          </div>
+        )}
+
         {/* Staff Work Status Panel */}
-        {assignedByStaff && assignedByStaff.documentId && latestNotification && latestNotification.id ? (
+        {assignedByStaff && assignedByStaff.documentId && (currentNotification?.documentId || latestNotification?.documentId) ? (
           <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 p-6 mb-8 overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
               <div>
@@ -2290,16 +2799,29 @@ function CustomerDetail() {
                 onClick={async () => {
                   try {
                     const token = localStorage.getItem('jwt');
-                    const notificationRes = await fetch(
-                      API.notifications.getCustomerNotifications(customerDocumentId),
-                      { headers: { Authorization: token ? `Bearer ${token}` : "" } }
-                    );
+                    let notificationRes;
+                    if (isViewingHistoricalRound && activeNotificationDocId) {
+                      notificationRes = await fetch(
+                        API.notifications.getByDocumentId(activeNotificationDocId),
+                        { headers: { Authorization: token ? `Bearer ${token}` : "" } }
+                      );
+                    } else {
+                      notificationRes = await fetch(
+                        API.notifications.getCustomerNotifications(customerDocumentId),
+                        { headers: { Authorization: token ? `Bearer ${token}` : "" } }
+                      );
+                    }
                     if (notificationRes.ok) {
                       const notifData = await notificationRes.json();
-                      const notification = notifData.data?.[0];
+                      const notification = isViewingHistoricalRound
+                        ? (notifData.data || notifData)
+                        : notifData.data?.[0];
                       if (notification && notification.staff_work_status) {
                         setStaffWorkStatus(notification.staff_work_status);
                         setLatestNotification(notification);
+                        if (isViewingHistoricalRound) {
+                          setCurrentNotification(notification);
+                        }
                         toast.success('✅ รีเฟรซข้อมูลสำเร็จ');
                       }
                     }
@@ -2831,6 +3353,7 @@ function CustomerDetail() {
                     {customer.prescribed_drugs.map((drugItem, index) => {
                       const drugId = typeof drugItem === 'string' ? drugItem : drugItem.drugId;
                       const quantity = typeof drugItem === 'string' ? 1 : drugItem.quantity || 1;
+                      const takeUntilFinished = typeof drugItem === 'string' ? false : !!drugItem.take_until_finished;
                       const drug = addDrugModal.availableDrugs.find(d => d.documentId === drugId);
                       const isOutOfStock = (
                         Array.isArray(outOfStockIds) && outOfStockIds.includes(drugId)
@@ -2924,7 +3447,7 @@ function CustomerDetail() {
                                     await fetch(API.customerProfiles.update(customerDocumentId), {
                                       method: 'PUT',
                                       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                                      body: JSON.stringify({ data: { prescribed_drugs: newDrugs } })
+                                      body: JSON.stringify({ data: { prescribed_drugs: newDrugs }, status: 'published' })
                                     });
                                     setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
                                     toast.success('อัปเดตวิธีการทานยาแล้ว');
@@ -2974,7 +3497,7 @@ function CustomerDetail() {
                                         await fetch(API.customerProfiles.update(customerDocumentId), {
                                           method: 'PUT',
                                           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                                          body: JSON.stringify({ data: { prescribed_drugs: newDrugs } })
+                                          body: JSON.stringify({ data: { prescribed_drugs: newDrugs }, status: 'published' })
                                         });
                                         setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
                                       } catch (err) {
@@ -3018,7 +3541,7 @@ function CustomerDetail() {
                                       await fetch(API.customerProfiles.update(customerDocumentId), {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                                        body: JSON.stringify({ data: { prescribed_drugs: newDrugs } })
+                                        body: JSON.stringify({ data: { prescribed_drugs: newDrugs }, status: 'published' })
                                       });
                                       setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
                                     } catch (err) {
@@ -3062,7 +3585,7 @@ function CustomerDetail() {
                                       await fetch(API.customerProfiles.update(customerDocumentId), {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                                        body: JSON.stringify({ data: { prescribed_drugs: newDrugs } })
+                                        body: JSON.stringify({ data: { prescribed_drugs: newDrugs }, status: 'published' })
                                       });
                                       setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
                                     } catch (err) {
@@ -3105,7 +3628,7 @@ function CustomerDetail() {
                                     await fetch(API.customerProfiles.update(customerDocumentId), {
                                       method: 'PUT',
                                       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                                      body: JSON.stringify({ data: { prescribed_drugs: newDrugs } })
+                                      body: JSON.stringify({ data: { prescribed_drugs: newDrugs }, status: 'published' })
                                     });
                                     setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
                                   } catch (err) {
@@ -3116,6 +3639,53 @@ function CustomerDetail() {
                                 placeholder="เช่น 1 เม็ด, 2 ช้อนชา"
                                 className="w-40 bg-white border border-violet-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-violet-400 outline-none placeholder:font-medium placeholder:text-slate-300"
                               />
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3 border-t border-violet-100 pt-3">
+                              <label className="text-[10px] font-black text-violet-600 uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
+                                ✅ กินจนหมด
+                              </label>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (staffWorkStatus.prepared) return;
+                                  const newDrugs = [...customer.prescribed_drugs];
+
+                                  if (typeof newDrugs[index] === 'string') {
+                                    newDrugs[index] = {
+                                      drugId: drugId,
+                                      quantity: quantity,
+                                      take_until_finished: true,
+                                    };
+                                  } else {
+                                    newDrugs[index] = {
+                                      ...newDrugs[index],
+                                      take_until_finished: !takeUntilFinished,
+                                    };
+                                  }
+
+                                  if (notifId) {
+                                    setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                    return;
+                                  }
+
+                                  try {
+                                    const token = localStorage.getItem('jwt');
+                                    await fetch(API.customerProfiles.update(customerDocumentId), {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                      body: JSON.stringify({ data: { prescribed_drugs: newDrugs }, status: 'published' })
+                                    });
+                                    setCustomer(prev => ({ ...prev, prescribed_drugs: newDrugs }));
+                                  } catch (err) {
+                                    toast.error('บันทึกไม่สำเร็จ');
+                                  }
+                                }}
+                                disabled={staffWorkStatus.prepared}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${takeUntilFinished ? 'bg-amber-500 text-white' : 'bg-white border border-violet-200 text-violet-600'}`}
+                              >
+                                {takeUntilFinished ? 'เปิดใช้งาน' : 'ปิดอยู่'}
+                              </button>
                             </div>
                           </div>
 
@@ -3148,7 +3718,8 @@ function CustomerDetail() {
                                     body: JSON.stringify({
                                       data: {
                                         prescribed_drugs: newDrugs
-                                      }
+                                      },
+                                      status: 'published'
                                     })
                                   });
                                   if (!res.ok) throw new Error('ลบยาไม่สำเร็จ');
@@ -3252,9 +3823,9 @@ function CustomerDetail() {
                 </button>
 
                 <button 
-                  className={`flex items-center justify-center gap-2 p-5 rounded-2xl border-2 transition-all duration-200 group ${staffWorkStatus.prepared ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed' : 'bg-gradient-to-br from-violet-50 to-white border-violet-100 hover:border-violet-300 hover:shadow-lg'}`}
-                  onClick={handleOpenStaffAssignModal}
-                  disabled={staffWorkStatus.prepared}
+                  className={`flex items-center justify-center gap-2 p-5 rounded-2xl border-2 transition-all duration-200 group ${(staffWorkStatus.prepared || isSubmitting) ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed' : 'bg-gradient-to-br from-violet-50 to-white border-violet-100 hover:border-violet-300 hover:shadow-lg'}`}
+                  onClick={(staffWorkStatus.prepared || isSubmitting) ? undefined : handleOpenStaffAssignModal}
+                  disabled={staffWorkStatus.prepared || isSubmitting}
                   title={staffWorkStatus.prepared ? 'ไม่สามารถส่งอัพเดต — พนักงานจัดส่งแล้ว' : 
                          (!newVisit && latestNotification && !staffWorkStatus.prepared) ? 'อัพเดตข้อมูลให้พนักงาน (กระดาษแผ่นเดิม)' : 
                          'ส่งข้อมูลให้พนักงาน (กระดาษแผ่นใหม่)'}
@@ -3262,7 +3833,7 @@ function CustomerDetail() {
                   <span className="text-2xl group-hover:scale-110 transition-transform">📤</span>
                   <span className="font-bold text-slate-700">
                     {staffWorkStatus.prepared ? 'พนักงานจัดส่งแล้ว' : 
-                     (!newVisit && latestNotification && latestNotification.id && !staffWorkStatus.prepared) ? 'อัพเดตข้อมูล' : 
+                     (!newVisit && activeNotificationDocId && !staffWorkStatus.prepared) ? 'อัพเดตข้อมูล' : 
                      'ส่งข้อมูลให้พนักงาน'}
                   </span>
                 </button>
@@ -4018,7 +4589,8 @@ function CustomerDetail() {
                                 meal_relation: drug.meal_relation || 'after',
                                 reminder_time: drug.suggested_time ? drug.suggested_time.slice(0, 5) : '',
                                 dosage_per_time: drug.dosage_per_time || '',
-                                frequency_hours: drug.frequency_hours || 0
+                                frequency_hours: drug.frequency_hours || 0,
+                                take_until_finished: false
                               };
                               setDrugNotificationModal({
                                 open: true,
@@ -4235,6 +4807,62 @@ function CustomerDetail() {
         </div>
       </Modal>
 
+      {/* Medication Schedule Choice Modal */}
+      <Modal
+        title={null}
+        open={scheduleChoiceModal.open}
+        onCancel={() => setScheduleChoiceModal({ open: false, targetStaffId: null, isUpdate: false })}
+        footer={null}
+        centered
+        width={560}
+        className="[&_.ant-modal-content]:rounded-3xl [&_.ant-modal-content]:overflow-hidden [&_.ant-modal-body]:p-0"
+      >
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-2xl">⏰</div>
+            <div>
+              <h3 className="text-lg font-black text-slate-800">พบตารางแจ้งเตือนเดิมของลูกค้าร้านนี้</h3>
+              <p className="text-sm text-slate-500">เลือกรูปแบบการจัดการตารางแจ้งเตือนสำหรับรอบใหม่</p>
+            </div>
+          </div>
+
+          <div className="space-y-3 mb-6">
+            <button
+              onClick={() => {
+                const targetStaffId = scheduleChoiceModal.targetStaffId;
+                const isUpdate = scheduleChoiceModal.isUpdate;
+                setScheduleChoiceModal({ open: false, targetStaffId: null, isUpdate: false });
+                handleAssignToStaff(targetStaffId, isUpdate, 'replace');
+              }}
+              className="w-full text-left p-4 rounded-2xl border-2 border-rose-200 bg-rose-50 hover:bg-rose-100 transition-all"
+            >
+              <div className="font-black text-rose-700 mb-1">ลบของเดิม แล้วใช้ของใหม่</div>
+              <div className="text-xs text-rose-600">ล้างรายการแจ้งเตือนเดิมทั้งหมด แล้วสร้างจากรอบการรักษาใหม่</div>
+            </button>
+
+            <button
+              onClick={() => {
+                const targetStaffId = scheduleChoiceModal.targetStaffId;
+                const isUpdate = scheduleChoiceModal.isUpdate;
+                setScheduleChoiceModal({ open: false, targetStaffId: null, isUpdate: false });
+                handleAssignToStaff(targetStaffId, isUpdate, 'append');
+              }}
+              className="w-full text-left p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all"
+            >
+              <div className="font-black text-emerald-700 mb-1">เก็บของเดิม และเพิ่มของใหม่</div>
+              <div className="text-xs text-emerald-600">คงตารางเดิมไว้ และเพิ่มตารางแจ้งเตือนจากรอบใหม่เข้าไปด้วย</div>
+            </button>
+          </div>
+
+          <button
+            onClick={() => setScheduleChoiceModal({ open: false, targetStaffId: null, isUpdate: false })}
+            className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all"
+          >
+            ยกเลิก
+          </button>
+        </div>
+      </Modal>
+
       {/* Staff Assignment Modal */}
       <Modal
         title={null}
@@ -4349,10 +4977,15 @@ function CustomerDetail() {
             </button>
             <button
               onClick={() => handleAssignToStaff(null, false)}
-              disabled={!staffAssignModal.selectedStaffId}
-              className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all ${staffAssignModal.selectedStaffId ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-200 hover:shadow-xl' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+              disabled={!staffAssignModal.selectedStaffId || isSubmitting}
+              className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all ${staffAssignModal.selectedStaffId && !isSubmitting ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-200 hover:shadow-xl' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
             >
-              ส่งข้อมูล
+              {isSubmitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                  กำลังส่ง...
+                </span>
+              ) : 'ส่งข้อมูล'}
             </button>
           </div>
         </div>

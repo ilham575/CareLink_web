@@ -14,8 +14,10 @@ import React from 'react';
  *   drugName          {string}    - ชื่อยา (แสดงใน header)
  *   saving            {boolean}   - แสดง loading state บนปุ่มบันทึก
  */
-function DrugNotificationSettingsModal({ open, onClose, onSave, formData, handleInputChange, drugName, saving }) {
+function DrugNotificationSettingsModal({ open, onClose, onSave, formData, handleInputChange, drugName, saving, drugUnit }) {
   if (!open) return null;
+
+  const unitLabel = drugUnit || 'เม็ด';
 
   const hasAnySlot = formData.take_morning || formData.take_lunch || formData.take_evening || formData.take_bedtime;
   const hasTime = !!formData.suggested_time;
@@ -159,7 +161,7 @@ function DrugNotificationSettingsModal({ open, onClose, onSave, formData, handle
               name="dosage_per_time"
               value={formData.dosage_per_time || ''}
               onChange={handleInputChange}
-              placeholder="เช่น 1 เม็ด, 2 ช้อนชา, 10 ml"
+              placeholder={`เช่น 1 ${unitLabel}, 2 ${unitLabel}`}
               className="w-full bg-white border-2 border-slate-100 rounded-xl p-3 text-slate-800 font-bold focus:border-indigo-500 transition-all outline-none text-sm placeholder:font-medium placeholder:text-slate-300"
             />
           </div>

@@ -184,8 +184,12 @@ export const API = {
     listAll: () => `${BASE_URL}/api/notifications?populate=*`,
     getById: (id) => `${BASE_URL}/api/notifications/${id}?populate=*`,
     getByDocumentId: (documentId) => `${BASE_URL}/api/notifications/${documentId}?populate=*`,
+    // Lightweight polling: only fetch status fields, no relations
+    getStatusOnly: (documentId) => `${BASE_URL}/api/notifications/${documentId}?fields[0]=staff_work_status&fields[1]=type&fields[2]=data&fields[3]=is_read`,
     getStaffAssignments: (staffDocumentId, customerDocumentId) => 
       `${BASE_URL}/api/notifications?filters[staff_profile][documentId][$eq]=${staffDocumentId}&filters[customer_profile][documentId][$eq]=${customerDocumentId}&filters[type][$eq]=customer_assignment&populate[]=staff_profile&populate[]=pharmacy_profile&populate[]=drug_store&populate[]=customer_profile`,
+    getStaffAssignmentsLight: (staffDocumentId, customerDocumentId) =>
+      `${BASE_URL}/api/notifications?filters[staff_profile][documentId][$eq]=${staffDocumentId}&filters[customer_profile][documentId][$eq]=${customerDocumentId}&filters[type][$eq]=customer_assignment&fields[0]=staff_work_status&fields[1]=type&fields[2]=is_read&sort[0]=createdAt:desc&pagination[limit]=1`,
     getCustomerNotifications: (customerDocumentId) =>
       `${BASE_URL}/api/notifications?filters[$or][0][type][$eq]=customer_assignment&filters[$or][1][type][$eq]=customer_assignment_update&filters[customer_profile][documentId][$eq]=${customerDocumentId}&sort=updatedAt:desc&pagination[limit]=1&populate=*`,
     create: () => `${BASE_URL}/api/notifications`,

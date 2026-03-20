@@ -46,7 +46,8 @@ function DrugNotificationModal({
         meal_relation: drugNotificationModal.meal_relation,
         reminder_time: drugNotificationModal.reminder_time,
         dosage_per_time: drugNotificationModal.dosage_per_time,
-        frequency_hours: drugNotificationModal.frequency_hours
+        frequency_hours: drugNotificationModal.frequency_hours,
+        take_until_finished: !!drugNotificationModal.take_until_finished
       }]
     }));
     
@@ -87,6 +88,9 @@ function DrugNotificationModal({
             <h4 className="text-base font-black text-slate-800 mb-1">{drugNotificationModal.drug?.name_th}</h4>
             <p className="text-sm text-slate-500">{drugNotificationModal.drug?.name_en}</p>
             {drugNotificationModal.drug?.manufacturer && <p className="text-xs text-indigo-600 font-bold mt-1">📦 {drugNotificationModal.drug.manufacturer}</p>}
+            {drugNotificationModal.drug?.drug_unit && (
+              <p className="text-xs text-slate-500 font-bold mt-0.5">📦 หน่วย: {drugNotificationModal.drug.drug_unit === 'other' ? drugNotificationModal.drug.drug_unit_custom : drugNotificationModal.drug.drug_unit}</p>
+            )}
           </div>
         </div>
 
@@ -105,6 +109,7 @@ function DrugNotificationModal({
               reminder_time: prev.drugDefaults.reminder_time,
               dosage_per_time: prev.drugDefaults.dosage_per_time,
               frequency_hours: prev.drugDefaults.frequency_hours,
+              take_until_finished: !!prev.drugDefaults.take_until_finished,
             }))}
             className={`flex-1 py-3 text-sm font-bold transition-all ${drugNotificationModal.useDefaults ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 hover:bg-indigo-50'}`}
           >
@@ -174,6 +179,13 @@ function DrugNotificationModal({
                 <span className="inline-block px-3 py-1.5 bg-cyan-100 text-cyan-700 rounded-lg text-sm font-bold">💊 {drugNotificationModal.dosage_per_time}</span>
               </div>
             )}
+
+            <div>
+              <p className="text-xs font-bold text-slate-500 mb-2">ประเภทการใช้ยา</p>
+              <span className={`inline-block px-3 py-1.5 rounded-lg text-sm font-bold ${drugNotificationModal.take_until_finished ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                {drugNotificationModal.take_until_finished ? 'กินยาจนหมด' : 'ตามรอบปกติ'}
+              </span>
+            </div>
 
             {!drugNotificationModal.take_morning && !drugNotificationModal.take_lunch &&
              !drugNotificationModal.take_evening && !drugNotificationModal.take_bedtime &&
@@ -271,9 +283,24 @@ function DrugNotificationModal({
                 type="text"
                 value={drugNotificationModal.dosage_per_time || ''}
                 onChange={(e) => setDrugNotificationModal(prev => ({ ...prev, dosage_per_time: e.target.value }))}
-                placeholder="เช่น 1 เม็ด, 2 ช้อนชา, 10 ml"
+                placeholder={`เช่น 1 ${drugNotificationModal.drug?.drug_unit === 'other' ? (drugNotificationModal.drug?.drug_unit_custom || 'หน่วย') : (drugNotificationModal.drug?.drug_unit || 'เม็ด')}`}
                 className="w-full bg-white border-2 border-indigo-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:border-indigo-500 outline-none placeholder:font-medium placeholder:text-slate-300"
               />
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!drugNotificationModal.take_until_finished}
+                  onChange={(e) => setDrugNotificationModal(prev => ({ ...prev, take_until_finished: e.target.checked }))}
+                  className="mt-1"
+                />
+                <div>
+                  <p className="text-sm font-black text-amber-700">ยานี้ต้องกินจนหมด</p>
+                  <p className="text-xs text-amber-600">ระบบจะถามผู้ป่วยใน Telegram ว่า "ยาหมดหรือยัง" ทุกครั้งที่ถึงรอบแจ้งเตือน</p>
+                </div>
+              </label>
             </div>
           </div>
         )}

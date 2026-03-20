@@ -7,6 +7,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# User uploaded files - should live in Cloud Storage, not in the build
+public/uploads/
+
 # Build output
 build/
 dist/

@@ -85,6 +85,7 @@ steps:
       - "--set-secrets=ADMIN_JWT_SECRET=carelink-admin-jwt-secret:latest"
       - "--set-secrets=TRANSFER_TOKEN_SALT=carelink-transfer-token-salt:latest"
       - "--set-secrets=JWT_SECRET=carelink-jwt-secret:latest"
+      - "--set-secrets=TELEGRAM_TOKEN=carelink-telegram-token:latest"
     waitFor: ["push-image"]
 
 images:
