@@ -114,7 +114,7 @@ async function deactivateSchedulesForDrug(strapi, profile, drugName) {
     scheduleRows.push(...(byDocRows || []));
   }
 
-  if (hasScheduleCustomerLinkTable && profile.id) {
+  if (!hasScheduleCustomerDocumentIdColumn && hasScheduleCustomerLinkTable && profile.id) {
     const byLinkRows = await knex('medication_schedules as ms')
       .join('medication_schedules_customer_lnk as msc', 'msc.medication_schedule_id', 'ms.id')
       .where('msc.customer_profile_id', profile.id)

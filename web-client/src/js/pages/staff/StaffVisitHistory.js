@@ -56,6 +56,12 @@ function StaffVisitHistory() {
     return () => window.removeEventListener('focus', handleFocus);
   }, [customerDocumentId, pharmacyId]);
 
+  const matchesCustomerDocumentId = (notification) => {
+    const relationDocumentId = notification?.customer_profile?.documentId || notification?.customer_profile?.data?.documentId;
+    const dataDocumentId = notification?.data?.customer_documentId || notification?.data?.data?.customer_documentId;
+    return String(relationDocumentId || dataDocumentId || '') === String(customerDocumentId || '');
+  };
+
   const loadData = async () => {
     try {
       const token = localStorage.getItem('jwt');
@@ -106,12 +112,13 @@ function StaffVisitHistory() {
       
       // Load all visits (notifications) assigned to this staff for this customer
       // รวม type 'message' ด้วยเพื่อแสดงประวัติการบันทึกยา/อาการ
-      let notifUrl = `filters[customer_profile][documentId][$eq]=${customerDocumentId}` +
-                    `&filters[type][$in][0]=customer_assignment` +
-                    `&filters[type][$in][1]=customer_assignment_update` +
-                    `&filters[type][$in][2]=message` +
-                    `&populate=*` +
-                    `&sort[0]=createdAt:desc`;
+      const baseNotifUrl = `filters[type][$in][0]=customer_assignment` +
+            `&filters[type][$in][1]=customer_assignment_update` +
+            `&filters[type][$in][2]=message` +
+            `&populate=*` +
+            `&sort[0]=createdAt:desc`;
+
+      let notifUrl = `filters[customer_profile][documentId][$eq]=${customerDocumentId}&` + baseNotifUrl;
       
       // Filter by staff if we have staff document ID (to show only notifications assigned to this staff)
       if (staffDocumentId) {
@@ -126,9 +133,32 @@ function StaffVisitHistory() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
+      let notifications = [];
       if (notifRes.ok) {
         const notifData = await notifRes.json();
-        const notifications = notifData.data || [];
+        notifications = notifData.data || [];
+      }
+
+      if (notifications.length === 0) {
+        let fallbackUrl = baseNotifUrl;
+        if (staffDocumentId) {
+          fallbackUrl = `filters[staff_profile][documentId][$eq]=${staffDocumentId}&` + fallbackUrl;
+        } else if (pharmacyId) {
+          fallbackUrl = `filters[drug_store][documentId][$eq]=${pharmacyId}&` + fallbackUrl;
+        }
+
+        const fallbackRes = await fetch(
+          API.notifications.list(fallbackUrl),
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          notifications = (fallbackData.data || []).filter(matchesCustomerDocumentId);
+        }
+      }
+
+      if (notifications.length > 0) {
         
         // แต่ละ notification คือ 1 visit
         const visits = notifications.map(notif => ({
@@ -155,7 +185,7 @@ function StaffVisitHistory() {
 
   const handleViewDetail = (visit) => {
     const latestNotif = visit.latestNotification;
-    const notifId = latestNotif?.documentId || latestNotif?.id;
+    const notifId = latestNotif?.documentId;
     const targetNotif = notifId ? `&notifId=${encodeURIComponent(notifId)}` : '';
     navigate(`/staff/customer_detail/${customerDocumentId}?pharmacyId=${pharmacyId}${targetNotif}`);
   };

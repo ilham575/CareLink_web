@@ -32,9 +32,11 @@ async function resolveRelationId(strapi, uid, relationValue) {
 
     const tableName = RELATION_TABLE_BY_UID[uid];
     if (tableName) {
+      // ORDER BY id DESC: prefer published row (highest id) for draft/publish entities
       const row = await strapi.db.connection(tableName)
         .where('document_id', relationValue.documentId)
         .select('id')
+        .orderBy('id', 'desc')
         .first();
       if (row?.id) return row.id;
     }
@@ -53,9 +55,11 @@ async function resolveRelationId(strapi, uid, relationValue) {
 
   const tableName = RELATION_TABLE_BY_UID[uid];
   if (tableName) {
+    // ORDER BY id DESC: prefer published row (highest id) for draft/publish entities
     const row = await strapi.db.connection(tableName)
       .where('document_id', relationStr)
       .select('id')
+      .orderBy('id', 'desc')
       .first();
     if (row?.id) return row.id;
   }
@@ -271,14 +275,38 @@ async function getCustomerScopeForScheduleSync(strapi, customerRelationValue) {
   return { customerDocumentId, customerIds, targetCustomerId };
 }
 
-async function deleteSchedulesForCustomerScope(strapi, customerIds) {
+async function deleteSchedulesForCustomerScope(strapi, customerIds, customerDocumentId = null) {
   if (!Array.isArray(customerIds) || customerIds.length === 0) return 0;
 
-  const linkedScheduleIds = await strapi.db.connection('medication_schedules_customer_lnk')
-    .whereIn('customer_profile_id', customerIds)
-    .pluck('medication_schedule_id');
+  const knex = strapi.db.connection;
+  const hasScheduleCustomerLinkTable = await knex.schema.hasTable('medication_schedules_customer_lnk');
+  const hasScheduleCustomerDocumentIdColumn = await knex.schema.hasColumn('medication_schedules', 'customer_document_id');
+  const hasScheduleCustomerIdColumn = await knex.schema.hasColumn('medication_schedules', 'customer_id');
 
-  const uniqueScheduleIds = Array.from(new Set((linkedScheduleIds || []).filter(Boolean)));
+  const collectedScheduleIds = [];
+
+  if (hasScheduleCustomerDocumentIdColumn && customerDocumentId) {
+    const documentLinkedScheduleIds = await knex('medication_schedules')
+      .where('customer_document_id', customerDocumentId)
+      .pluck('id');
+    collectedScheduleIds.push(...(documentLinkedScheduleIds || []));
+  } else {
+    if (hasScheduleCustomerLinkTable) {
+      const linkedScheduleIds = await knex('medication_schedules_customer_lnk')
+        .whereIn('customer_profile_id', customerIds)
+        .pluck('medication_schedule_id');
+      collectedScheduleIds.push(...(linkedScheduleIds || []));
+    }
+
+    if (hasScheduleCustomerIdColumn) {
+      const directScheduleIds = await knex('medication_schedules')
+        .whereIn('customer_id', customerIds)
+        .pluck('id');
+      collectedScheduleIds.push(...(directScheduleIds || []));
+    }
+  }
+
+  const uniqueScheduleIds = Array.from(new Set(collectedScheduleIds.filter(Boolean)));
   for (const scheduleId of uniqueScheduleIds) {
     await strapi.entityService.delete('api::medication-schedule.medication-schedule', scheduleId);
   }
@@ -337,7 +365,7 @@ async function rebuildSchedulesAfterHistoryDelete(strapi, deletedNotification) {
   // when no remaining history (or history has no prescribed drugs), clear schedules directly.
   // This avoids stale schedules in cases where an update would be treated as a no-op.
   if (!Array.isArray(prescribedDrugs) || prescribedDrugs.length === 0) {
-    const removedCount = await deleteSchedulesForCustomerScope(strapi, customerIds);
+    const removedCount = await deleteSchedulesForCustomerScope(strapi, customerIds, customerDocumentId);
     await clearPrescribedDrugsForCustomerScope(strapi, customerIds);
 
     strapi.log.info(
@@ -369,11 +397,36 @@ async function cleanupSystemAlertsIfNoSchedules(strapi, customerRelationValue) {
   if (!customerIds.length) return;
 
   const knex = strapi.db.connection;
-  const scheduleCountRows = await knex('medication_schedules_customer_lnk')
-    .whereIn('customer_profile_id', customerIds)
-    .countDistinct('medication_schedule_id as total');
+  const hasScheduleCustomerLinkTable = await knex.schema.hasTable('medication_schedules_customer_lnk');
+  const hasScheduleCustomerDocumentIdColumn = await knex.schema.hasColumn('medication_schedules', 'customer_document_id');
+  const hasScheduleCustomerIdColumn = await knex.schema.hasColumn('medication_schedules', 'customer_id');
 
-  const scheduleCount = Number(scheduleCountRows?.[0]?.total || 0);
+  let scheduleCount = 0;
+
+  if (hasScheduleCustomerDocumentIdColumn && customerDocumentId) {
+    const scheduleCountRows = await knex('medication_schedules')
+      .where('customer_document_id', customerDocumentId)
+      .countDistinct('id as total');
+    scheduleCount = Number(scheduleCountRows?.[0]?.total || 0);
+  } else {
+    const collectedScheduleIds = [];
+
+    if (hasScheduleCustomerLinkTable) {
+      const linkedScheduleIds = await knex('medication_schedules_customer_lnk')
+        .whereIn('customer_profile_id', customerIds)
+        .pluck('medication_schedule_id');
+      collectedScheduleIds.push(...(linkedScheduleIds || []));
+    }
+
+    if (hasScheduleCustomerIdColumn) {
+      const directScheduleIds = await knex('medication_schedules')
+        .whereIn('customer_id', customerIds)
+        .pluck('id');
+      collectedScheduleIds.push(...(directScheduleIds || []));
+    }
+
+    scheduleCount = Array.from(new Set(collectedScheduleIds.filter(Boolean))).length;
+  }
   if (scheduleCount > 0) return;
 
   const systemAlertRows = await knex('notifications as n')
@@ -417,8 +470,9 @@ async function removeOldMedicationSchedulesOnNewHistory(strapi, notification) {
   if (!targetCustomerId || !Array.isArray(customerIds) || customerIds.length === 0 || !storeId) return;
 
   const knex = strapi.db.connection;
-  const hasScheduleCustomerLinkTable = await knex.schema.hasTable('medication_schedules_customer_lnk');
   const hasScheduleCustomerDocumentIdColumn = await knex.schema.hasColumn('medication_schedules', 'customer_document_id');
+  const hasScheduleCustomerLinkTable = await knex.schema.hasTable('medication_schedules_customer_lnk');
+  const hasScheduleCustomerIdColumn = await knex.schema.hasColumn('medication_schedules', 'customer_id');
 
   const previousAssignments = await knex('notifications as n')
     .join('notifications_customer_profile_lnk as ncp', 'ncp.notification_id', 'n.id')
@@ -441,17 +495,26 @@ async function removeOldMedicationSchedulesOnNewHistory(strapi, notification) {
     collectedScheduleIds.push(...(documentLinkedScheduleIds || []));
   }
 
-  if (hasScheduleCustomerLinkTable) {
-    const linkedScheduleIds = await knex('medication_schedules_customer_lnk')
-      .whereIn('customer_profile_id', customerIds)
-      .pluck('medication_schedule_id');
-    collectedScheduleIds.push(...(linkedScheduleIds || []));
+  if (!hasScheduleCustomerDocumentIdColumn) {
+    if (hasScheduleCustomerLinkTable) {
+      const linkedScheduleIds = await knex('medication_schedules_customer_lnk')
+        .whereIn('customer_profile_id', customerIds)
+        .pluck('medication_schedule_id');
+      collectedScheduleIds.push(...(linkedScheduleIds || []));
+    }
+
+    if (hasScheduleCustomerIdColumn) {
+      const directScheduleIds = await knex('medication_schedules')
+        .whereIn('customer_id', customerIds)
+        .pluck('id');
+      collectedScheduleIds.push(...(directScheduleIds || []));
+    }
   }
 
   const uniqueScheduleIds = Array.from(new Set(collectedScheduleIds.filter(Boolean)));
   if (uniqueScheduleIds.length === 0) return;
 
-  if (hasScheduleCustomerLinkTable) {
+  if (!hasScheduleCustomerDocumentIdColumn && hasScheduleCustomerLinkTable) {
     await knex('medication_schedules_customer_lnk')
       .whereIn('medication_schedule_id', uniqueScheduleIds)
       .delete();
@@ -495,6 +558,35 @@ function broadcastNotificationCreate(notification) {
   }
 }
 
+function broadcastNotificationUpdate(notification) {
+  const strapi = globalThis.strapi;
+  if (!strapi?.io) return;
+
+  const io = strapi.io;
+
+  if (notification.documentId) {
+    io.to(`notification:${notification.documentId}`).emit('notification:update', notification);
+  }
+  if (notification.id) {
+    io.to(`notification:${notification.id}`).emit('notification:update', notification);
+  }
+
+  if (notification.customer_profile) {
+    const customerId = typeof notification.customer_profile === 'object'
+      ? notification.customer_profile.documentId || notification.customer_profile.id
+      : notification.customer_profile;
+    io.to(`customer:${customerId}`).emit('notification:update', notification);
+    io.to(`customer:${customerId}`).emit('customer:update', notification);
+  }
+
+  if (notification.staff_profile) {
+    const staffId = typeof notification.staff_profile === 'object'
+      ? notification.staff_profile.documentId || notification.staff_profile.id
+      : notification.staff_profile;
+    io.to(`staff:${staffId}`).emit('notification:update', notification);
+  }
+}
+
 function parseRequestedFields(ctx) {
   const fields = [];
   for (const [key, value] of Object.entries(ctx.query || {})) {
@@ -524,7 +616,297 @@ function pickNotificationResponseFields(notification, requestedFields) {
   return picked;
 }
 
+async function resolveRelationDocumentId(strapi, uid, relationValue) {
+  if (!relationValue) return null;
+
+  if (typeof relationValue === 'object') {
+    if (relationValue.documentId) return String(relationValue.documentId);
+    if (relationValue.id) {
+      const tableName = RELATION_TABLE_BY_UID[uid];
+      if (!tableName) return null;
+
+      const row = await strapi.db.connection(tableName)
+        .where('id', relationValue.id)
+        .select('document_id')
+        .first();
+
+      return row?.document_id ? String(row.document_id) : null;
+    }
+
+    return null;
+  }
+
+  const rawValue = String(relationValue).trim();
+  if (!rawValue) return null;
+  if (!/^\d+$/.test(rawValue)) return rawValue;
+
+  const tableName = RELATION_TABLE_BY_UID[uid];
+  if (!tableName) return null;
+
+  const row = await strapi.db.connection(tableName)
+    .where('id', Number(rawValue))
+    .select('document_id')
+    .first();
+
+  return row?.document_id ? String(row.document_id) : null;
+}
+
+async function buildNotificationDocumentData(strapi, payload, mergedDataOverride) {
+  const [staffProfileDocumentId, pharmacyProfileDocumentId, customerProfileDocumentId, drugStoreDocumentId] = await Promise.all([
+    resolveRelationDocumentId(strapi, 'api::staff-profile.staff-profile', payload.staff_profile),
+    resolveRelationDocumentId(strapi, 'api::pharmacy-profile.pharmacy-profile', payload.pharmacy_profile),
+    resolveRelationDocumentId(strapi, 'api::customer-profile.customer-profile', payload.customer_profile),
+    resolveRelationDocumentId(strapi, 'api::drug-store.drug-store', payload.drug_store),
+  ]);
+
+  const data = {
+    type: payload.type,
+    title: payload.title || null,
+    message: payload.message || null,
+    data: mergedDataOverride !== undefined
+      ? (mergedDataOverride || {})
+      : (payload.data !== undefined ? payload.data : {}),
+    staff_work_status: payload.staff_work_status !== undefined ? payload.staff_work_status : {},
+    is_read: !!payload.is_read,
+    read_at: payload.read_at || null,
+    priority: payload.priority || 'normal',
+    action_url: payload.action_url || null,
+    expires_at: payload.expires_at || null,
+  };
+
+  if (staffProfileDocumentId) {
+    data.staff_profile = { connect: [staffProfileDocumentId] };
+  }
+  if (pharmacyProfileDocumentId) {
+    data.pharmacy_profile = { connect: [pharmacyProfileDocumentId] };
+  }
+  if (customerProfileDocumentId) {
+    data.customer_profile = { connect: [customerProfileDocumentId] };
+  }
+  if (drugStoreDocumentId) {
+    data.drug_store = { connect: [drugStoreDocumentId] };
+  }
+
+  return {
+    data,
+    relationDocumentIds: {
+      staff_profile: staffProfileDocumentId,
+      pharmacy_profile: pharmacyProfileDocumentId,
+      customer_profile: customerProfileDocumentId,
+      drug_store: drugStoreDocumentId,
+    },
+  };
+}
+
+async function createNotificationRecord(strapi, payload) {
+  const now = new Date().toISOString();
+  const { data: documentData, relationDocumentIds } = await buildNotificationDocumentData(strapi, payload);
+
+  const createdNotification = await strapi.documents('api::notification.notification').create({
+    data: documentData,
+    status: 'published',
+  });
+
+  return {
+    id: createdNotification?.id,
+    documentId: createdNotification?.documentId,
+    type: createdNotification?.type ?? payload.type,
+    title: createdNotification?.title ?? payload.title ?? null,
+    message: createdNotification?.message ?? payload.message ?? null,
+    data: createdNotification?.data ?? (payload.data !== undefined ? payload.data : {}),
+    staff_work_status: createdNotification?.staff_work_status ?? (payload.staff_work_status !== undefined ? payload.staff_work_status : {}),
+    is_read: createdNotification?.is_read ?? !!payload.is_read,
+    read_at: createdNotification?.read_at ?? payload.read_at ?? null,
+    priority: createdNotification?.priority ?? payload.priority ?? 'normal',
+    action_url: createdNotification?.action_url ?? payload.action_url ?? null,
+    expires_at: createdNotification?.expires_at ?? payload.expires_at ?? null,
+    createdAt: createdNotification?.createdAt ?? now,
+    updatedAt: createdNotification?.updatedAt ?? now,
+    staff_profile: createdNotification?.staff_profile || relationDocumentIds.staff_profile || payload.staff_profile || null,
+    pharmacy_profile: createdNotification?.pharmacy_profile || relationDocumentIds.pharmacy_profile || payload.pharmacy_profile || null,
+    customer_profile: createdNotification?.customer_profile || relationDocumentIds.customer_profile || payload.customer_profile || null,
+    drug_store: createdNotification?.drug_store || relationDocumentIds.drug_store || payload.drug_store || null,
+  };
+}
+
+async function updateNotificationRecord(strapi, documentId, body) {
+  const knex = strapi.db.connection;
+  const existing = await knex('notifications')
+    .where('document_id', documentId)
+    .select('id', 'document_id', 'data', 'is_read', 'priority', 'title', 'message', 'type')
+    .first();
+
+  if (!existing) {
+    throw new Error('Notification not found');
+  }
+
+  let existingData = {};
+  try {
+    if (existing.data) {
+      existingData = typeof existing.data === 'string'
+        ? JSON.parse(existing.data)
+        : existing.data;
+    }
+  } catch (_) {
+    existingData = {};
+  }
+
+  const mergedData = body.data !== undefined
+    ? { ...existingData, ...body.data }
+    : existingData;
+
+  const updatedAt = new Date().toISOString();
+  const { data: documentData, relationDocumentIds } = await buildNotificationDocumentData(strapi, body, mergedData);
+
+  const updatedNotification = await strapi.documents('api::notification.notification').update({
+    documentId,
+    data: documentData,
+    status: 'published',
+  });
+
+  return {
+    id: updatedNotification?.id ?? existing.id,
+    documentId,
+    type: updatedNotification?.type ?? body.type ?? existing.type,
+    title: updatedNotification?.title ?? body.title ?? existing.title,
+    message: updatedNotification?.message ?? body.message ?? existing.message,
+    data: updatedNotification?.data ?? mergedData,
+    staff_work_status: updatedNotification?.staff_work_status ?? body.staff_work_status ?? {},
+    is_read: updatedNotification?.is_read ?? body.is_read ?? !!existing.is_read,
+    priority: updatedNotification?.priority ?? body.priority ?? existing.priority,
+    updatedAt: updatedNotification?.updatedAt ?? updatedAt,
+    staff_profile: updatedNotification?.staff_profile || relationDocumentIds.staff_profile || body.staff_profile || null,
+    pharmacy_profile: updatedNotification?.pharmacy_profile || relationDocumentIds.pharmacy_profile || body.pharmacy_profile || null,
+    customer_profile: updatedNotification?.customer_profile || relationDocumentIds.customer_profile || body.customer_profile || null,
+    drug_store: updatedNotification?.drug_store || relationDocumentIds.drug_store || body.drug_store || null,
+  };
+}
+
+async function deleteNotificationRecordById(strapi, notificationId) {
+  const knex = strapi.db.connection;
+  await knex.transaction(async (trx) => {
+    await Promise.all(
+      NOTIFICATION_LINK_TABLES.map((tableName) => (
+        trx(tableName)
+          .where('notification_id', notificationId)
+          .delete()
+      ))
+    );
+
+    await trx('notifications')
+      .where('id', notificationId)
+      .delete();
+  });
+}
+
+async function getCustomerScopeRowsByDocumentId(strapi, customerDocumentId) {
+  if (!customerDocumentId) return [];
+
+  const rows = await strapi.db.connection('customer_profiles')
+    .where('document_id', String(customerDocumentId))
+    .select('id', 'document_id')
+    .orderBy('id', 'asc');
+
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function syncCustomerProfilesForAssignment(strapi, customerDocumentId, customerProfileUpdates) {
+  const rows = await getCustomerScopeRowsByDocumentId(strapi, customerDocumentId);
+  if (rows.length === 0) {
+    throw new Error('Customer profile not found');
+  }
+
+  const updateData = {};
+  if (Object.prototype.hasOwnProperty.call(customerProfileUpdates, 'prescribed_drugs')) {
+    updateData.prescribed_drugs = Array.isArray(customerProfileUpdates.prescribed_drugs)
+      ? customerProfileUpdates.prescribed_drugs
+      : [];
+  }
+
+  if (Object.prototype.hasOwnProperty.call(customerProfileUpdates, 'assigned_by_staff_document_id')) {
+    const assignedStaffId = customerProfileUpdates.assigned_by_staff_document_id
+      ? await resolveRelationId(
+          strapi,
+          'api::staff-profile.staff-profile',
+          customerProfileUpdates.assigned_by_staff_document_id
+        )
+      : null;
+    updateData.assigned_by_staff = assignedStaffId || null;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return rows[rows.length - 1];
+  }
+
+  const targetRow = rows[rows.length - 1];
+  const nonTargetRows = rows.slice(0, -1);
+
+  for (const row of nonTargetRows) {
+    await strapi.entityService.update('api::customer-profile.customer-profile', row.id, {
+      data: updateData,
+    });
+  }
+
+  await strapi.entityService.update('api::customer-profile.customer-profile', targetRow.id, {
+    data: updateData,
+  });
+
+  return targetRow;
+}
+
 module.exports = createCoreController('api::notification.notification', ({ strapi }) => ({
+  async assignToStaff(ctx) {
+    const assignStart = Date.now();
+    const payload = ctx.request.body?.data;
+    const notificationPayload = payload?.notification;
+    const customerDocumentId = payload?.customer_profile_document_id || notificationPayload?.customer_profile;
+    const existingNotificationDocumentId = payload?.existing_notification_document_id || null;
+    const customerProfileUpdates = payload?.customer_profile_updates || {};
+
+    if (!notificationPayload || typeof notificationPayload !== 'object') {
+      return ctx.badRequest('Missing notification payload');
+    }
+
+    if (!customerDocumentId) {
+      return ctx.badRequest('Missing customer profile documentId');
+    }
+
+    let createdNotification = null;
+
+    try {
+      if (!existingNotificationDocumentId) {
+        createdNotification = await createNotificationRecord(strapi, notificationPayload);
+      }
+
+      await syncCustomerProfilesForAssignment(strapi, customerDocumentId, customerProfileUpdates);
+
+      const notificationRecord = existingNotificationDocumentId
+        ? await updateNotificationRecord(strapi, existingNotificationDocumentId, notificationPayload)
+        : createdNotification;
+
+      ctx.status = existingNotificationDocumentId ? 200 : 201;
+      strapi.log.info(
+        `[AssignToStaff] Completed ${existingNotificationDocumentId ? 'update' : 'create'} for customer=${customerDocumentId}` +
+        ` notification=${notificationRecord.documentId} in ${Date.now() - assignStart}ms`
+      );
+
+      return {
+        data: notificationRecord,
+      };
+    } catch (error) {
+      if (!existingNotificationDocumentId && createdNotification?.id) {
+        try {
+          await deleteNotificationRecordById(strapi, createdNotification.id);
+        } catch (cleanupError) {
+          strapi.log.error('[AssignToStaff] Failed to cleanup notification after error:', cleanupError.message);
+        }
+      }
+
+      strapi.log.error('[AssignToStaff] Failed orchestrated assign:', error);
+      return ctx.internalServerError(error.message || 'Failed to assign customer to staff');
+    }
+  },
+
   async create(ctx) {
     console.log('[Controller] Creating notification:', {
       body: ctx.request.body,
@@ -538,117 +920,7 @@ module.exports = createCoreController('api::notification.notification', ({ strap
 
     const requestedFields = parseRequestedFields(ctx);
     const createStart = Date.now();
-    const now = new Date();
-    const knex = strapi.db.connection;
-
-    const [staffProfileId, pharmacyProfileId, customerProfileId, drugStoreId] = await Promise.all([
-      resolveRelationId(strapi, 'api::staff-profile.staff-profile', payload.staff_profile),
-      resolveRelationId(strapi, 'api::pharmacy-profile.pharmacy-profile', payload.pharmacy_profile),
-      resolveRelationId(strapi, 'api::customer-profile.customer-profile', payload.customer_profile),
-      resolveRelationId(strapi, 'api::drug-store.drug-store', payload.drug_store),
-    ]);
-
-    const insertedNotification = await knex.transaction(async (trx) => {
-      const documentId = randomBytes(12).toString('hex');
-      const insertedRows = await trx('notifications')
-        .insert({
-          document_id: documentId,
-          type: payload.type,
-          title: payload.title || null,
-          message: payload.message || null,
-          data: payload.data !== undefined ? JSON.stringify(payload.data) : JSON.stringify({}),
-          staff_work_status: payload.staff_work_status !== undefined ? JSON.stringify(payload.staff_work_status) : JSON.stringify({}),
-          is_read: payload.is_read ? 1 : 0,
-          read_at: payload.read_at || null,
-          priority: payload.priority || 'normal',
-          action_url: payload.action_url || null,
-          expires_at: payload.expires_at || null,
-          created_at: now,
-          updated_at: now,
-        })
-        .returning(['id', 'document_id']);
-
-      const createdRow = Array.isArray(insertedRows) ? insertedRows[0] : insertedRows;
-      if (!createdRow?.id) {
-        throw new Error('Notification insert did not return an id');
-      }
-
-      const linkInserts = [];
-      if (staffProfileId) {
-        linkInserts.push(
-          trx('notifications_staff_profile_lnk').insert({
-            notification_id: createdRow.id,
-            staff_profile_id: staffProfileId,
-          })
-        );
-      }
-      if (pharmacyProfileId) {
-        linkInserts.push(
-          trx('notifications_pharmacy_profile_lnk').insert({
-            notification_id: createdRow.id,
-            pharmacy_profile_id: pharmacyProfileId,
-          })
-        );
-      }
-      if (customerProfileId) {
-        linkInserts.push(
-          trx('notifications_customer_profile_lnk').insert({
-            notification_id: createdRow.id,
-            customer_profile_id: customerProfileId,
-          })
-        );
-      }
-      if (drugStoreId) {
-        linkInserts.push(
-          trx('notifications_drug_store_lnk').insert({
-            notification_id: createdRow.id,
-            drug_store_id: drugStoreId,
-          })
-        );
-      }
-
-      if (linkInserts.length > 0) {
-        await Promise.all(linkInserts);
-      }
-
-      return {
-        id: createdRow.id,
-        documentId: createdRow.document_id,
-      };
-    });
-
-    const createdNotification = {
-      id: insertedNotification.id,
-      documentId: insertedNotification.documentId,
-      type: payload.type,
-      title: payload.title || null,
-      message: payload.message || null,
-      data: payload.data !== undefined ? payload.data : {},
-      staff_work_status: payload.staff_work_status !== undefined ? payload.staff_work_status : {},
-      is_read: !!payload.is_read,
-      read_at: payload.read_at || null,
-      priority: payload.priority || 'normal',
-      action_url: payload.action_url || null,
-      expires_at: payload.expires_at || null,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-      staff_profile: payload.staff_profile || null,
-      pharmacy_profile: payload.pharmacy_profile || null,
-      customer_profile: payload.customer_profile || null,
-      drug_store: payload.drug_store || null,
-    };
-
-    setImmediate(() => {
-      (async () => {
-        try {
-          await removeOldMedicationSchedulesOnNewHistory(strapi, createdNotification);
-        } catch (err) {
-          strapi.log.error('[MedReminder] Failed to remove old schedules:', err.message);
-        }
-      })();
-    });
-
-    broadcastNotificationCreate(createdNotification);
+    const createdNotification = await createNotificationRecord(strapi, payload);
 
     const responseData = pickNotificationResponseFields(createdNotification, requestedFields);
     ctx.status = 201;
@@ -738,108 +1010,8 @@ module.exports = createCoreController('api::notification.notification', ({ strap
       return ctx.badRequest('Missing documentId or request body');
     }
 
-    const knex = strapi.db.connection;
-
-    // Resolve numeric id + fetch existing data column in one query
-    const existing = await knex('notifications')
-      .where('document_id', documentId)
-      .select('id', 'document_id', 'data')
-      .first();
-
-    if (!existing) {
-      return ctx.notFound('Notification not found');
-    }
-
-    // Parse existing data column so we can merge (preserving prescribed_drugs etc.)
-    let existingData = {};
-    try {
-      if (existing.data) {
-        existingData = typeof existing.data === 'string'
-          ? JSON.parse(existing.data)
-          : existing.data;
-      }
-    } catch (_) { existingData = {}; }
-
-    // Merge incoming body.data WITH existing data — never wipe fields not in the update
-    const mergedData = body.data !== undefined
-      ? { ...existingData, ...body.data }
-      : existingData;
-
-    const updateFields = { updated_at: new Date() };
-    if (body.type !== undefined) updateFields.type = body.type;
-    if (body.title !== undefined) updateFields.title = body.title;
-    if (body.message !== undefined) updateFields.message = body.message;
-    if (body.data !== undefined) updateFields.data = JSON.stringify(mergedData);
-    if (body.staff_work_status !== undefined) updateFields.staff_work_status = JSON.stringify(body.staff_work_status);
-    if (body.is_read !== undefined) updateFields.is_read = body.is_read ? 1 : 0;
-    if (body.priority !== undefined) updateFields.priority = body.priority;
-
-    // Single SQL UPDATE — no document service overhead
-    await knex('notifications')
-      .where('id', existing.id)
-      .update(updateFields);
-
-    // Update staff_profile relation link table only when staff changed
-    if (body.staff_profile) {
-      const staffDocId = typeof body.staff_profile === 'object'
-        ? (body.staff_profile.documentId || String(body.staff_profile))
-        : String(body.staff_profile);
-      const staffRow = await knex('staff_profiles')
-        .where('document_id', staffDocId)
-        .select('id')
-        .first();
-      if (staffRow?.id) {
-        await knex('notifications_staff_profile_lnk')
-          .where('notification_id', existing.id)
-          .delete();
-        await knex('notifications_staff_profile_lnk').insert({
-          notification_id: existing.id,
-          staff_profile_id: staffRow.id,
-        });
-      }
-    }
-
-    // Socket broadcast — include full merged data so staff UI updates without re-fetching
-    const now = new Date().toISOString();
-    const io = strapi?.io;
-    if (io) {
-      const broadcastPayload = {
-        id: existing.id,
-        documentId,
-        type: body.type,
-        title: body.title,
-        message: body.message,
-        data: mergedData,
-        staff_work_status: body.staff_work_status || {},
-        is_read: body.is_read ?? false,
-        priority: body.priority,
-        updatedAt: now,
-      };
-      io.to(`notification:${documentId}`).emit('notification:update', broadcastPayload);
-      io.to(`notification:${existing.id}`).emit('notification:update', broadcastPayload);
-      if (body.customer_profile) {
-        io.to(`customer:${body.customer_profile}`).emit('notification:update', broadcastPayload);
-      }
-      if (body.staff_profile) {
-        const staffTarget = typeof body.staff_profile === 'object'
-          ? (body.staff_profile.documentId || body.staff_profile.id)
-          : body.staff_profile;
-        io.to(`staff:${staffTarget}`).emit('notification:update', broadcastPayload);
-      }
-    }
-
-    return {
-      data: {
-        id: existing.id,
-        documentId,
-        type: body.type,
-        title: body.title,
-        message: body.message,
-        data: mergedData,
-        staff_work_status: body.staff_work_status || {},
-        updatedAt: now,
-      },
-    };
+    const updatedNotification = await updateNotificationRecord(strapi, documentId, body);
+    return { data: updatedNotification };
   },
 
   async delete(ctx) {

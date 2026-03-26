@@ -57,7 +57,7 @@ steps:
       # Cloud SQL Socket (ไม่ต้องใช้ Cloud SQL Auth Proxy แยก)
       - "--add-cloudsql-instances=${_CLOUDSQL_INSTANCE}"
       # Resources — ประหยัดแต่ไม่ช้า
-      - "--memory=512Mi"
+      - "--memory=1Gi"
       - "--cpu=1"
       - "--concurrency=80"
       # Min 1 instance เพื่อหลีกเลี่ยง cold start (ปรับเป็น 0 ถ้าต้องการประหยัดสุด)

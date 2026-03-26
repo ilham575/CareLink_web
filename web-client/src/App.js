@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocat
 import DrugStoreDetail from './js/pages/default/DrugStoreDetail';
 import LoginPage from './js/pages/default/signin';
 import Signup from './js/pages/default/Signup';
+import ForgotPassword from './js/pages/default/ForgotPassword';
+import ResetPassword from './js/pages/default/ResetPassword';
 import './css/theme.css';
 import './App.css';
 import { ToastContainer } from 'react-toastify';
@@ -78,6 +80,8 @@ function App() {
           
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/drug_store/:id" element={<DrugStoreDetail />} />
           
           {/* -------------------- ADMIN -------------------- */}

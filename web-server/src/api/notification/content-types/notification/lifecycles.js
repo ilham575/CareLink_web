@@ -12,12 +12,50 @@
 // Shared helpers (used by afterCreate & afterDelete)
 // ──────────────────────────────────────────────
 
+const RELATION_TABLE_BY_UID = {
+  'api::staff-profile.staff-profile': 'staff_profiles',
+  'api::pharmacy-profile.pharmacy-profile': 'pharmacy_profiles',
+  'api::customer-profile.customer-profile': 'customer_profiles',
+  'api::drug-store.drug-store': 'drug_stores',
+};
+
+let scheduleSchemaFlagsPromise = null;
+
+async function getScheduleSchemaFlags(knex) {
+  if (!scheduleSchemaFlagsPromise) {
+    scheduleSchemaFlagsPromise = Promise.all([
+      knex.schema.hasTable('medication_schedules_customer_lnk'),
+      knex.schema.hasColumn('medication_schedules', 'customer_document_id'),
+      knex.schema.hasColumn('medication_schedules', 'customer_id'),
+    ]).then(([hasScheduleCustomerLinkTable, hasScheduleCustomerDocumentIdColumn, hasScheduleCustomerIdColumn]) => ({
+      hasScheduleCustomerLinkTable,
+      hasScheduleCustomerDocumentIdColumn,
+      hasScheduleCustomerIdColumn,
+    })).catch((error) => {
+      scheduleSchemaFlagsPromise = null;
+      throw error;
+    });
+  }
+
+  return scheduleSchemaFlagsPromise;
+}
+
 async function resolveRelationId(strapi, uid, relationValue) {
   if (!relationValue) return null;
 
   if (typeof relationValue === 'object') {
     if (relationValue.id) return relationValue.id;
     if (!relationValue.documentId) return null;
+
+    const tableName = RELATION_TABLE_BY_UID[uid];
+    if (tableName) {
+      const row = await strapi.db.connection(tableName)
+        .where('document_id', relationValue.documentId)
+        .select('id')
+        .orderBy('id', 'desc')
+        .first();
+      if (row?.id) return row.id;
+    }
 
     const found = await strapi.entityService.findMany(uid, {
       filters: { documentId: relationValue.documentId },
@@ -30,6 +68,16 @@ async function resolveRelationId(strapi, uid, relationValue) {
 
   const relationStr = String(relationValue);
   if (/^\d+$/.test(relationStr)) return Number(relationStr);
+
+  const tableName = RELATION_TABLE_BY_UID[uid];
+  if (tableName) {
+    const row = await strapi.db.connection(tableName)
+      .where('document_id', relationStr)
+      .select('id')
+      .orderBy('id', 'desc')
+      .first();
+    if (row?.id) return row.id;
+  }
 
   const found = await strapi.entityService.findMany(uid, {
     filters: { documentId: relationStr },
@@ -203,8 +251,11 @@ async function removeOldMedicationSchedulesOnNewHistory(strapi, notification) {
   if (!targetCustomerId || !Array.isArray(customerIds) || customerIds.length === 0 || !storeId) return;
 
   const knex = strapi.db.connection;
-  const hasScheduleCustomerLinkTable = await knex.schema.hasTable('medication_schedules_customer_lnk');
-  const hasScheduleCustomerDocumentIdColumn = await knex.schema.hasColumn('medication_schedules', 'customer_document_id');
+  const {
+    hasScheduleCustomerLinkTable,
+    hasScheduleCustomerDocumentIdColumn,
+    hasScheduleCustomerIdColumn,
+  } = await getScheduleSchemaFlags(knex);
 
   const previousAssignments = await knex('notifications as n')
     .join('notifications_customer_profile_lnk as ncp', 'ncp.notification_id', 'n.id')
@@ -227,18 +278,27 @@ async function removeOldMedicationSchedulesOnNewHistory(strapi, notification) {
     collectedScheduleIds.push(...(documentLinkedScheduleIds || []));
   }
 
-  if (hasScheduleCustomerLinkTable) {
-    const linkedScheduleIds = await knex('medication_schedules_customer_lnk')
-      .whereIn('customer_profile_id', customerIds)
-      .pluck('medication_schedule_id');
-    collectedScheduleIds.push(...(linkedScheduleIds || []));
+  if (!hasScheduleCustomerDocumentIdColumn) {
+    if (hasScheduleCustomerLinkTable) {
+      const linkedScheduleIds = await knex('medication_schedules_customer_lnk')
+        .whereIn('customer_profile_id', customerIds)
+        .pluck('medication_schedule_id');
+      collectedScheduleIds.push(...(linkedScheduleIds || []));
+    }
+
+    if (hasScheduleCustomerIdColumn) {
+      const directScheduleIds = await knex('medication_schedules')
+        .whereIn('customer_id', customerIds)
+        .pluck('id');
+      collectedScheduleIds.push(...(directScheduleIds || []));
+    }
   }
 
   const uniqueScheduleIds = Array.from(new Set(collectedScheduleIds.filter(Boolean)));
 
   if (uniqueScheduleIds.length === 0) return;
 
-  if (hasScheduleCustomerLinkTable) {
+  if (!hasScheduleCustomerDocumentIdColumn && hasScheduleCustomerLinkTable) {
     await knex('medication_schedules_customer_lnk')
       .whereIn('medication_schedule_id', uniqueScheduleIds)
       .delete();
@@ -262,19 +322,47 @@ const HISTORY_TYPES = ['customer_assignment', 'customer_assignment_update', 'mes
 const BASE_HISTORY_TYPES = new Set(['customer_assignment', 'message']);
 const DELETE_ELIGIBLE_TYPES = new Set(['customer_assignment', 'customer_assignment_update', 'message']);
 
-async function deleteSchedulesForCustomerScope(strapi, customerIds) {
+async function deleteSchedulesForCustomerScope(strapi, customerIds, customerDocumentId = null) {
   if (!Array.isArray(customerIds) || customerIds.length === 0) return 0;
 
-  const linkedScheduleIds = await strapi.db.connection('medication_schedules_customer_lnk')
-    .whereIn('customer_profile_id', customerIds)
-    .pluck('medication_schedule_id');
+  const knex = strapi.db.connection;
+  const {
+    hasScheduleCustomerLinkTable,
+    hasScheduleCustomerDocumentIdColumn,
+    hasScheduleCustomerIdColumn,
+  } = await getScheduleSchemaFlags(knex);
 
-  const uniqueScheduleIds = Array.from(new Set((linkedScheduleIds || []).filter(Boolean)));
+  const collectedScheduleIds = [];
+
+  if (hasScheduleCustomerDocumentIdColumn && customerDocumentId) {
+    const documentScheduleIds = await knex('medication_schedules')
+      .where('customer_document_id', customerDocumentId)
+      .pluck('id');
+    collectedScheduleIds.push(...(documentScheduleIds || []));
+  } else {
+    if (hasScheduleCustomerLinkTable) {
+      const linkedScheduleIds = await knex('medication_schedules_customer_lnk')
+        .whereIn('customer_profile_id', customerIds)
+        .pluck('medication_schedule_id');
+      collectedScheduleIds.push(...(linkedScheduleIds || []));
+    }
+
+    if (hasScheduleCustomerIdColumn) {
+      const directScheduleIds = await knex('medication_schedules')
+        .whereIn('customer_id', customerIds)
+        .pluck('id');
+      collectedScheduleIds.push(...(directScheduleIds || []));
+    }
+  }
+
+  const uniqueScheduleIds = Array.from(new Set(collectedScheduleIds.filter(Boolean)));
   if (uniqueScheduleIds.length > 0) {
-    await strapi.db.connection('medication_schedules_customer_lnk')
-      .whereIn('medication_schedule_id', uniqueScheduleIds)
-      .delete();
-    await strapi.db.connection('medication_schedules')
+    if (!hasScheduleCustomerDocumentIdColumn && hasScheduleCustomerLinkTable) {
+      await knex('medication_schedules_customer_lnk')
+        .whereIn('medication_schedule_id', uniqueScheduleIds)
+        .delete();
+    }
+    await knex('medication_schedules')
       .whereIn('id', uniqueScheduleIds)
       .delete();
   }
@@ -328,7 +416,7 @@ async function rebuildSchedulesFromRemainingHistory(strapi, deletedNotification)
   const prescribedDrugs = mergeActivePrescribedDrugsFromHistories(rowsForMerge);
 
   if (!Array.isArray(prescribedDrugs) || prescribedDrugs.length === 0) {
-    const removedCount = await deleteSchedulesForCustomerScope(strapi, customerIds);
+    const removedCount = await deleteSchedulesForCustomerScope(strapi, customerIds, customerDocumentId);
     await clearPrescribedDrugsForCustomerScope(strapi, customerIds);
 
     strapi.log.info(
@@ -357,11 +445,36 @@ async function cleanupSystemAlertsIfNoSchedules(strapi, customerRelationValue) {
   if (!customerIds.length) return;
 
   const knex = strapi.db.connection;
-  const scheduleCountRows = await knex('medication_schedules_customer_lnk')
-    .whereIn('customer_profile_id', customerIds)
-    .countDistinct('medication_schedule_id as total');
+  const {
+    hasScheduleCustomerLinkTable,
+    hasScheduleCustomerDocumentIdColumn,
+    hasScheduleCustomerIdColumn,
+  } = await getScheduleSchemaFlags(knex);
 
-  const scheduleCount = Number(scheduleCountRows?.[0]?.total || 0);
+  const collectedScheduleIds = [];
+
+  if (hasScheduleCustomerDocumentIdColumn && customerDocumentId) {
+    const documentScheduleIds = await knex('medication_schedules')
+      .where('customer_document_id', customerDocumentId)
+      .pluck('id');
+    collectedScheduleIds.push(...(documentScheduleIds || []));
+  } else {
+    if (hasScheduleCustomerLinkTable) {
+      const linkedScheduleIds = await knex('medication_schedules_customer_lnk')
+        .whereIn('customer_profile_id', customerIds)
+        .pluck('medication_schedule_id');
+      collectedScheduleIds.push(...(linkedScheduleIds || []));
+    }
+
+    if (hasScheduleCustomerIdColumn) {
+      const directScheduleIds = await knex('medication_schedules')
+        .whereIn('customer_id', customerIds)
+        .pluck('id');
+      collectedScheduleIds.push(...(directScheduleIds || []));
+    }
+  }
+
+  const scheduleCount = Array.from(new Set(collectedScheduleIds.filter(Boolean))).length;
   if (scheduleCount > 0) return;
 
   const systemAlertRows = await knex('notifications as n')

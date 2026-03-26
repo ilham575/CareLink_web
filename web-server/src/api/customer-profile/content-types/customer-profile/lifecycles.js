@@ -97,9 +97,11 @@ async function getScheduleSchemaFlags(knex) {
     scheduleSchemaFlagsPromise = Promise.all([
       knex.schema.hasTable('medication_schedules_customer_lnk'),
       knex.schema.hasColumn('medication_schedules', 'customer_document_id'),
-    ]).then(([hasScheduleCustomerLinkTable, hasScheduleCustomerDocumentIdColumn]) => ({
+      knex.schema.hasColumn('medication_schedules', 'customer_id'),
+    ]).then(([hasScheduleCustomerLinkTable, hasScheduleCustomerDocumentIdColumn, hasScheduleCustomerIdColumn]) => ({
       hasScheduleCustomerLinkTable,
       hasScheduleCustomerDocumentIdColumn,
+      hasScheduleCustomerIdColumn,
     })).catch((error) => {
       scheduleSchemaFlagsPromise = null;
       throw error;
@@ -235,6 +237,7 @@ async function syncSchedules(event) {
     const {
       hasScheduleCustomerLinkTable,
       hasScheduleCustomerDocumentIdColumn,
+      hasScheduleCustomerIdColumn,
     } = await getScheduleSchemaFlags(knex);
 
     const customerProfileId = result.id;
@@ -281,11 +284,18 @@ async function syncSchedules(event) {
       collectedScheduleIds.push(...(documentLinkedScheduleIds || []));
     }
 
-    if (hasScheduleCustomerLinkTable) {
+    if (!hasScheduleCustomerDocumentIdColumn && hasScheduleCustomerLinkTable) {
       const linkedScheduleIds = await knex('medication_schedules_customer_lnk')
         .whereIn('customer_profile_id', cleanupCustomerIds)
         .pluck('medication_schedule_id');
       collectedScheduleIds.push(...(linkedScheduleIds || []));
+    }
+
+    if (!hasScheduleCustomerDocumentIdColumn && hasScheduleCustomerIdColumn) {
+      const directScheduleIds = await knex('medication_schedules')
+        .whereIn('customer_id', cleanupCustomerIds)
+        .pluck('id');
+      collectedScheduleIds.push(...(directScheduleIds || []));
     }
 
     const uniqueScheduleIds = Array.from(new Set(collectedScheduleIds.filter(Boolean)));
@@ -296,7 +306,7 @@ async function syncSchedules(event) {
     );
     if (uniqueScheduleIds.length > 0) {
       // Use raw Knex to avoid nested-transaction deadlock inside the lifecycle.
-      if (hasScheduleCustomerLinkTable) {
+      if (!hasScheduleCustomerDocumentIdColumn && hasScheduleCustomerLinkTable) {
         await knex('medication_schedules_customer_lnk')
           .whereIn('medication_schedule_id', uniqueScheduleIds)
           .delete();
@@ -430,6 +440,7 @@ async function syncSchedules(event) {
           schedule_time: time,
           is_active: true,
           customer_document_id: hasScheduleCustomerDocumentIdColumn ? customerDocumentId || null : undefined,
+          customer_id: hasScheduleCustomerIdColumn ? targetCustomerId : undefined,
           meal_relation: mealRelation,
           dosage_per_time: dosagePerTime || null,
           take_until_finished: takeUntilFinished,
@@ -440,6 +451,9 @@ async function syncSchedules(event) {
 
         if (!hasScheduleCustomerDocumentIdColumn) {
           delete scheduleInsertData.customer_document_id;
+        }
+        if (!hasScheduleCustomerIdColumn) {
+          delete scheduleInsertData.customer_id;
         }
 
         pendingScheduleRows.push(scheduleInsertData);
@@ -453,34 +467,44 @@ async function syncSchedules(event) {
     }
 
     const insertStart = Date.now();
-    for (const batch of chunkArray(pendingScheduleRows, 200)) {
-      await knex('medication_schedules').insert(batch);
-    }
-
-    if (targetCustomerId && hasScheduleCustomerLinkTable) {
-      const insertedScheduleRows = [];
-      for (const batch of chunkArray(pendingScheduleDocIds, 300)) {
-        const rows = await knex('medication_schedules')
-          .whereIn('document_id', batch)
-          .select('id');
-        insertedScheduleRows.push(...(rows || []));
+    await knex.transaction(async (trx) => {
+      for (const batch of chunkArray(pendingScheduleRows, 200)) {
+        await trx('medication_schedules').insert(batch);
       }
 
-      const linkRows = insertedScheduleRows
-        .map((row) => row?.id)
-        .filter(Boolean)
-        .map((scheduleId) => ({
-          medication_schedule_id: scheduleId,
-          customer_profile_id: targetCustomerId,
-        }));
+      if (targetCustomerId && hasScheduleCustomerLinkTable && !hasScheduleCustomerIdColumn && !hasScheduleCustomerDocumentIdColumn) {
+        const existingCustomerRow = await trx('customer_profiles')
+          .where('id', targetCustomerId)
+          .first('id');
 
-      for (const batch of chunkArray(linkRows, 500)) {
-        await knex('medication_schedules_customer_lnk')
-          .insert(batch)
-          .onConflict(['medication_schedule_id', 'customer_profile_id'])
-          .ignore();
+        if (!existingCustomerRow?.id) {
+          throw new Error(`Customer profile ${targetCustomerId} not found for legacy schedule link insert`);
+        }
+
+        const insertedScheduleRows = [];
+        for (const batch of chunkArray(pendingScheduleDocIds, 300)) {
+          const rows = await trx('medication_schedules')
+            .whereIn('document_id', batch)
+            .select('id');
+          insertedScheduleRows.push(...(rows || []));
+        }
+
+        const linkRows = insertedScheduleRows
+          .map((row) => row?.id)
+          .filter(Boolean)
+          .map((scheduleId) => ({
+            medication_schedule_id: scheduleId,
+            customer_profile_id: existingCustomerRow.id,
+          }));
+
+        for (const batch of chunkArray(linkRows, 500)) {
+          await trx('medication_schedules_customer_lnk')
+            .insert(batch)
+            .onConflict(['medication_schedule_id', 'customer_profile_id'])
+            .ignore();
+        }
       }
-    }
+    });
 
     strapi.log.info(
       `[MedSchedule] Created ${pendingScheduleRows.length} schedule row(s) for customer ${targetCustomerId}` +

@@ -167,7 +167,7 @@ module.exports = {
               }
 
               const scheduleCustomer = schedule.customer || null;
-              const linkTableCustomer = (!customerProfile || !hasChatId(customerProfile?.telegramChatId))
+              const linkTableCustomer = (!scheduleCustomerDocId && (!customerProfile || !hasChatId(customerProfile?.telegramChatId)))
                 ? await resolveCustomerFromLinkTable(schedule.id)
                 : null;
 

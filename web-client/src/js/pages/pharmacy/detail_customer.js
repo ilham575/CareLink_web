@@ -453,11 +453,6 @@ function CustomerDetail() {
           let nRes = await fetch(API.notifications.getByDocumentId(notifId), {
             headers: { Authorization: token ? `Bearer ${token}` : "" }
           });
-          if (!nRes.ok && /^\d+$/.test(String(notifId))) {
-            nRes = await fetch(API.notifications.getById(notifId), {
-              headers: { Authorization: token ? `Bearer ${token}` : "" }
-            });
-          }
           if (nRes.ok) {
             const nJson = await nRes.json();
             initialNotification = nJson.data || nJson;
@@ -697,11 +692,6 @@ function CustomerDetail() {
                   let historyRes = await fetch(API.notifications.getByDocumentId(notifId), {
                     headers: { Authorization: token ? `Bearer ${token}` : "" }
                   });
-                  if (!historyRes.ok && /^\d+$/.test(String(notifId))) {
-                    historyRes = await fetch(API.notifications.getById(notifId), {
-                      headers: { Authorization: token ? `Bearer ${token}` : "" }
-                    });
-                  }
 
                   if (historyRes.ok) {
                     const historyJson = await historyRes.json();
@@ -1156,7 +1146,7 @@ function CustomerDetail() {
         setIsAppointmentModalOpen(false);
         // Refresh notification and update latestNotification state
         const notifRes = await fetch(
-          API.notifications.getById(notifId),
+          API.notifications.getByDocumentId(notifId),
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const notifData = await notifRes.json();
@@ -1268,7 +1258,7 @@ function CustomerDetail() {
         setIsAppointmentModalOpen(false);
         // Refresh notification and update state
         const notifRes = await fetch(
-          API.notifications.getById(notifId),
+          API.notifications.getByDocumentId(notifId),
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const notifData = await notifRes.json();
@@ -1999,7 +1989,7 @@ function CustomerDetail() {
         // Refresh notification and update currentNotification state (not latestNotification)
         // We only update the currently-viewed old sheet, not the latest one
         const notifRes = await fetch(
-          API.notifications.getById(notifId),
+          API.notifications.getByDocumentId(notifId),
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const notifData = await notifRes.json();
@@ -2342,30 +2332,6 @@ function CustomerDetail() {
       const prescribedDrugsForCustomerProfile = (newVisit && effectiveScheduleMode === 'append')
         ? mergePrescribedDrugLists(existingPrescribedDrugs, prescribedDrugsSnapshot)
         : prescribedDrugsSnapshot;
-
-      const persistedDrugsForSync = newVisit
-        ? existingPrescribedDrugs
-        : (customer?.prescribed_drugs || []);
-      const currentDrugsSignature = buildPrescribedDrugSyncSignature(persistedDrugsForSync);
-      const nextDrugsSignature = buildPrescribedDrugSyncSignature(prescribedDrugsForCustomerProfile);
-      const shouldForceCustomerProfileSync = newVisit;
-      const shouldSyncPrescribedDrugs = shouldForceCustomerProfileSync || currentDrugsSignature !== nextDrugsSignature;
-      const persistedAssignedStaffDocId = customer?.assigned_by_staff?.documentId || null;
-      const currentAssignedStaffDocId = shouldForceCustomerProfileSync
-        ? persistedAssignedStaffDocId
-        : (customer?.assigned_by_staff?.documentId || assignedByStaff?.documentId || null);
-      const shouldSyncAssignedStaff = shouldForceCustomerProfileSync
-        ? !!targetStaffId
-        : String(currentAssignedStaffDocId || '') !== String(targetStaffId || '');
-      // On update, always sync customer profile so the customer-profile afterUpdate lifecycle
-      // fires and rebuilds medication schedules with the latest drug timings.
-      // (The signature comparison is unreliable for update because handleSaveAddDrug already
-      // pushed new values into local state — making current & next signatures identical.)
-      // newVisit has the same problem: the page edits local-only state first, so we must always
-      // sync once on assignment to persist the round and trigger schedule rebuild on the server.
-      const shouldRunCustomerProfileSync = shouldForceCustomerProfileSync || shouldUpdate
-        ? true
-        : (shouldSyncAssignedStaff || shouldSyncPrescribedDrugs);
       
       // ═══ Step 3: สร้าง/อัพเดต notification (ต้องรอ step 1-2 เสร็จ) ═══
       const existingOOS = Array.isArray(staffWorkStatus?.outOfStock) ? [...new Set([...staffWorkStatus.outOfStock])] : [];
@@ -2400,7 +2366,7 @@ function CustomerDetail() {
             message: `${'ได้รับอัพเดต'}ผู้ป่วย: ${user?.full_name || 'ผู้ป่วย'}${newVisit ? '' : `\nอาการ: ${customer.Customers_symptoms || 'ไม่ระบุ'}`}\n${staffAssignModal.assignNote ? `หมายเหตุ: ${staffAssignModal.assignNote}` : ''}`,
             customer_profile: customerDocumentId,
             drug_store: pharmacyId,
-            ...(shouldSyncAssignedStaff ? { staff_profile: targetStaffId } : {}),
+            staff_profile: targetStaffId,
             data: notificationMetaData,
             staff_work_status: {
               received: false,
@@ -2434,83 +2400,37 @@ function CustomerDetail() {
           }
       };
 
-      const notificationEndpoint = shouldUpdate
-        ? (latestNotification?.documentId
-          ? API.notifications.updateByDocumentId(latestNotification.documentId)
-          : API.notifications.update(latestNotification.id))
-        : API.notifications.create();
-      const notificationMethod = shouldUpdate ? 'PUT' : 'POST';
-      const responseFields = 'fields[0]=documentId&fields[1]=staff_work_status&fields[2]=updatedAt';
-      const notificationEndpointWithFields = `${notificationEndpoint}${notificationEndpoint.includes('?') ? '&' : '?'}${responseFields}`;
-
       let notificationRes;
       const notificationFetchStart = performance.now();
-      console.log(`[TIMING] About to fetch notification (${notificationMethod} ${shouldUpdate ? 'UPDATE' : 'CREATE'}), payload size: ${JSON.stringify(safeNotificationData).length} bytes`);
+      console.log(`[TIMING] About to fetch orchestrated assign (${shouldUpdate ? 'UPDATE' : 'CREATE'}), payload size: ${JSON.stringify(safeNotificationData).length} bytes`);
 
       try {
         notificationRes = await fetchWithClientTimeout(
-          notificationEndpointWithFields,
+          API.notifications.assignToStaff(),
           {
-            method: notificationMethod,
+            method: 'POST',
             headers: { 'Content-Type': 'application/json', ...authHeader },
-            body: JSON.stringify(safeNotificationData)
+            body: JSON.stringify({
+              data: {
+                notification: safeNotificationData.data,
+                customer_profile_document_id: customerDocumentId,
+                existing_notification_document_id: shouldUpdate
+                  ? (latestNotification?.documentId || null)
+                  : null,
+                customer_profile_updates: {
+                  assigned_by_staff_document_id: targetStaffId,
+                  prescribed_drugs: prescribedDrugsForCustomerProfile,
+                },
+              }
+            })
           },
-          8000
+          15000
         );
         console.log(`[TIMING] Notification fetch completed in ${(performance.now() - notificationFetchStart).toFixed(0)}ms`);
         console.log(`[TIMING] Notification fetch returned status ${notificationRes.status}`);
       } catch (requestErr) {
         console.log(`[TIMING] Notification fetch failed after ${(performance.now() - notificationFetchStart).toFixed(0)}ms`);
-        const isTimeout = requestErr?.code === 'REQUEST_TIMEOUT';
-        console.log(`[TIMING] Notification fetch error: ${isTimeout ? 'TIMEOUT' : 'OTHER'}, message: ${requestErr?.message}`);
-        if (isTimeout && shouldUpdate) {
-          console.log('[TIMING] Attempting fallback retry with lightweight payload...');
-          const notificationFallbackStart = performance.now();
-          const lightweightFallbackPayload = {
-            data: {
-              type: notificationType,
-              title: 'อัพเดตข้อมูลผู้ป่วย',
-              message: `${'ได้รับอัพเดต'}ผู้ป่วย: ${user?.full_name || 'ผู้ป่วย'}${newVisit ? '' : `\nอาการ: ${customer.Customers_symptoms || 'ไม่ระบุ'}`}\n${staffAssignModal.assignNote ? `หมายเหตุ: ${staffAssignModal.assignNote}` : ''}`,
-              ...(shouldSyncAssignedStaff ? { staff_profile: targetStaffId } : {}),
-              data: {
-                staff_profile_id: targetStaffId,
-                customer_profile_id: customerDocumentId,
-                drug_store_id: pharmacyId,
-                customer_documentId: customerDocumentId,
-                note: staffAssignModal.assignNote || '',
-                symptoms: {
-                  main: customer.Customers_symptoms || '',
-                  history: customer.symptom_history || '',
-                  note: customer.symptom_note || ''
-                }
-              },
-              staff_work_status: {
-                received: false,
-                prepared: false,
-                received_at: null,
-                prepared_at: null,
-                prepared_note: '',
-                outOfStock: existingOOS,
-              },
-              is_read: false,
-              priority: 'normal'
-            }
-          };
-
-          notificationRes = await fetchWithClientTimeout(
-            notificationEndpointWithFields,
-            {
-              method: notificationMethod,
-              headers: { 'Content-Type': 'application/json', ...authHeader },
-              body: JSON.stringify(lightweightFallbackPayload)
-            },
-            6000
-          );
-          console.log(`[TIMING] Notification fallback completed in ${(performance.now() - notificationFallbackStart).toFixed(0)}ms`);
-          console.log(`[TIMING] Fallback retry returned status ${notificationRes.status}`);
-        } else {
-          throw requestErr;
-        }
+        throw requestErr;
       }
 
       if (!notificationRes.ok) {
@@ -2521,78 +2441,17 @@ function CustomerDetail() {
 
       const result = await notificationRes.json().catch(() => ({}));
       console.log(`[TIMING] Notification response parsed, got documentId: ${result?.data?.documentId || result?.documentId}`);
-
-      // ═══ Step 4: อัพเดต customer profile + fetch staff profile ใน parallel ═══
-      // (ทำพร้อมกันเพราะไม่ต้องรอกัน — ใช้ targetStaffId ที่มีอยู่แล้ว)
-      const postTasks = [];
       
-      if (notificationType === 'customer_assignment' && shouldRunCustomerProfileSync) {
-        console.log(`[TIMING] Starting customer profile sync (shouldSyncAssignedStaff=${shouldSyncAssignedStaff}, shouldSyncPrescribedDrugs=${shouldSyncPrescribedDrugs})`);
-        // Sync customer profile only when assigned staff or prescribed drugs actually changed
-        postTasks.push(
-          (async () => {
-            let staffProfileId = customer?.assigned_by_staff?.id || assignedByStaff?.id || null;
-
-            if (shouldSyncAssignedStaff || !staffProfileId) {
-              const staffProfileFetchStart = performance.now();
-              const staffRes = await fetch(API.staffProfiles.getByDocumentIdWithUser(targetStaffId), { headers: authHeader });
-              console.log(`[TIMING] Staff profile fetch completed in ${(performance.now() - staffProfileFetchStart).toFixed(0)}ms`);
-              if (staffRes.ok) {
-                const staffData = await staffRes.json();
-                const staffProfile = staffData.data?.[0];
-                if (staffProfile) {
-                  staffProfileId = staffProfile.id;
-                  setAssignedByStaff(staffProfile);
-                  console.log('[TIMING] Staff profile fetched and set');
-                }
-              } else {
-                throw new Error(`โหลดข้อมูลพนักงานไม่สำเร็จ (${staffRes.status})`);
-              }
-            }
-
-            const customerPayload = {};
-            if (shouldSyncAssignedStaff && staffProfileId) {
-              customerPayload.assigned_by_staff = staffProfileId;
-            }
-            // Always send prescribed_drugs on update so the customer-profile afterUpdate
-            // lifecycle fires and rebuilds medication schedules with latest timings.
-            // (shouldSyncPrescribedDrugs is unreliable for updates because handleSaveAddDrug
-            // already pushed new values into local state before this runs.)
-            if (shouldForceCustomerProfileSync || shouldUpdate || shouldSyncPrescribedDrugs) {
-              customerPayload.prescribed_drugs = prescribedDrugsForCustomerProfile;
-            }
-
-            if (Object.keys(customerPayload).length === 0) {
-              console.log('[TIMING] Customer profile sync not needed (no payload)');
-              return;
-            }
-
-            const customerProfilePutStart = performance.now();
-            const customerUpdateRes = await fetch(API.customerProfiles.update(customerDocumentId), {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json', ...authHeader },
-              body: JSON.stringify({ data: customerPayload, status: 'published' })
-            });
-            console.log(`[TIMING] Customer profile update completed in ${(performance.now() - customerProfilePutStart).toFixed(0)}ms`);
-            if (!customerUpdateRes.ok) {
-              const errorText = await customerUpdateRes.text().catch(() => '');
-              throw new Error(`อัพเดต customer profile ไม่สำเร็จ (${customerUpdateRes.status}) ${errorText}`.trim());
-            }
-            console.log('[TIMING] Customer profile updated');
-          })()
-        );
-      }
-      
-      if (postTasks.length > 0) {
-        console.log('[TIMING] Awaiting customer profile sync before final UI success state');
-        await Promise.all(postTasks);
-        console.log('[TIMING] Customer profile sync finished');
-      }
-      
-      // ═══ Step 5: อัพเดต UI state ทันที (ไม่ต้องรอ postTasks) ═══
+      // ═══ Step 4: อัพเดต UI state หลัง backend sync ครบแล้ว ═══
       const uiStateUpdateStart = performance.now();
       const createdEntry = result.data || result;
       setLatestNotification(createdEntry);
+      const selectedStaffProfile = staffAssignModal.availableStaff.find(
+        (staff) => String(staff.documentId) === String(targetStaffId)
+      );
+      if (selectedStaffProfile) {
+        setAssignedByStaff(selectedStaffProfile);
+      }
       
       if (createdEntry.staff_work_status) {
         setStaffWorkStatus(prev => ({

@@ -121,7 +121,7 @@ function CustomerDetailCustomer() {
         if (notifId) {
           try {
             const notifRes = await fetch(
-              API.notifications.getById(notifId),
+              API.notifications.getByDocumentId(notifId),
               { headers: { Authorization: `Bearer ${token}` } }
             );
             if (notifRes.ok) {

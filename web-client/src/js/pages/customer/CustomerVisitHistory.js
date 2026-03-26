@@ -105,6 +105,12 @@ function CustomerVisitHistory() {
       
       // Load all visits (notifications) for this customer
       // Filter by pharmacy if pharmacyId is provided
+      const matchesCustomerDocumentId = (notification) => {
+        const relationDocumentId = notification?.customer_profile?.documentId || notification?.customer_profile?.data?.documentId;
+        const dataDocumentId = notification?.data?.customer_documentId || notification?.data?.data?.customer_documentId;
+        return String(relationDocumentId || dataDocumentId || '') === String(customerDocumentId || '');
+      };
+
       let filter = `filters[customer_profile][documentId][$eq]=${customerDocumentId}`;
       if (pharmacyId) {
         filter += `&filters[drug_store][documentId][$eq]=${pharmacyId}`;
@@ -120,7 +126,24 @@ function CustomerVisitHistory() {
       
       if (notifRes.ok) {
         const notifData = await notifRes.json();
-        setVisits(notifData.data || []);
+        let notifications = notifData.data || [];
+
+        if (notifications.length === 0 && pharmacyId) {
+          const fallbackFilter =
+            `filters[drug_store][documentId][$eq]=${pharmacyId}` +
+            `&filters[type][$in][0]=customer_assignment&filters[type][$in][1]=customer_assignment_update&filters[type][$in][2]=message`;
+          const fallbackRes = await fetch(
+            API.notifications.list(`${fallbackFilter}&populate=*&sort[0]=createdAt:desc`),
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+
+          if (fallbackRes.ok) {
+            const fallbackData = await fallbackRes.json();
+            notifications = (fallbackData.data || []).filter(matchesCustomerDocumentId);
+          }
+        }
+
+        setVisits(notifications);
       }
       
     } catch (error) {
@@ -131,8 +154,8 @@ function CustomerVisitHistory() {
   };
 
   const handleViewDetail = (notif) => {
-    const notifId = notif.documentId || notif.id;
-    const storeId = notif.drug_store?.documentId || notif.drug_store?.id;
+    const notifId = notif.documentId;
+    const storeId = notif.drug_store?.documentId || notif.data?.drug_store_id || notif.data?.data?.drug_store_id;
     navigate(`/customer_detail_view/${customerDocumentId}?notifId=${notifId}${storeId ? `&pharmacyId=${storeId}` : ''}`);
   };
 

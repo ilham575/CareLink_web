@@ -1644,3 +1644,164 @@
 [info] 
 [info] Project Console: https://console.firebase.google.com/project/carelink-web-489111/overview
 [info] Hosting URL: https://carelink-web-489111.web.app
+[debug] [2026-03-23T10:31:06.678Z] ----------------------------------------------------------------------
+[debug] [2026-03-23T10:31:06.681Z] Command:       C:\nvm\nodejs\node.exe C:\nvm\nodejs\node_modules\firebase-tools\lib\bin\firebase.js deploy --debug
+[debug] [2026-03-23T10:31:06.682Z] CLI Version:   14.12.0
+[debug] [2026-03-23T10:31:06.682Z] Platform:      win32
+[debug] [2026-03-23T10:31:06.683Z] Node Version:  v20.19.2
+[debug] [2026-03-23T10:31:06.683Z] Time:          Mon Mar 23 2026 17:31:06 GMT+0700 (เวลาอินโดจีน)
+[debug] [2026-03-23T10:31:06.683Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-23T10:31:07.029Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-23T10:31:07.031Z] > authorizing via signed-in user (ilhamhjdl575@gmail.com)
+[debug] [2026-03-23T10:31:07.032Z] [iam] checking project carelink-web-489111 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-03-23T10:31:07.033Z] Checked if tokens are valid: false, expires at: 1774189345055
+[debug] [2026-03-23T10:31:07.034Z] Checked if tokens are valid: false, expires at: 1774189345055
+[debug] [2026-03-23T10:31:07.035Z] > refreshing access token with scopes: []
+[debug] [2026-03-23T10:31:07.037Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-03-23T10:31:07.038Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-23T10:31:07.434Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-03-23T10:31:07.435Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-23T10:31:07.497Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/carelink-web-489111:testIamPermissions [none]
+[debug] [2026-03-23T10:31:07.499Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/carelink-web-489111:testIamPermissions x-goog-quota-user=projects/carelink-web-489111
+[debug] [2026-03-23T10:31:07.500Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/carelink-web-489111:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-03-23T10:31:08.934Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/carelink-web-489111:testIamPermissions 200
+[debug] [2026-03-23T10:31:08.935Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/carelink-web-489111:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-03-23T10:31:08.937Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:08.938Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:08.940Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/carelink-web-489111 [none]
+[debug] [2026-03-23T10:31:09.898Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/carelink-web-489111 200
+[debug] [2026-03-23T10:31:09.899Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/carelink-web-489111 {"projectId":"carelink-web-489111","projectNumber":"926462721558","displayName":"carelink-web","name":"projects/carelink-web-489111","resources":{"hostingSite":"carelink-web-489111"},"state":"ACTIVE","etag":"1_fea5d4af-c7e6-46b3-b718-8b2ead6b665f"}
+[info] 
+[info] === Deploying to 'carelink-web-489111'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2026-03-23T10:31:09.911Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:09.912Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:09.912Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/versions [none]
+[debug] [2026-03-23T10:31:09.913Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2026-03-23T10:31:11.397Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/versions 200
+[debug] [2026-03-23T10:31:11.397Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/versions {"name":"projects/926462721558/sites/carelink-web-489111/versions/15c9721aa96924cf","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[carelink-web-489111]: beginning deploy... 
+[info] i  hosting[carelink-web-489111]: found 20 files in build 
+[debug] [2026-03-23T10:31:11.418Z] [hosting] uploading with 200 concurrency
+[debug] [2026-03-23T10:31:12.101Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:12.102Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:12.105Z] [hosting] hash cache [YnVpbGQ] stored for 20 files
+[debug] [2026-03-23T10:31:12.107Z] [hosting][hash queue][FINAL] {"max":672,"min":4,"avg":63.7,"active":0,"complete":20,"success":20,"errored":0,"retried":0,"total":20,"elapsed":682}
+[debug] [2026-03-23T10:31:12.108Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/926462721558/sites/carelink-web-489111/versions/15c9721aa96924cf:populateFiles [none]
+[debug] [2026-03-23T10:31:12.108Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/926462721558/sites/carelink-web-489111/versions/15c9721aa96924cf:populateFiles {"files":{"/robots.txt":"bfe106a3fb878dc83461c86818bf74fc1bdc7f28538ba613cd3e775516ce8b49","/manifest.json":"55734a79ce15f84d10fb09b1986e33397bd9a99378e73a9e2b7cffafe5f40cf1","/logo512.png":"212b102aa09e51b3b3e06647e81f7801a61333e171f6582e8124379aabccb41d","/logo192.png":"79e2b749561016bc8af300ea19f48347ceed3cb1a54f48ae456172eca45e08f0","/image 3.png":"c1b56c55ab1c2f88dc74ddac4128ace1c03f6b6385e518811367cad6da15961f","/favicon.ico":"27edce7be5922cf0bef7d4136f69b5bfbdd5bf8c13c7b026f71187d41a00aa7d","/index.html":"fc363959522a2adbec44a893e3607679b74f14a669b2ecb23bf0a9587f606d40","/asset-manifest.json":"23c33b81f1f1e75512c8971acb7d88df6b4baa78399cedd16f284d3418fd68ea","/static/js/main.14eea0dc.js.LICENSE.txt":"e34ced37ccf1f309f6bc1e79fbaee0f64eaf42881f4802b2dea73ea63e94cd72","/static/js/453.f0e03184.chunk.js":"d471a125398bba450886ea700f55e0513ae1a85b769830accc9ae0322fd4f9d6","/static/js/453.f0e03184.chunk.js.map":"0a5a58d1f73eb035d3a470ff5a755c0d6231f6453563dcb08465f52c5f36c9d4","/static/js/238.5e175043.chunk.js.LICENSE.txt":"6c44c51d93c2af95feebe80d1adf5434ee948a1581e866c7541150f04eafb478","/static/media/image 3.a4d8ff486601e4ff56cd.png":"c1b56c55ab1c2f88dc74ddac4128ace1c03f6b6385e518811367cad6da15961f","/static/css/main.8a70d0cd.css":"cafdf7d53219a86af2b8614f294018e560e772331b52ed3bcc32710b24167858","/static/css/main.8a70d0cd.css.map":"00666f3841f88c80255c0946459ecb7a1023818c2da550d2494fb5b677c5d95f","/static/js/238.5e175043.chunk.js":"5a51d0194906857da8f74f1bbd13ff830b51e779e58af7dd1a194159f89651c1","/static/js/main.14eea0dc.js":"859eb1154f208970bf71fa9bf36ed9de92613b961b122e42c55e8665b48734f5","/static/media/image 1.0ead6989e3f4eeda8c0d.png":"f419a91633c811ebe87c9226bf0f9e8796b46734636a4303e163b0bf7d1fe24a","/static/js/238.5e175043.chunk.js.map":"98180f3abf91a7d082c647af55f453ce85937ad5528055bd25e90640621388b3","/static/js/main.14eea0dc.js.map":"29eaa7c84028019df57350f99b5f7f459a080c9f675c1a13e9cbd2907e8e7577"}}
+[debug] [2026-03-23T10:31:13.156Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/926462721558/sites/carelink-web-489111/versions/15c9721aa96924cf:populateFiles 200
+[debug] [2026-03-23T10:31:13.157Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/926462721558/sites/carelink-web-489111/versions/15c9721aa96924cf:populateFiles {"uploadRequiredHashes":["859eb1154f208970bf71fa9bf36ed9de92613b961b122e42c55e8665b48734f5","29eaa7c84028019df57350f99b5f7f459a080c9f675c1a13e9cbd2907e8e7577","cafdf7d53219a86af2b8614f294018e560e772331b52ed3bcc32710b24167858","23c33b81f1f1e75512c8971acb7d88df6b4baa78399cedd16f284d3418fd68ea","00666f3841f88c80255c0946459ecb7a1023818c2da550d2494fb5b677c5d95f","fc363959522a2adbec44a893e3607679b74f14a669b2ecb23bf0a9587f606d40"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files"}
+[debug] [2026-03-23T10:31:13.158Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.159Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.159Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.160Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.160Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.160Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.161Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.162Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.163Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.163Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.164Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.165Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:13.166Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/859eb1154f208970bf71fa9bf36ed9de92613b961b122e42c55e8665b48734f5 [none]
+[debug] [2026-03-23T10:31:13.166Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/859eb1154f208970bf71fa9bf36ed9de92613b961b122e42c55e8665b48734f5 [stream]
+[debug] [2026-03-23T10:31:13.170Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/29eaa7c84028019df57350f99b5f7f459a080c9f675c1a13e9cbd2907e8e7577 [none]
+[debug] [2026-03-23T10:31:13.170Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/29eaa7c84028019df57350f99b5f7f459a080c9f675c1a13e9cbd2907e8e7577 [stream]
+[debug] [2026-03-23T10:31:13.173Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/cafdf7d53219a86af2b8614f294018e560e772331b52ed3bcc32710b24167858 [none]
+[debug] [2026-03-23T10:31:13.173Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/cafdf7d53219a86af2b8614f294018e560e772331b52ed3bcc32710b24167858 [stream]
+[debug] [2026-03-23T10:31:13.175Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/23c33b81f1f1e75512c8971acb7d88df6b4baa78399cedd16f284d3418fd68ea [none]
+[debug] [2026-03-23T10:31:13.176Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/23c33b81f1f1e75512c8971acb7d88df6b4baa78399cedd16f284d3418fd68ea [stream]
+[debug] [2026-03-23T10:31:13.177Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/00666f3841f88c80255c0946459ecb7a1023818c2da550d2494fb5b677c5d95f [none]
+[debug] [2026-03-23T10:31:13.178Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/00666f3841f88c80255c0946459ecb7a1023818c2da550d2494fb5b677c5d95f [stream]
+[debug] [2026-03-23T10:31:13.180Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/fc363959522a2adbec44a893e3607679b74f14a669b2ecb23bf0a9587f606d40 [none]
+[debug] [2026-03-23T10:31:13.180Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/fc363959522a2adbec44a893e3607679b74f14a669b2ecb23bf0a9587f606d40 [stream]
+[debug] [2026-03-23T10:31:13.181Z] [hosting][populate queue][FINAL] {"max":1065,"min":1065,"avg":1065,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":1080}
+[debug] [2026-03-23T10:31:13.182Z] [hosting] uploads queued: 6
+[info] i  hosting: uploading new files [0/6] (0%) 
+[info] i  hosting: uploading new files [0/6] (0%) 
+[debug] [2026-03-23T10:31:15.665Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/fc363959522a2adbec44a893e3607679b74f14a669b2ecb23bf0a9587f606d40 200
+[debug] [2026-03-23T10:31:15.666Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/fc363959522a2adbec44a893e3607679b74f14a669b2ecb23bf0a9587f606d40 [stream]
+[debug] [2026-03-23T10:31:15.666Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/00666f3841f88c80255c0946459ecb7a1023818c2da550d2494fb5b677c5d95f 200
+[debug] [2026-03-23T10:31:15.667Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/00666f3841f88c80255c0946459ecb7a1023818c2da550d2494fb5b677c5d95f [stream]
+[debug] [2026-03-23T10:31:15.725Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/cafdf7d53219a86af2b8614f294018e560e772331b52ed3bcc32710b24167858 200
+[debug] [2026-03-23T10:31:15.725Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/cafdf7d53219a86af2b8614f294018e560e772331b52ed3bcc32710b24167858 [stream]
+[debug] [2026-03-23T10:31:15.800Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/23c33b81f1f1e75512c8971acb7d88df6b4baa78399cedd16f284d3418fd68ea 200
+[debug] [2026-03-23T10:31:15.801Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/23c33b81f1f1e75512c8971acb7d88df6b4baa78399cedd16f284d3418fd68ea [stream]
+[info] i  hosting: uploading new files [4/6] (66%) 
+[debug] [2026-03-23T10:31:18.265Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/859eb1154f208970bf71fa9bf36ed9de92613b961b122e42c55e8665b48734f5 200
+[debug] [2026-03-23T10:31:18.266Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/859eb1154f208970bf71fa9bf36ed9de92613b961b122e42c55e8665b48734f5 [stream]
+[debug] [2026-03-23T10:31:18.867Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/29eaa7c84028019df57350f99b5f7f459a080c9f675c1a13e9cbd2907e8e7577 200
+[debug] [2026-03-23T10:31:18.868Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/carelink-web-489111/versions/15c9721aa96924cf/files/29eaa7c84028019df57350f99b5f7f459a080c9f675c1a13e9cbd2907e8e7577 [stream]
+[debug] [2026-03-23T10:31:18.869Z] [hosting][upload queue][FINAL] {"max":5709,"min":2502,"avg":3505.5,"active":0,"complete":6,"success":6,"errored":0,"retried":0,"total":6,"elapsed":5712}
+[info] i  hosting: upload complete 
+[info] +  hosting[carelink-web-489111]: file upload complete 
+[debug] [2026-03-23T10:31:18.869Z] [hosting] deploy completed after 7468ms
+[debug] [2026-03-23T10:31:18.870Z] [
+  {
+    "config": {
+      "public": "build",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "**/*.@(js|css|woff2|woff|ttf|eot)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public,max-age=31536000,immutable"
+            }
+          ]
+        },
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "X-Frame-Options",
+              "value": "SAMEORIGIN"
+            },
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            }
+          ]
+        }
+      ],
+      "site": "carelink-web-489111"
+    },
+    "version": "projects/926462721558/sites/carelink-web-489111/versions/15c9721aa96924cf"
+  }
+]
+[info] i  hosting[carelink-web-489111]: finalizing version... 
+[debug] [2026-03-23T10:31:18.873Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:18.873Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:18.874Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/versions/15c9721aa96924cf updateMask=status%2Cconfig
+[debug] [2026-03-23T10:31:18.875Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/versions/15c9721aa96924cf {"status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index.html"}],"headers":[{"glob":"**/*.@(js|css|woff2|woff|ttf|eot)","headers":{"Cache-Control":"public,max-age=31536000,immutable"}},{"glob":"**","headers":{"X-Frame-Options":"SAMEORIGIN","X-Content-Type-Options":"nosniff"}}]}}
+[debug] [2026-03-23T10:31:20.310Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/versions/15c9721aa96924cf 200
+[debug] [2026-03-23T10:31:20.311Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/versions/15c9721aa96924cf {"name":"projects/926462721558/sites/carelink-web-489111/versions/15c9721aa96924cf","status":"FINALIZED","config":{"headers":[{"headers":{"Cache-Control":"public,max-age=31536000,immutable"},"glob":"**/*.@(js|css|woff2|woff|ttf|eot)"},{"headers":{"X-Frame-Options":"SAMEORIGIN","X-Content-Type-Options":"nosniff"},"glob":"**"}],"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-03-23T10:31:11.452189Z","createUser":{"email":"ilhamhjdl575@gmail.com"},"finalizeTime":"2026-03-23T10:31:20.786280Z","finalizeUser":{"email":"ilhamhjdl575@gmail.com"}}
+[debug] [2026-03-23T10:31:20.311Z] [hosting] finalized version for carelink-web-489111:[object Object]
+[info] +  hosting[carelink-web-489111]: version finalized 
+[info] i  hosting[carelink-web-489111]: releasing new version... 
+[debug] [2026-03-23T10:31:20.312Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:20.313Z] Checked if tokens are valid: true, expires at: 1774265466436
+[debug] [2026-03-23T10:31:20.313Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/channels/live/releases versionName=projects%2F926462721558%2Fsites%2Fcarelink-web-489111%2Fversions%2F15c9721aa96924cf
+[debug] [2026-03-23T10:31:20.314Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/channels/live/releases {}
+[debug] [2026-03-23T10:31:21.342Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/channels/live/releases 200
+[debug] [2026-03-23T10:31:21.343Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/carelink-web-489111/channels/live/releases {"name":"projects/926462721558/sites/carelink-web-489111/channels/live/releases/1774261881044000","version":{"name":"projects/926462721558/sites/carelink-web-489111/versions/15c9721aa96924cf","status":"FINALIZED","config":{"headers":[{"headers":{"Cache-Control":"public,max-age=31536000,immutable"},"glob":"**/*.@(js|css|woff2|woff|ttf|eot)"},{"headers":{"X-Frame-Options":"SAMEORIGIN","X-Content-Type-Options":"nosniff"},"glob":"**"}],"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-03-23T10:31:11.452189Z","createUser":{"email":"ilhamhjdl575@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK8XbEKPZxkDP265wPffO38ePM6I0lCL13VL7hTLpqwmZtjalY"},"finalizeTime":"2026-03-23T10:31:20.786280Z","finalizeUser":{"email":"ilhamhjdl575@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK8XbEKPZxkDP265wPffO38ePM6I0lCL13VL7hTLpqwmZtjalY"}},"type":"DEPLOY","releaseTime":"2026-03-23T10:31:21.044Z","releaseUser":{"email":"ilhamhjdl575@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK8XbEKPZxkDP265wPffO38ePM6I0lCL13VL7hTLpqwmZtjalY"}}
+[debug] [2026-03-23T10:31:21.343Z] [hosting] release: {"name":"projects/926462721558/sites/carelink-web-489111/channels/live/releases/1774261881044000","version":{"name":"projects/926462721558/sites/carelink-web-489111/versions/15c9721aa96924cf","status":"FINALIZED","config":{"headers":[{"headers":{"Cache-Control":"public,max-age=31536000,immutable"},"glob":"**/*.@(js|css|woff2|woff|ttf|eot)"},{"headers":{"X-Frame-Options":"SAMEORIGIN","X-Content-Type-Options":"nosniff"},"glob":"**"}],"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-03-23T10:31:11.452189Z","createUser":{"email":"ilhamhjdl575@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK8XbEKPZxkDP265wPffO38ePM6I0lCL13VL7hTLpqwmZtjalY"},"finalizeTime":"2026-03-23T10:31:20.786280Z","finalizeUser":{"email":"ilhamhjdl575@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK8XbEKPZxkDP265wPffO38ePM6I0lCL13VL7hTLpqwmZtjalY"}},"type":"DEPLOY","releaseTime":"2026-03-23T10:31:21.044Z","releaseUser":{"email":"ilhamhjdl575@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK8XbEKPZxkDP265wPffO38ePM6I0lCL13VL7hTLpqwmZtjalY"}}
+[info] +  hosting[carelink-web-489111]: release complete 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/carelink-web-489111/overview
+[info] Hosting URL: https://carelink-web-489111.web.app

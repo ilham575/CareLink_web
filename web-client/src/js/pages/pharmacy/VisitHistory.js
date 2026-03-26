@@ -71,6 +71,12 @@ function VisitHistory() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const matchesCustomerDocumentId = (notification) => {
+    const relationDocumentId = notification?.customer_profile?.documentId || notification?.customer_profile?.data?.documentId;
+    const dataDocumentId = notification?.data?.customer_documentId || notification?.data?.data?.customer_documentId;
+    return String(relationDocumentId || dataDocumentId || '') === String(customerDocumentId || '');
+  };
+
   const loadData = async () => {
     try {
       const token = localStorage.getItem('jwt');
@@ -104,22 +110,41 @@ function VisitHistory() {
       // Normally we show only base rows (customer_assignment/message).
       // But if base rows are gone and only legacy update rows remain,
       // fallback to show update rows so UI won't display 0 while backend still has history.
+      const baseFilter =
+        `filters[drug_store][documentId][$eq]=${pharmacyId}` +
+        `&filters[type][$in][0]=customer_assignment` +
+        `&filters[type][$in][1]=message` +
+        `&filters[type][$in][2]=customer_assignment_update` +
+        `&populate=*` +
+        `&sort[0]=createdAt:desc`;
+
+      let notifications = [];
+
       const notifRes = await fetch(
         API.notifications.list(
-          `filters[customer_profile][documentId][$eq]=${customerDocumentId}` +
-          `&filters[drug_store][documentId][$eq]=${pharmacyId}` +
-          `&filters[type][$in][0]=customer_assignment` +
-          `&filters[type][$in][1]=message` +
-          `&filters[type][$in][2]=customer_assignment_update` +
-          `&populate=*` +
-          `&sort[0]=createdAt:desc`
+          `filters[customer_profile][documentId][$eq]=${customerDocumentId}&${baseFilter}`
         ),
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
       if (notifRes.ok) {
         const notifData = await notifRes.json();
-        const notifications = notifData.data || [];
+        notifications = notifData.data || [];
+      }
+
+      if (notifications.length === 0) {
+        const fallbackRes = await fetch(
+          API.notifications.list(baseFilter),
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          notifications = (fallbackData.data || []).filter(matchesCustomerDocumentId);
+        }
+      }
+
+      if (notifications.length > 0) {
 
         const baseNotifications = notifications.filter(
           (n) => n.type === 'customer_assignment' || n.type === 'message'
@@ -156,9 +181,9 @@ function VisitHistory() {
   };
 
   const handleViewDetail = (visit) => {
-    // Navigate to CustomerDetail page and pass notifId so detail page can load specific visit
+    // Navigate to CustomerDetail page and pass notifId (documentId) so detail page can load specific visit
     const latestNotif = visit.latestNotification;
-    const notifId = latestNotif?.documentId || latestNotif?.id;
+    const notifId = latestNotif?.documentId;
     const targetNotif = notifId ? `&notifId=${encodeURIComponent(notifId)}` : '';
     // Use the app's CustomerDetail route: /customer_detail/:customerDocumentId
     navigate(`/customer_detail/${customerDocumentId}?pharmacyId=${pharmacyId}${targetNotif}`);
@@ -186,7 +211,7 @@ function VisitHistory() {
     try {
       const token = localStorage.getItem('jwt');
       const latestNotif = deleteConfirmModal.visit.latestNotification;
-      const notifId = latestNotif?.documentId || latestNotif?.id;
+      const notifId = latestNotif?.documentId;
       if (!notifId) throw new Error('ไม่พบรายการประวัติที่ต้องการลบ');
 
       const controller = new AbortController();

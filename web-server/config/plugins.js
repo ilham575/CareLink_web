@@ -3,6 +3,28 @@ module.exports = ({ env }) => {
   const isProduction = env('NODE_ENV') === 'production';
 
   return {
+    // ==================
+    // Email (Forgot Password)
+    // ==================
+    email: {
+      config: {
+        provider: 'nodemailer',
+        providerOptions: {
+          host: env('SMTP_HOST', 'smtp.gmail.com'),
+          port: env.int('SMTP_PORT', 587),
+          secure: false, // true for port 465
+          auth: {
+            user: env('SMTP_USER', ''),
+            pass: env('SMTP_PASS', ''),
+          },
+        },
+        settings: {
+          defaultFrom: env('EMAIL_FROM', 'noreply@carelink-pharmacy.com'),
+          defaultReplyTo: env('EMAIL_FROM', 'noreply@carelink-pharmacy.com'),
+        },
+      },
+    },
+
     // Config เดิมของคุณ (เก็บไว้เหมือนเดิม)
     'config-sync': {
       enabled: true,

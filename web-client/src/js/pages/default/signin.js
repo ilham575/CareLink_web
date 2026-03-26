@@ -239,6 +239,16 @@ function LoginPage() {
                 >
                   สร้างบัญชี
                 </a>
+                <span style={{ margin: '0 8px', opacity: 0.5 }}>|</span>
+                <a
+                  href="#"
+                  onClick={e => {
+                    e.preventDefault();
+                    navigate('/forgot-password');
+                  }}
+                >
+                  ลืมรหัสผ่าน?
+                </a>
               </div>
 
               <button type="submit" className="login-button" disabled={isLoading}>

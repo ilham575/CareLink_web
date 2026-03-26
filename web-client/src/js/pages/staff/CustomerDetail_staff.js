@@ -312,9 +312,9 @@ function CustomerDetailStaff() {
 
           if (!staffProfile) throw new Error('ไม่พบข้อมูล Staff Profile');
 
-          // โหลด notification
+          // โหลด notification (use getByDocumentId — Strapi v5 expects documentId in path)
           const notifRes = await fetch(
-            API.notifications.getById(notificationId),
+            API.notifications.getByDocumentId(notificationId),
             { headers: { Authorization: token ? `Bearer ${token}` : '' } }
           );
 
@@ -634,7 +634,7 @@ function CustomerDetailStaff() {
         try {
           const token = localStorage.getItem('jwt') || '';
           const notifRes = await fetch(
-            API.notifications.getById(notification.documentId),
+            API.notifications.getByDocumentId(notification.documentId),
             { headers: { Authorization: token ? `Bearer ${token}` : '' } }
           );
 

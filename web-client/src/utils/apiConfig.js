@@ -193,6 +193,7 @@ export const API = {
     getCustomerNotifications: (customerDocumentId) =>
       `${BASE_URL}/api/notifications?filters[$or][0][type][$eq]=customer_assignment&filters[$or][1][type][$eq]=customer_assignment_update&filters[customer_profile][documentId][$eq]=${customerDocumentId}&sort=updatedAt:desc&pagination[limit]=1&populate=*`,
     create: () => `${BASE_URL}/api/notifications`,
+    assignToStaff: () => `${BASE_URL}/api/notifications/assign-to-staff`,
     update: (id) => `${BASE_URL}/api/notifications/${id}`,
     updateByDocumentId: (documentId) => `${BASE_URL}/api/notifications/${documentId}`,
     delete: (documentId) => `${BASE_URL}/api/notifications/${documentId}`,
