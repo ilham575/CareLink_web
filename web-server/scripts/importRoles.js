@@ -3,9 +3,9 @@ const fs = require('fs');
 const path = require('path');
 
 module.exports = async ({ strapi }) => {
-  const filePath = path.resolve(__dirname, './roles-merged.json');
+  const filePath = path.resolve(__dirname, './roles-A.json');
   if (!fs.existsSync(filePath)) {
-    console.warn('⚠️  roles-merged.json not found. Skipping import.');
+    console.warn('⚠️  roles-A.json not found. Skipping import.');
     return;
   }
 

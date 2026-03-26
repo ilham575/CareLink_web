@@ -1,15 +1,51 @@
 const path = require('path');
+const fs = require('fs');
 
 module.exports = ({ env }) => {
-  // ตั้งค่าเริ่มต้นของ client เป็น 'postgres' เพื่อให้แน่ใจว่าใช้ PostgreSQL
-  // ถ้า env('DATABASE_CLIENT') ไม่ถูกกำหนดใน .env
   const client = env('DATABASE_CLIENT', 'postgres');
+  
+  // ดึงค่า Host ออกมาก่อนเพื่อตรวจสอบ
+  const dbHost = env('DATABASE_HOST', '127.0.0.1');
+  
+  // เช็คว่ากำลังเชื่อมต่อผ่าน Cloud SQL Socket หรือไม่? (ถ้า Host มีคำว่า /cloudsql)
+  const isCloudSqlSocket = dbHost.includes('/cloudsql');
+
+  // ฟังก์ชันช่วยอ่านไฟล์ Cert (ถ้ามี Path ส่งมา)
+  const getSslConfig = () => {
+    // ถ้าวิ่งผ่าน Socket บน Cloud Run ให้ปิด SSL (Proxy จัดการให้แล้ว)
+    if (isCloudSqlSocket) {
+      return false;
+    }
+
+    // ถ้าไม่ได้เปิด SSL ใน Env ก็ปิดไป
+    if (!env.bool('DATABASE_SSL', true)) {
+      return false;
+    }
+
+    // ถ้าเปิด SSL (เช่น Local หรือ TCP) ให้เตรียม Config
+    const sslConfig = {
+      rejectUnauthorized: env.bool('DATABASE_SSL_REJECT_UNAUTHORIZED', false),
+    };
+
+    // 2. ถ้ามีไฟล์ Cert (สำหรับ Option 3: Require trusted client certificates) ก็อ่านใส่เข้าไป
+    if (env('DATABASE_SSL_CA')) {
+      sslConfig.ca = fs.readFileSync(env('DATABASE_SSL_CA')).toString();
+    }
+    if (env('DATABASE_SSL_CERT')) {
+      sslConfig.cert = fs.readFileSync(env('DATABASE_SSL_CERT')).toString();
+    }
+    if (env('DATABASE_SSL_KEY')) {
+      sslConfig.key = fs.readFileSync(env('DATABASE_SSL_KEY')).toString();
+    }
+
+    return sslConfig;
+  };
 
   const connections = {
     // MySQL configuration (ไม่เปลี่ยนแปลง)
     mysql: {
       connection: {
-        host: env('DATABASE_HOST', 'localhost'),
+        host: dbHost,
         port: env.int('DATABASE_PORT', 3306),
         database: env('DATABASE_NAME', 'strapi'),
         user: env('DATABASE_USERNAME', 'strapi'),
@@ -26,39 +62,27 @@ module.exports = ({ env }) => {
       pool: { min: env.int('DATABASE_POOL_MIN', 2), max: env.int('DATABASE_POOL_MAX', 10) },
     },
 
-    // PostgreSQL configuration (ส่วนที่เราจะแก้ไข)
+    // PostgreSQL configuration (แก้ไขแล้ว)
     postgres: {
       connection: {
-        // ไม่ต้องใช้ connectionString ถ้าคุณระบุ host, port, database, user, password แยกกัน
-        // connectionString: env('DATABASE_URL'), // <-- คอมเมนต์หรือลบบรรทัดนี้ถ้าไม่ใช้ DATABASE_URL
+        host: dbHost,
+        port: env.int('DATABASE_PORT', 5432),
+        database: env('DATABASE_NAME'),
+        user: env('DATABASE_USERNAME'),
+        password: env('DATABASE_PASSWORD'),
 
-        // ใช้ค่าจาก Environment Variables ใน .env
-        host: env('DATABASE_HOST'), // จะถูกดึงมาจาก DATABASE_HOST ใน .env (ซึ่งควรเป็น IP ของ Cloud SQL)
-        port: env.int('DATABASE_PORT', 5432), // จะถูกดึงมาจาก DATABASE_PORT ใน .env
-        database: env('DATABASE_NAME'), // จะถูกดึงมาจาก DATABASE_NAME ใน .env
-        user: env('DATABASE_USERNAME'), // จะถูกดึงมาจาก DATABASE_USERNAME ใน .env
-        password: env('DATABASE_PASSWORD'), // จะถูกดึงมาจาก DATABASE_PASSWORD ใน .env
+        // ********** แก้ไขจุดนี้ **********
+        // ถ้าเป็น Cloud SQL Socket (บน Cloud Run) ให้บังคับ ssl: false
+        // ถ้าไม่ใช่ (Local/TCP) ให้ใช้ค่าจาก env หรือ default เป็น true
+        ssl: getSslConfig(),
+        // *******************************
 
-        // การตั้งค่า SSL
-        // env.bool('DATABASE_SSL', true) จะทำให้ SSL เปิดใช้งานโดย default ถ้าไม่มี DATABASE_SSL ใน .env
-        ssl: env.bool('DATABASE_SSL', true) && {
-          // ไม่ต้องระบุ key, cert, ca, capath, cipher หากไม่ได้ใช้ Client Certificates หรือ CA Specific
-          // key: env('DATABASE_SSL_KEY', undefined),
-          // cert: env('DATABASE_SSL_CERT', undefined),
-          // ca: env('DATABASE_SSL_CA', undefined),
-          // capath: env('DATABASE_SSL_CAPATH', undefined),
-          // cipher: env('DATABASE_SSL_CIPHER', undefined),
-
-          // **สำคัญ**: ตั้งค่า rejectUnauthorized เป็น false สำหรับการทดสอบบนเครื่อง Local
-          // เพื่อข้ามการตรวจสอบ Certificate ที่อาจมีปัญหา
-          // ควรเปลี่ยนกลับเป็น true เมื่อ Deploy ไปยัง Production บน GCP และใช้ Cloud SQL Proxy
-          rejectUnauthorized: env.bool('DATABASE_SSL_REJECT_UNAUTHORIZED', false),
-        },
         schema: env('DATABASE_SCHEMA', 'public'),
       },
       pool: {
         min: env.int('DATABASE_POOL_MIN', 2),
-        max: env.int('DATABASE_POOL_MAX', 10)
+        max: env.int('DATABASE_POOL_MAX', 25),
+        acquireTimeoutMillis: 30000,
       },
     },
 
@@ -70,12 +94,12 @@ module.exports = ({ env }) => {
       useNullAsDefault: true,
     },
   };
+
   return {
     connection: {
       client,
       ...connections[client],
-      // เพิ่ม acquireConnectionTimeout ให้ยาวขึ้นอีกนิด เพื่อรองรับความหน่วงในการเชื่อมต่อครั้งแรก
-      acquireConnectionTimeout: env.int('DATABASE_CONNECTION_TIMEOUT', 60000), // Default 60 วินาที
+      acquireConnectionTimeout: env.int('DATABASE_CONNECTION_TIMEOUT', 60000),
     },
   };
 };

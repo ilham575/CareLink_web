@@ -130,3 +130,8 @@ build
 .strapi-updater.json
 .strapi-cloud.json
 .env.gcp
+# ปิดกั้นทั้งโฟลเดอร์ certs
+certs/
+
+# หรือถ้าจะระบุเฉพาะไฟล์นามสกุล .pem
+*.pem

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/pharmacyDetail.css';
-import Footer from '../../components/footer';
+// Footer is rendered globally in App.js
 import { toast } from 'react-toastify';
 import AnimationWrapper from '../../components/AnimationWrapper';
 import { API } from '../../../utils/apiConfig';
@@ -263,7 +263,6 @@ function DrugStoresDetail_pharmacist() {
           <div>ไม่พบข้อมูลร้านยา</div>
         )}
       </AnimationWrapper>
-      <Footer />
     </div>
   );
 }

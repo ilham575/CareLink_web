@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import '../../../css/pages/default/signup.css';
 import HomeHeader from '../../components/HomeHeader';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { API, fetchWithAuth } from '../../../utils/apiConfig';
@@ -144,22 +144,82 @@ function Signup() {
 
         // 3. Update admin profile image ถ้ามี
         if (profileImageId) {
-          const adminProfileRes = await fetch(API.adminProfiles.list(`filters[users_permissions_user][id][$eq]=${currentUserId}`), {
+          const adminProfileRes = await fetch(API.adminProfiles.list(`filters[users_permissions_user][id][$eq]=${currentUserId}&populate=drug_stores`), {
             headers: { Authorization: `Bearer ${jwt}` }
           });
           const adminProfileData = await adminProfileRes.json();
           
-          if (adminProfileData.data?.[0]?.id) {
-            await fetch(API.adminProfiles.update(adminProfileData.data[0].id), {
+          if (adminProfileData.data?.[0]?.documentId) {
+            const existingProfile = adminProfileData.data[0];
+            const existingData = existingProfile.attributes || existingProfile;
+            
+            // เก็บ drug_stores เดิมไว้ก่อน - ต้องเก็บทั้ง documentId และ id
+            const existingDrugStores = (existingData.drug_stores?.data || existingData.drug_stores || [])
+              .map(ds => ({
+                documentId: ds.documentId || ds.attributes?.documentId,
+                id: ds.id || ds.attributes?.id
+              }))
+              .filter(ds => ds.documentId || ds.id);
+            
+            console.log('🏪 DEBUG: existingDrugStores before update:', existingDrugStores);
+            
+            const updatePayload = {
+              data: {
+                users_permissions_user: existingData.users_permissions_user?.data?.id || existingData.users_permissions_user?.id || currentUserId,
+                profileimage: profileImageId
+              }
+            };
+            
+            console.log('📤 DEBUG: Updating admin profile with payload:', updatePayload);
+            
+            const updateRes = await fetch(API.adminProfiles.updateByDocumentId(existingProfile.documentId), {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${jwt}`,
               },
-              body: JSON.stringify({
-                data: { profileimage: profileImageId }
-              }),
+              body: JSON.stringify(updatePayload),
             });
+            
+            const updateResult = await updateRes.json();
+            console.log('📥 DEBUG: Update result:', updateResult);
+            
+            // ถ้ามี drug_stores เดิม ต้อง re-link ทุกร้านกลับมา
+            if (existingDrugStores.length > 0) {
+              console.log('🔗 DEBUG: Re-linking drug_stores:', existingDrugStores);
+              
+              for (const store of existingDrugStores) {
+                try {
+                  // ลองใช้ documentId ก่อน ถ้าไม่สำเร็จก็ลองใช้ id
+                  const updateUrl = store.documentId 
+                    ? `${API.drugStores.update(store.documentId)}`
+                    : `${API.drugStores.update(store.id)}`;
+                  
+                  console.log(`📍 Attempting to re-link store with URL:`, updateUrl);
+                  
+                  const relinkRes = await fetch(updateUrl, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${jwt}`,
+                    },
+                    body: JSON.stringify({
+                      data: {
+                        admin_profile: existingProfile.documentId
+                      }
+                    }),
+                  });
+                  
+                  if (relinkRes.ok) {
+                    console.log(`✅ Re-linked store (docId: ${store.documentId}, id: ${store.id}) to admin profile`);
+                  } else {
+                    console.warn(`⚠️ Failed to re-link store (docId: ${store.documentId}, id: ${store.id}):`, relinkRes.status, await relinkRes.text());
+                  }
+                } catch (err) {
+                  console.error(`❌ Error re-linking store:`, err);
+                }
+              }
+            }
           }
         }
 
@@ -294,7 +354,6 @@ function Signup() {
   return (
     <div className="signup-page-container">
       <HomeHeader />
-      <ToastContainer />
       <div className="signup-content">
         <div className="signup-note">
           {isEditMode ? (

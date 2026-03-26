@@ -1,4 +1,6 @@
 import React from "react";
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from "react-router-dom";
 import { API } from '../../utils/apiConfig';
 
@@ -29,21 +31,23 @@ function ProfileAvatar({ profileUrl, profileFullName, userData }) {
             navigate(`/edit_pharmacist_admin/${profile.documentId}`, {
               state: { isSelfEdit: true }
             });
-          } else {
-            alert("ไม่พบข้อมูลโปรไฟล์เภสัชกร");
-          }
+            } else {
+              toast.error("ไม่พบข้อมูลโปรไฟล์เภสัชกร");
+            }
         } catch (err) {
-          alert("เกิดข้อผิดพลาดในการดึงข้อมูลเภสัชกร");
+          toast.error("เกิดข้อผิดพลาดในการดึงข้อมูลเภสัชกร");
         }
       }
     } else if (role === 'staff') {
       navigate('/edit_staff_profile');
+    } else if (role === 'customer') {
+      navigate('/customer/edit_profile');
     }
   };
 
   return (
     <div
-      className="profile-avatar"
+      className="w-10 h-10 sm:w-[50px] sm:h-[50px] rounded-full bg-[#e0e0e0] flex items-center justify-center font-bold text-sm sm:text-[18px] text-[#555] overflow-hidden sm:mr-4 shadow-sm hover:ring-2 hover:ring-white/50 transition-all"
       title={profileFullName || "โปรไฟล์"}
       onClick={handleProfileClick}
       style={{ cursor: 'pointer' }}
@@ -52,7 +56,7 @@ function ProfileAvatar({ profileUrl, profileFullName, userData }) {
         <img
           src={profileUrl}
           alt="profile"
-          className="profile-avatar-img"
+          className="w-full h-full object-cover rounded-full"
         />
       ) : (
         <span>

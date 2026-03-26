@@ -1,0 +1,716 @@
+/* ========================================
+   Print Transfer Form CSS
+   แยกชัดเจนระหว่าง:
+   - Screen (หน้าเว็บ): สวยงาม มีสี gradient
+   - Print (พิมพ์): เรียบง่าย ดูเป็นทางการ พอดี A4 แนวตั้ง 1 หน้า
+   ======================================== */
+
+/* ========================================
+   SCREEN STYLES (หน้าเว็บ)
+   ======================================== */
+
+.print-transfer-form-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ปุ่มควบคุม */
+.print-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 10px;
+  z-index: 100;
+}
+
+.print-btn-print,
+.print-btn-back {
+  padding: 12px 28px;
+  border-radius: 25px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.print-btn-print {
+  background: linear-gradient(135deg, #00c853, #00e676);
+  color: white;
+}
+
+.print-btn-print:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,200,83,0.4);
+}
+
+.print-btn-back {
+  background: white;
+  color: #333;
+}
+
+.print-btn-back:hover {
+  background: #f5f5f5;
+  transform: translateY(-2px);
+}
+
+/* เนื้อหาหลัก - หน้าเว็บ */
+.print-transfer-form {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  font-family: 'Sarabun', 'Tahoma', sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* Header - หน้าเว็บ */
+.print-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 3px solid #667eea;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+  margin: -30px -30px 25px -30px;
+  padding: 25px 30px 20px 30px;
+  border-radius: 16px 16px 0 0;
+}
+
+.print-header-title {
+  flex: 1;
+}
+
+.print-header-title h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: #667eea;
+  letter-spacing: -0.5px;
+}
+
+.print-header-subtitle {
+  margin: 5px 0 0 0;
+  font-size: 13px;
+  color: #888;
+  font-style: italic;
+}
+
+.print-header-info {
+  text-align: right;
+  background: white;
+  padding: 12px 16px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.print-form-number,
+.print-form-date {
+  margin: 3px 0;
+  font-size: 12px;
+  color: #555;
+}
+
+/* Section - หน้าเว็บ */
+.print-form-section {
+  margin-bottom: 20px;
+}
+
+.print-section-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #667eea;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e8e8e8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.print-section-content {
+  padding: 15px;
+  background: #fafbfc;
+  border-radius: 10px;
+  border: 1px solid #e8e8e8;
+}
+
+.print-section-content.print-two-columns {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+/* Form Field - หน้าเว็บ */
+.print-form-field {
+  margin-bottom: 10px;
+}
+
+.print-form-field.print-full-width {
+  grid-column: 1 / -1;
+}
+
+.print-form-field label {
+  display: block;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+
+.print-field-value {
+  padding: 10px 14px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  min-height: 20px;
+  font-size: 14px;
+  color: #333;
+}
+
+.print-field-value ul {
+  margin: 5px 0;
+  padding-left: 20px;
+}
+
+.print-field-value li {
+  margin: 5px 0;
+  list-style-type: disc;
+}
+
+/* Checkbox group สำหรับเลือกประเภทสถานพยาบาล */
+.print-checkbox-group {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.print-checkbox {
+  font-size: 14px;
+  color: #333;
+}
+
+/* Blank field สำหรับกรอกเอง */
+.print-field-blank {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed #999;
+  border-radius: 0;
+  padding: 5px 0;
+  color: #999;
+  font-family: 'Courier New', monospace;
+}
+
+/* ตาราง Drugs - หน้าเว็บ */
+.print-drugs-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.print-drugs-table thead {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.print-drugs-table th {
+  padding: 12px 10px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.print-drugs-table td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.print-drugs-table tbody tr:nth-child(even) {
+  background: #f8f9ff;
+}
+
+.print-drugs-table tbody tr:hover {
+  background: #f0f2ff;
+}
+
+.print-col-no { width: 40px; text-align: center; }
+.print-col-name { font-weight: 600; color: #333; }
+.print-col-name-en { font-style: italic; color: #666; }
+.print-col-qty { text-align: center; font-weight: 600; color: #667eea; }
+
+.print-no-drugs-message {
+  text-align: center;
+  padding: 30px;
+  color: #999;
+  font-style: italic;
+}
+
+/* ช่องลงนาม - หน้าเว็บ */
+.print-signature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  padding: 15px !important;
+}
+
+.print-signature-box {
+  text-align: center;
+  padding: 15px;
+  border: 2px dashed #ddd;
+  border-radius: 10px;
+  background: white;
+}
+
+.print-signature-label {
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 35px;
+  font-size: 12px;
+}
+
+.print-signature-line {
+  border-top: 2px solid #333;
+  margin-bottom: 8px;
+  height: 40px;
+}
+
+.print-signature-date {
+  font-size: 11px;
+  color: #888;
+}
+
+.print-signature-name {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+/* หมายเหตุ - หน้าเว็บ */
+.print-notes-area {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  min-height: 80px;
+}
+
+.print-notes-line {
+  height: 25px;
+  border-bottom: 1px dotted #ccc;
+  margin-bottom: 5px;
+}
+
+/* Footer - หน้าเว็บ */
+.print-form-footer {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 2px solid #e8e8e8;
+  text-align: center;
+}
+
+.print-footer-text {
+  margin: 5px 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.print-footer-subtext {
+  font-style: italic;
+  color: #999;
+  font-size: 11px;
+}
+
+/* Loading & Error */
+.print-loading,
+.print-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 18px;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* ========================================
+   PRINT STYLES (พิมพ์ - A4 แนวตั้ง พอดี 1 หน้า)
+   ======================================== */
+
+@media print {
+  /* บังคับให้พิมพ์ขาวดำเป็นทางการ */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* ตั้งค่าหน้ากระดาษ A4 แนวตั้ง */
+  @page {
+    size: 210mm 297mm portrait !important;
+    margin: 8mm !important;
+  }
+
+  html, body {
+    width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    font-size: 10pt !important;
+    overflow: visible !important;
+  }
+
+  /* ซ่อนส่วนที่ไม่ต้องการพิมพ์ */
+  .no-print,
+  .print-controls,
+  .print-form-footer {
+    display: none !important;
+  }
+
+  /* Container */
+  .print-transfer-form-container {
+    background: white !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    display: block !important;
+    margin: 0 !important;
+  }
+
+  /* Form หลัก - พอดี 1 หน้า A4 */
+  .print-transfer-form {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    height: auto !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    font-family: 'TH Sarabun New', 'Sarabun', serif !important;
+    font-size: 11pt !important;
+    line-height: 1.2 !important;
+    color: #000 !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Header - พิมพ์ */
+  .print-form-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    margin: 0 0 3mm 0 !important;
+    padding: 0 0 2mm 0 !important;
+    border-bottom: 1pt solid #000 !important;
+    background: none !important;
+    border-radius: 0 !important;
+  }
+
+  .print-header-title h1 {
+    font-size: 16pt !important;
+    font-weight: bold !important;
+    color: #000 !important;
+    margin: 0 !important;
+  }
+
+  .print-header-subtitle {
+    font-size: 9pt !important;
+    color: #000 !important;
+    margin: 0 !important;
+    font-style: normal !important;
+  }
+
+  .print-header-info {
+    text-align: right !important;
+    background: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .print-form-number,
+  .print-form-date {
+    font-size: 9pt !important;
+    color: #000 !important;
+    margin: 0 !important;
+  }
+
+  /* Section - พิมพ์ (ลดขนาดให้พอดี 1 หน้า) */
+  .print-form-section {
+    margin-bottom: 2mm !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-section-title {
+    font-size: 10pt !important;
+    font-weight: bold !important;
+    color: #000 !important;
+    margin: 0 0 1mm 0 !important;
+    padding: 1mm 2mm !important;
+    border-bottom: 0.5pt solid #000 !important;
+    background: #f0f0f0 !important;
+  }
+
+  .print-section-content {
+    padding: 1.5mm 2mm !important;
+    background: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  .print-section-content.print-two-columns {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1.5mm 3mm !important;
+  }
+
+  /* Form Field - พิมพ์ */
+  .print-form-field {
+    margin-bottom: 1mm !important;
+  }
+
+  .print-form-field label {
+    font-size: 9pt !important;
+    font-weight: bold !important;
+    color: #000 !important;
+    margin-bottom: 0 !important;
+    display: inline !important;
+  }
+
+  .print-field-value {
+    padding: 0.5mm 1.5mm !important;
+    background: none !important;
+    border: 0.3pt solid #666 !important;
+    border-radius: 0 !important;
+    font-size: 10pt !important;
+    color: #000 !important;
+    min-height: auto !important;
+    display: inline-block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ตาราง Drugs - พิมพ์ (ย่อขนาด) */
+  .print-drugs-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 1mm !important;
+    font-size: 8pt !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-drugs-table thead {
+    background: #333 !important;
+    color: white !important;
+  }
+
+  .print-drugs-table th {
+    padding: 1mm !important;
+    text-align: left !important;
+    font-weight: bold !important;
+    font-size: 8pt !important;
+    border: 0.3pt solid #000 !important;
+    color: white !important;
+  }
+
+  .print-drugs-table td {
+    padding: 0.8mm !important;
+    border: 0.3pt solid #666 !important;
+    font-size: 8pt !important;
+    color: #000 !important;
+  }
+
+  .print-drugs-table tbody tr:nth-child(even) {
+    background: #f5f5f5 !important;
+  }
+
+  .print-col-no { width: 6mm !important; text-align: center !important; }
+  .print-col-name { width: 22mm !important; }
+  .print-col-name-en { width: 20mm !important; font-style: normal !important; }
+  .print-col-strength { width: 12mm !important; }
+  .print-col-qty { width: 10mm !important; text-align: center !important; }
+  .print-col-unit { width: 10mm !important; }
+  .print-col-duration { width: 12mm !important; }
+  .print-col-usage { width: 20mm !important; }
+
+  .print-no-drugs-message {
+    padding: 3mm !important;
+    font-size: 9pt !important;
+    text-align: center !important;
+    border: 0.3pt solid #666 !important;
+  }
+
+  /* Checkbox group - พิมพ์ */
+  .print-checkbox-group {
+    display: inline-flex !important;
+    gap: 4mm !important;
+  }
+
+  .print-checkbox {
+    font-size: 9pt !important;
+    color: #000 !important;
+  }
+
+  /* Blank field - พิมพ์ */
+  .print-field-blank {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 0.5pt solid #000 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    font-size: 9pt !important;
+  }
+
+  /* ช่องลงนาม - พิมพ์ */
+  .print-signature-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 5mm !important;
+    padding: 1mm 0 !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-signature-box {
+    text-align: center !important;
+    padding: 2mm !important;
+    border: 0.3pt solid #666 !important;
+    border-radius: 0 !important;
+    background: none !important;
+  }
+
+  .print-signature-label {
+    font-size: 8pt !important;
+    font-weight: bold !important;
+    color: #000 !important;
+    margin-bottom: 8mm !important;
+  }
+
+  .print-signature-line {
+    border-top: 0.5pt solid #000 !important;
+    margin-bottom: 1mm !important;
+    height: 6mm !important;
+  }
+
+  .print-signature-name,
+  .print-signature-date {
+    font-size: 7pt !important;
+    color: #000 !important;
+    margin-bottom: 0.5mm !important;
+  }
+
+  /* หมายเหตุ - พิมพ์ */
+  .print-notes-area {
+    background: none !important;
+    border: 0.3pt solid #666 !important;
+    border-radius: 0 !important;
+    padding: 1.5mm !important;
+    min-height: 10mm !important;
+  }
+
+  .print-notes-line {
+    height: 4mm !important;
+    border-bottom: 0.3pt dotted #999 !important;
+    margin-bottom: 0.5mm !important;
+  }
+}
+
+/* ========================================
+   Responsive Design (หน้าเว็บเท่านั้น)
+   ======================================== */
+
+@media screen and (max-width: 768px) {
+  .print-transfer-form-container {
+    padding: 15px;
+  }
+
+  .print-transfer-form {
+    padding: 20px;
+    border-radius: 12px;
+  }
+
+  .print-form-header {
+    flex-direction: column;
+    gap: 15px;
+    margin: -20px -20px 20px -20px;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .print-header-info {
+    text-align: left;
+    width: 100%;
+  }
+
+  .print-section-content.print-two-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .print-signature-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .print-drugs-table {
+    font-size: 11px;
+  }
+
+  .print-drugs-table th,
+  .print-drugs-table td {
+    padding: 8px 6px;
+  }
+
+  /* ซ่อนคอลัมน์ที่ไม่จำเป็นบนมือถือ */
+  .print-col-name-en,
+  .print-col-strength,
+  .print-col-duration {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .print-controls {
+    flex-direction: column;
+    width: 100%;
+    padding: 0 10px;
+  }
+
+  .print-btn-print,
+  .print-btn-back {
+    width: 100%;
+  }
+
+  .print-transfer-form {
+    padding: 15px;
+  }
+
+  .print-header-title h1 {
+    font-size: 20px;
+  }
+
+  .print-section-title {
+    font-size: 13px;
+  }
+
+  .print-drugs-table {
+    font-size: 10px;
+  }
+
+  .print-col-usage {
+    display: none;
+  }
+}

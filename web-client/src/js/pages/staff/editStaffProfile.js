@@ -1,10 +1,9 @@
 import React, { useRef, useState, useEffect } from "react";
-import Footer from "../../components/footer";
+// Footer is rendered globally in App.js
 import HomeHeader from "../../components/HomeHeader";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
-import '../../../css/pages/staff/editStaffProfile.css';
 import { API } from '../../../utils/apiConfig';
 
 function EditStaffProfile() {
@@ -61,13 +60,14 @@ function EditStaffProfile() {
         const firstName = nameParts[0] || "";
         const lastName = nameParts.slice(1).join(" ") || "";
 
-        setForm({
+        setForm(prev => ({
+          ...prev,
           firstName: firstName,
           lastName: lastName,
           phone: user.phone || "",
           username: user.username || "",
           profileImage: null,
-        });
+        }));
 
         // โหลดข้อมูล staff profiles ของร้านทั้งหมดที่ทำงานอยู่
         // ใช้ user.id จาก API response แทน userDocumentId
@@ -166,9 +166,8 @@ function EditStaffProfile() {
 
     try {
       const token = localStorage.getItem('jwt');
-      const userDocumentId = localStorage.getItem('user_documentId');
 
-      // อัปเดตข้อมูล user
+      // อัปเดตข้อมูล user โดยใช้ userId ที่เก็บไว้
       const userData = {
         full_name: `${form.firstName} ${form.lastName}`.trim(),
         phone: form.phone,
@@ -179,7 +178,7 @@ function EditStaffProfile() {
         userData.password = form.password;
       }
 
-      const userUpdateRes = await fetch(API.users.update(userDocumentId), {
+      const userUpdateRes = await fetch(API.users.update(userId), {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(userData),
@@ -238,11 +237,76 @@ function EditStaffProfile() {
     return timeString.substring(0, 5);
   };
 
+  // 💡 รวบรวมเวลาทำงานทั้งหมดจาก profile (รวมจากทุก field และ nested attributes) และจัดเรียง/ลบซ้ำ
+  const getAggregatedWorkingTimesFromProfile = (profile) => {
+    if (!profile) return [];
+    const collected = [];
+
+    // normalize source into array of entries
+    const entriesFrom = (src) => {
+      if (!src) return [];
+      if (Array.isArray(src)) return src;
+      if (Array.isArray(src.data)) return src.data;
+      return [];
+    };
+
+    const pushIfValid = (day, time_in, time_out) => {
+      if (!day || !time_in || !time_out) return;
+      const d = typeof day === "string" ? day.trim() : day;
+      collected.push({ day: d, start_time: time_in, end_time: time_out });
+    };
+
+    const addFrom = (src) => {
+      const arr = entriesFrom(src);
+      arr.forEach((entry) => {
+        const wt = entry?.attributes ? entry.attributes : entry;
+        // support common variants
+        const day = wt?.day || wt?.weekday || wt?.name;
+        const time_in = wt?.time_in || wt?.timeIn || wt?.open || wt?.start_time;
+        const time_out = wt?.time_out || wt?.timeOut || wt?.close || wt?.end_time;
+        pushIfValid(day, time_in, time_out);
+      });
+    };
+
+    // gather from multiple possible fields/shapes
+    addFrom(profile.work_schedule);
+    addFrom(profile.attributes?.work_schedule);
+    addFrom(profile.attributes?.work_schedule?.data);
+    addFrom(profile.working_days); // legacy field
+    addFrom(profile.attributes?.working_days);
+
+    if (collected.length === 0) return [];
+
+    // dedupe by day/time
+    const keySet = new Set();
+    const unique = [];
+    collected.forEach((t) => {
+      const key = `${t.day}|${t.start_time}|${t.end_time}`;
+      if (!keySet.has(key)) {
+        keySet.add(key);
+        unique.push(t);
+      }
+    });
+
+    const dayOrder = ["จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์","อาทิตย์"];
+    unique.sort((a,b) => {
+      const da = dayOrder.indexOf(a.day);
+      const db = dayOrder.indexOf(b.day);
+      if (da !== db) return da - db;
+      if (a.start_time !== b.start_time) return a.start_time.localeCompare(b.start_time);
+      return a.end_time.localeCompare(b.end_time);
+    });
+
+    return unique;
+  };
+
   const handleEditStaff = (profile) => {
     setModalStaffId(profile.documentId);
+    // ใช้ aggregated times สำหรับ modal
+    const aggregatedTimes = getAggregatedWorkingTimesFromProfile(profile);
     setModalData({
       position: profile.position || '',
-      workSchedule: profile.work_schedule && Array.isArray(profile.work_schedule) ? profile.work_schedule : (profile.working_days || [])
+      workSchedule: aggregatedTimes.length > 0 ? aggregatedTimes : (profile.work_schedule || [])
     });
     setShowModal(true);
   };
@@ -375,245 +439,292 @@ function EditStaffProfile() {
 
   if (loading) {
     return (
-      <div className="edit-profile-page-container">
+      <div className="min-h-screen bg-slate-50 flex flex-col">
         <HomeHeader />
-        <div className="edit-profile-content">
-          <div style={{ textAlign: 'center', padding: '50px' }}>
-            <div className="loading-spinner"></div>
-            <p>กำลังโหลดข้อมูล...</p>
+        <div className="flex-grow flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-slate-500 font-medium">กำลังโหลดข้อมูล...</p>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="edit-profile-page-container">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       <HomeHeader />
-      <ToastContainer />
-      <div className="edit-profile-content">
-        <div className="edit-profile-note">
-          <b>แก้ไขข้อมูลส่วนตัว</b>
-        </div>
-        <form className="edit-profile-form" onSubmit={handleSubmit}>
-          <div className="edit-profile-form-flex">
-            <div className="edit-profile-form-left">
-              <label>ชื่อ<span className="required">*</span></label>
-              <input
-                type="text"
-                name="firstName"
-                value={form.firstName}
-                onChange={handleChange}
-                required
-              />
+      <div className="flex-grow container mx-auto px-4 py-8">
+        <div className="max-w-[1200px] mx-auto bg-white rounded-[24px] shadow-xl shadow-slate-200/50 overflow-hidden relative border border-slate-100 p-6 md:p-12">
+          {/* Decorative Top Bar */}
+          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600" />
+          
+          <div className="text-3xl font-bold text-slate-800 text-center mb-10 flex items-center justify-center gap-3">
+            <span>✏️</span>
+            <b>แก้ไขข้อมูลส่วนตัว</b>
+          </div>
 
-              <label>นามสกุล<span className="required">*</span></label>
-              <input
-                type="text"
-                name="lastName"
-                value={form.lastName}
-                onChange={handleChange}
-                required
-              />
+          <form className="space-y-8" onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-10 items-start">
+              {/* Form Left Content */}
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 block ml-1">ชื่อ <span className="text-rose-500">*</span></label>
+                    <input
+                      type="text"
+                      name="firstName"
+                      value={form.firstName}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all bg-slate-50/50"
+                    />
+                  </div>
 
-              <label>เบอร์โทรศัพท์</label>
-              <input
-                type="text"
-                name="phone"
-                value={form.phone}
-                onChange={handleChange}
-              />
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 block ml-1">นามสกุล <span className="text-rose-500">*</span></label>
+                    <input
+                      type="text"
+                      name="lastName"
+                      value={form.lastName}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all bg-slate-50/50"
+                    />
+                  </div>
+                </div>
 
-              <label>USERNAME</label>
-              <input
-                type="text"
-                name="username"
-                value={form.username}
-                disabled
-                className="disabled-input"
-              />
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 block ml-1">เบอร์โทรศัพท์</label>
+                  <input
+                    type="text"
+                    name="phone"
+                    value={form.phone}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all bg-slate-50/50"
+                  />
+                </div>
 
-              <label>รหัสผ่านใหม่ (ถ้าต้องการแก้ไข)</label>
-              <input
-                type="password"
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                placeholder="ปล่อยว่างไว้หากไม่ต้องแก้ไข"
-              />
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 block ml-1">USERNAME</label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={form.username}
+                    disabled
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed italic"
+                  />
+                </div>
 
-              <label>ยืนยันรหัสผ่าน</label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={form.confirmPassword}
-                onChange={handleChange}
-                placeholder="กรอกรหัสผ่านใหม่อีกครั้ง"
-              />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 block ml-1">รหัสผ่านใหม่</label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={form.password}
+                      onChange={handleChange}
+                      placeholder="ปล่อยว่างไว้หากไม่ต้องแก้ไข"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all bg-slate-50/50"
+                    />
+                  </div>
 
-              {/* แสดงข้อมูลร้านที่ทำงานอยู่ */}
-              <div className="staff-pharmacies-section">
-                <label>ร้านยาที่ทำงานอยู่ ({staffProfiles.length} ร้าน)</label>
-                <div className="pharmacies-list">
-                  {staffProfiles.length === 0 ? (
-                    <div className="no-pharmacies-message">
-                      <p>ไม่มีข้อมูลร้านยา</p>
-                    </div>
-                  ) : (
-                    staffProfiles.map((profile, index) => {
-                      const pharmacy = profile.drug_store;
-                      
-                      // Debug: แสดงข้อมูลที่ได้มา
-                      console.log('Profile data:', profile);
-                      console.log('Work schedule:', profile.work_schedule);
-                      console.log('Working days:', profile.working_days);
-                      
-                      let workScheduleText = 'ไม่มีข้อมูลเวลา';
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 block ml-1">ยืนยันรหัสผ่าน</label>
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      value={form.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="กรอกรหัสผ่านใหม่อีกครั้ง"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all bg-slate-50/50"
+                    />
+                  </div>
+                </div>
 
-                      if (profile.work_schedule && Array.isArray(profile.work_schedule) && profile.work_schedule.length > 0) {
-                        workScheduleText = profile.work_schedule
-                          .filter(s => s.day && s.start_time && s.end_time)
-                          .map(s => `${s.day}: ${s.start_time} - ${s.end_time}`)
-                          .join(', ');
-                      } else if (profile.working_days && Array.isArray(profile.working_days) && profile.working_days.length > 0) {
-                        const startTime = profile.time_start ? formatTimeForDisplay(profile.time_start) : '';
-                        const endTime = profile.time_end ? formatTimeForDisplay(profile.time_end) : '';
-                        if (startTime && endTime) {
-                          workScheduleText = profile.working_days.map(day => `${day}: ${startTime} - ${endTime}`).join(', ');
+                {/* Pharmacy Section */}
+                <div className="pt-6 border-t border-slate-100">
+                  <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <span className="w-2 h-8 bg-sky-500 rounded-full" />
+                    ร้านยาที่ทำงานอยู่ ({staffProfiles.length} ร้าน)
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {staffProfiles.length === 0 ? (
+                      <div className="p-8 rounded-2xl bg-slate-50 text-center text-slate-400 font-medium border-2 border-dashed border-slate-200">
+                        ไม่มีข้อมูลร้านยา
+                      </div>
+                    ) : (
+                      staffProfiles.map((profile, index) => {
+                        const pharmacy = profile.drug_store;
+                        const aggregatedTimes = getAggregatedWorkingTimesFromProfile(profile);
+                        let workScheduleText = 'ไม่มีข้อมูลเวลา';
+
+                        if (aggregatedTimes.length > 0) {
+                          workScheduleText = aggregatedTimes
+                            .map(t => `${t.day}: ${formatTimeForDisplay(t.start_time)} - ${formatTimeForDisplay(t.end_time)}`)
+                            .join(', ');
                         }
-                      }
 
-                      return (
-                        <div key={profile.documentId} className="staff-pharmacy-card">
-                          <div className="edit-pharmacy-header">
-                            <span className="edit-pharmacy-number">#{index + 1}</span>
-                            <span className="edit-pharmacy-name">{pharmacy?.name_th || 'ไม่ระบุชื่อ'}</span>
-                          </div>
-                          <div className="edit-pharmacy-details">
-                            <div className="edit-detail-item">
-                              <span className="label">ตำแหน่ง:</span>
-                              <span className="value">{profile.position || 'ไม่ระบุ'}</span>
-                            </div>
-                            <div className="edit-detail-item">
-                              <span className="label">เวลาทำงาน:</span>
-                              <span className="value">{workScheduleText}</span>
-                            </div>
-                            <div className="edit-detail-item">
-                              <span className="label">จัดการ:</span>
-                              <div className="edit-button-group">
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditStaff(profile)}
-                                  className="edit-pharmacy-btn"
-                                >
-                                  ✏️ แก้ไข
-                                </button>
+                        return (
+                          <div key={profile.documentId} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all group">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                              <div className="flex gap-4">
+                                <div className="w-10 h-10 bg-sky-50 rounded-full flex items-center justify-center font-bold text-sky-600 shrink-0">
+                                  {index + 1}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-slate-800 text-lg group-hover:text-sky-600 transition-colors">
+                                    {pharmacy?.name_th || 'ไม่ระบุชื่อ'}
+                                  </div>
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg uppercase">
+                                      {profile.position || 'ไม่ระบุตำแหน่ง'}
+                                    </span>
+                                    <span className="px-3 py-1 bg-sky-50 text-sky-600 text-xs font-medium rounded-lg">
+                                      ⏰ {workScheduleText}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
+                              <button
+                                type="button"
+                                onClick={() => handleEditStaff(profile)}
+                                className="w-full sm:w-auto px-5 py-2.5 bg-sky-100 hover:bg-sky-500 text-sky-600 hover:text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                              >
+                                ✏️ แก้ไข
+                              </button>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })
-                  )}
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="edit-profile-form-right">
-              <label>รูปภาพโปรไฟล์</label>
-              <div className="edit-profile-upload-box" onClick={handleUploadClick}>
-                {imagePreviewUrl ? (
-                  <img src={imagePreviewUrl} alt="profile" className="edit-profile-profile-preview" />
-                ) : uploadedImageUrl ? (
-                  <img src={uploadedImageUrl} alt="profile" className="edit-profile-profile-preview" />
-                ) : (
-                  <span className="edit-profile-upload-icon">&#8682;</span>
-                )}
-                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleImageChange} />
+              {/* Profile Image Section */}
+              <div className="bg-slate-50 rounded-2xl p-10 border-2 border-slate-100 flex flex-col items-center gap-6 group hover:border-sky-200 transition-colors">
+                <label className="text-sm font-black text-slate-400 uppercase tracking-widest">รูปภาพโปรไฟล์</label>
+                <div 
+                  className="relative w-48 h-48 rounded-[40px] overflow-hidden bg-white shadow-xl shadow-slate-200 flex items-center justify-center cursor-pointer border-4 border-white group-hover:scale-105 transition-transform duration-500"
+                  onClick={handleUploadClick}
+                >
+                  {imagePreviewUrl ? (
+                    <img src={imagePreviewUrl} alt="profile" className="w-full h-full object-cover" />
+                  ) : uploadedImageUrl ? (
+                    <img src={uploadedImageUrl} alt="profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-4xl">📤</span>
+                      <span className="text-xs font-bold text-slate-400">คลิกเพื่ออัปโหลด</span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                     <span className="text-white font-bold text-sm bg-white/20 px-4 py-2 rounded-full backdrop-blur-md border border-white/30">เปลี่ยนรูป</span>
+                  </div>
+                  <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleImageChange} />
+                </div>
+                <p className="text-xs text-slate-400 text-center max-w-[200px] leading-relaxed italic">แนะนำรูปภาพสัดส่วน 1:1 และมีพื้นหลังเรียบง่าย</p>
               </div>
             </div>
-          </div>
-          <div className="edit-profile-buttons">
-            <button type="submit" className="edit-profile-submit-btn">
-              บันทึกการแก้ไข
-            </button>
-            <button
-              type="button"
-              className="edit-profile-cancel-btn"
-              onClick={handleCancel}
-            >
-              ← กลับ
-            </button>
-          </div>
-        </form>
-        <div className="edit-profile-footer-note">
-          <span>" * " หมายถึง จำเป็นต้องใส่</span>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8 border-t border-slate-100">
+               <button
+                type="button"
+                className="order-2 sm:order-1 px-10 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2"
+                onClick={handleCancel}
+              >
+                ← ย้อนกลับ
+              </button>
+              <button 
+                type="submit" 
+                className="order-1 sm:order-2 px-10 py-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white rounded-2xl font-bold shadow-lg shadow-sky-500/30 transition-all hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2"
+              >
+                💾 บันทึกการแก้ไข
+              </button>
+            </div>
+            
+            <div className="text-center text-xs text-slate-400">
+              <span className="text-rose-500 font-bold">*</span> หมายถึง ข้อมูลที่จำเป็นต้องกรอก
+            </div>
+          </form>
         </div>
       </div>
 
       {/* Edit Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={handleCancelEdit}>
-          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>📝 แก้ไขข้อมูลร้านยา</h3>
-              <button className="modal-close-btn" onClick={handleCancelEdit}>✕</button>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={handleCancelEdit} />
+          
+          <div className="relative w-full max-w-lg bg-white rounded-[24px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                 <span>📝</span> แก้ไขข้อมูลร้านยา
+              </h3>
+              <button 
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400" 
+                onClick={handleCancelEdit}
+              >✕</button>
             </div>
 
-            <div className="modal-body">
+            <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto">
               {/* Position Input */}
-              <div className="modal-form-group">
-                <label>ตำแหน่ง<span className="required">*</span></label>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 block">ตำแหน่ง <span className="text-rose-500">*</span></label>
                 <input
                   type="text"
                   value={modalData.position}
                   onChange={(e) => setModalData({...modalData, position: e.target.value})}
-                  className="modal-input"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                   placeholder="เช่น เภสัชกร, พนักงาน"
                 />
               </div>
 
               {/* Work Schedule */}
-              <div className="modal-form-group">
-                <label>ตารางเวลาทำงาน</label>
-                <div className="work-schedule-modal">
+              <div className="space-y-4">
+                <label className="text-sm font-bold text-slate-700 block">ตารางเวลาทำงาน</label>
+                <div className="space-y-3">
                   {modalData.workSchedule.length === 0 ? (
-                    <div className="no-schedule-msg">ยังไม่มีตารางเวลา</div>
+                    <div className="p-6 rounded-2xl bg-slate-50 text-center text-slate-400 font-medium italic border border-slate-100">
+                      ยังไม่มีตารางเวลา
+                    </div>
                   ) : (
-                    <div className="schedule-list">
+                    <div className="space-y-3">
                       {modalData.workSchedule.map((schedule, idx) => (
-                        <div key={idx} className="schedule-row">
+                        <div key={idx} className="flex flex-wrap items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
                           <select
                             value={schedule.day || ''}
                             onChange={(e) => handleWorkScheduleChange(idx, 'day', e.target.value)}
-                            className="schedule-day-select"
+                            className="flex-grow px-3 py-2 rounded-lg border border-slate-200 focus:outline-none bg-white text-sm"
                           >
                             <option value="">เลือกวัน</option>
                             {['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'].map(day => (
                               <option key={day} value={day}>{day}</option>
                             ))}
                           </select>
-                          <input
-                            type="time"
-                            value={schedule.start_time || ''}
-                            onChange={(e) => handleWorkScheduleChange(idx, 'start_time', e.target.value)}
-                            className="schedule-time-input"
-                          />
-                          <span className="time-dash">-</span>
-                          <input
-                            type="time"
-                            value={schedule.end_time || ''}
-                            onChange={(e) => handleWorkScheduleChange(idx, 'end_time', e.target.value)}
-                            className="schedule-time-input"
-                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              value={schedule.start_time || ''}
+                              onChange={(e) => handleWorkScheduleChange(idx, 'start_time', e.target.value)}
+                              className="px-2 py-2 rounded-lg border border-slate-200 focus:outline-none bg-white text-sm"
+                            />
+                            <span className="text-slate-400">-</span>
+                            <input
+                              type="time"
+                              value={schedule.end_time || ''}
+                              onChange={(e) => handleWorkScheduleChange(idx, 'end_time', e.target.value)}
+                              className="px-2 py-2 rounded-lg border border-slate-200 focus:outline-none bg-white text-sm"
+                            />
+                          </div>
                           <button
                             type="button"
                             onClick={() => handleRemoveWorkDay(idx)}
-                            className="schedule-remove-btn"
-                          >
-                            🗑️
-                          </button>
+                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors"
+                          >🗑️</button>
                         </div>
                       ))}
                     </div>
@@ -621,7 +732,7 @@ function EditStaffProfile() {
                   <button
                     type="button"
                     onClick={handleAddWorkDay}
-                    className="add-schedule-btn"
+                    className="w-full py-3 border-2 border-dashed border-sky-200 text-sky-500 hover:bg-sky-50 rounded-2xl font-bold transition-all flex items-center justify-center gap-2"
                     disabled={modalData.workSchedule.length >= 7}
                   >
                     + เพิ่มวันทำงาน
@@ -630,31 +741,23 @@ function EditStaffProfile() {
               </div>
             </div>
 
-            <div className="modal-footer">
-              <div className="conflict-warning" id="conflictWarning" style={{display: 'none'}}>
-                <span className="warning-icon">⚠️</span>
-                <span className="warning-text">มีเวลาทำงานชนกับร้านอื่น!</span>
+            <div className="p-6 bg-slate-50 flex flex-col gap-4">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-colors"
+                >ยกเลิก</button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveStaffEdit(modalStaffId)}
+                  className="flex-[2] py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold shadow-lg shadow-sky-500/20 transition-all active:scale-[0.98]"
+                >บันทึกข้อมูล</button>
               </div>
-              <button
-                type="button"
-                onClick={() => handleSaveStaffEdit(modalStaffId)}
-                className="modal-save-btn"
-              >
-                ✓ บันทึก
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="modal-cancel-btn"
-              >
-                ✕ ยกเลิก
-              </button>
             </div>
           </div>
         </div>
       )}
-
-      <Footer />
     </div>
   );
 }

@@ -35,6 +35,14 @@
   margin: 4px 0;
 }
 
+/* Staff action buttons container */
+.staff-action-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
 .view-detail-button {
   background: linear-gradient(90deg, #10b981 0%, #059669 100%);
   color: #fff;
@@ -48,7 +56,7 @@
   box-shadow: 0 4px 15px rgba(16,185,129,0.3);
   transition: all 0.3s ease;
   margin-top: 10px;
-  width: 120px;
+  min-width: 120px;
   height: 120px;
   display: flex;
   align-items: center;
@@ -58,10 +66,107 @@
   word-wrap: break-word;
   line-height: 1.2;
   flex-shrink: 0;
+  flex: 1;
+  max-width: 200px;
 }
 
 .view-detail-button:hover {
   background: linear-gradient(90deg, #059669 0%, #10b981 100%);
   box-shadow: 0 6px 20px rgba(16,185,129,0.5);
   transform: translateY(-2px);
+}
+
+/* Responsive styles for staff action buttons */
+@media (max-width: 768px) {
+  .staff-action-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .view-detail-button {
+    width: 100%;
+    height: auto;
+    min-height: 60px;
+    padding: 12px 16px;
+    font-size: 0.9em;
+    max-width: none;
+    flex: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .staff-action-buttons {
+    gap: 6px;
+  }
+
+  .view-detail-button {
+    padding: 10px 12px;
+    font-size: 0.85em;
+    min-height: 50px;
+  }
+}
+
+/* Additional responsive styles for staff pharmacy items */
+@media (max-width: 768px) {
+  .staff-pharmacy-image img {
+    height: 80px;
+  }
+}
+
+@media (max-width: 480px) {
+  .staff-pharmacy-image img {
+    height: 60px;
+  }
+}
+
+/* Working times UI for staff page */
+.staff-working-times {
+  margin-top: 6px;
+}
+.staff-working-times__profile {}
+.working-staff-name {
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.working-times-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 6px 0;
+  padding: 0;
+  list-style: none;
+}
+.working-time-item {
+  background: rgba(0,0,0,0.06);
+  padding: 6px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #333;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.working-time-item .day {
+  font-weight: 600;
+  color: var(--color-primary-dark);
+}
+.expand-times {
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  margin-left: 8px;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+.no-times {
+  font-size: 12px;
+  color: #999;
+}
+
+@media (max-width: 768px) {
+  .working-times-list { gap: 6px; }
+  .working-time-item { font-size: 11px; padding: 5px 8px; }
 }

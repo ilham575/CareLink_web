@@ -2,6 +2,11 @@
 FROM node:18-alpine AS builder
 WORKDIR /app
 
+# Build arguments from Cloud Build
+# ⚠️ ส่ง --build-arg ตอน build หรือ Cloud Build จะ inject ค่านี้อัตโนมัติ
+ARG REACT_APP_API_URL=https://carelink-server-j7mi5c6znq-as.a.run.app
+ARG REACT_APP_SOCKET_URL=https://carelink-server-j7mi5c6znq-as.a.run.app
+
 # Copy package files
 COPY package*.json ./
 
@@ -12,7 +17,7 @@ RUN npm ci && npm cache clean --force
 COPY . .
 
 # Build React App with production environment
-RUN NODE_ENV=production REACT_APP_API_URL=https://carelink-strapi-ke4rorabaa-as.a.run.app npm run build
+RUN NODE_ENV=production REACT_APP_API_URL=$REACT_APP_API_URL REACT_APP_SOCKET_URL=$REACT_APP_SOCKET_URL npm run build
 
 # ตรวจสอบว่า Build ผ่านและมีไฟล์ static
 RUN test -d /app/build || (echo "Build failed: build directory not found" && exit 1) && \

@@ -1,14 +1,11 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Footer from "../footer";
 import HomeHeader from "../HomeHeader";
-import "../../../css/pages/default/customerPage.css";
-import "../../../css/component/CustomerCard.css";
-import "../../../css/component/ModernCustomerCard.css";
 import React, { useEffect, useState } from "react";
 import { Modal } from "antd";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import dayjs from "dayjs"; // เพิ่มบรรทัดนี้
+import dayjs from "dayjs";
 import { API, fetchWithAuth } from "../../../utils/apiConfig";
 
 // เพิ่มฟังก์ชันแปลงวันที่เป็นภาษาไทย
@@ -24,6 +21,39 @@ function formatThaiDate(dateStr) {
   const month = months[d.month() + 1];
   const year = d.year() + 543;
   return `${day} ${month} ${year}`;
+}
+
+// Helper: Parse allergies to support both single and multiple allergies
+function parseAllergies(val) {
+  if (!val) return [];
+  try {
+    if (Array.isArray(val)) {
+      return val;
+    }
+    if (typeof val === 'string') {
+      const s = val.trim();
+      if (s.startsWith('[')) {
+        return JSON.parse(s);
+      } else if (s.startsWith('{')) {
+        const parsed = JSON.parse(s);
+        return [parsed];
+      } else {
+        return [{ drug: s, symptoms: '', date: '' }];
+      }
+    }
+    if (typeof val === 'object') {
+      return [val];
+    }
+    return [{ drug: String(val), symptoms: '', date: '' }];
+  } catch (err) {
+    return [{ drug: String(val), symptoms: '', date: '' }];
+  }
+}
+
+function formatAllergy(val) {
+  const allergies = parseAllergies(val);
+  if (allergies.length === 0) return 'ไม่มีข้อมูล';
+  return allergies.map(a => a.drug || a.allergy || 'ไม่ระบุชื่อยา').join(', ');
 }
 
 function CustomerPage({ id }) {
@@ -145,6 +175,8 @@ function CustomerPage({ id }) {
   }, [location.state]);
 
   const deleteCustomer = (customerId, customerDocumentId, userId, customerName) => {
+    console.log('[deleteCustomer] Starting delete with:', { customerId, customerDocumentId, userId, customerName });
+    
     Modal.confirm({
       title: `ลบลูกค้า "${customerName}"?`,
       content: "ลบข้อมูลลูกค้าและบัญชีผู้ใช้ที่เกี่ยวข้อง (ย้อนกลับไม่ได้)",
@@ -160,8 +192,8 @@ function CustomerPage({ id }) {
           };
 
           const removeRelation = async () => {
-            if (!customerId) return;
-            // ตัดความสัมพันธ์ many-to-many กับ drug_stores
+            if (!customerDocumentId) return;
+
             const res = await fetch(
               API.customerProfiles.update(customerDocumentId),
               {
@@ -173,22 +205,20 @@ function CustomerPage({ id }) {
                 body: JSON.stringify({
                   data: {
                     users_permissions_user: null,
-                    drug_stores: {
-                      disconnect: []
-                    }
                   },
                 }),
               }
             );
-            if (!res.ok) {
-              throw new Error("ตัดความสัมพันธ์กับ user ไม่สำเร็จ");
+
+            if (!res.ok && res.status !== 404) {
+              throw new Error("ตัดความสัมพันธ์กับบัญชีผู้ใช้ไม่สำเร็จ");
             }
           };
 
           const deleteCustomerProfile = async () => {
-            if (!customerId) return;
+            if (!customerDocumentId) return;
             const res = await fetch(
-              API.customerProfiles.update(customerDocumentId),
+              API.customerProfiles.delete(customerDocumentId),
               { method: "DELETE", headers: authHeaders }
             );
             if (!res.ok && res.status !== 404) {
@@ -217,6 +247,64 @@ function CustomerPage({ id }) {
               );
               await res.text().catch(() => "");
             } catch (e) {}
+          };
+
+          const deleteRelatedNotifications = async () => {
+            if (!customerDocumentId) {
+              console.log('[deleteRelatedNotifications] No customerDocumentId, returning');
+              return;
+            }
+            try {
+              const notifications = [];
+              const pageSize = 200;
+              let page = 1;
+
+              while (true) {
+                const listRes = await fetch(
+                  API.notifications.list(
+                    `filters[customer_profile][documentId][$eq]=${customerDocumentId}` +
+                    `&fields[0]=documentId&pagination[page]=${page}&pagination[pageSize]=${pageSize}`
+                  ),
+                  { headers: authHeaders }
+                );
+
+                if (!listRes.ok) {
+                  console.warn('[deleteRelatedNotifications] Query failed with status:', listRes.status);
+                  return;
+                }
+
+                const listJson = await listRes.json();
+                const pageItems = Array.isArray(listJson?.data) ? listJson.data : [];
+                if (pageItems.length === 0) break;
+
+                notifications.push(...pageItems);
+                if (pageItems.length < pageSize) break;
+                page += 1;
+              }
+
+              const CONCURRENCY = 8;
+              for (let i = 0; i < notifications.length; i += CONCURRENCY) {
+                const batch = notifications.slice(i, i + CONCURRENCY);
+                await Promise.all(
+                  batch.map(async (notif) => {
+                    try {
+                      const deleteRes = await fetch(
+                        API.notifications.delete(notif.documentId),
+                        { method: "DELETE", headers: authHeaders }
+                      );
+                      if (!deleteRes.ok) {
+                        console.warn('[deleteRelatedNotifications] Failed to delete:', notif.documentId, deleteRes.status);
+                      }
+                    } catch (err) {
+                      console.warn('Failed to delete notification:', notif.documentId, err);
+                    }
+                  })
+                );
+              }
+            } catch (error) {
+              console.warn('Error deleting related notifications:', error);
+              // ไม่แสดง error toast เพราะเป็น cleanup ที่ไม่จำเป็น
+            }
           };
 
           const refreshList = async () => {
@@ -279,9 +367,13 @@ function CustomerPage({ id }) {
 
           try {
             await removeRelation();
+            await deleteRelatedNotifications(); // เพิ่มการลบ notification
             await deleteCustomerProfile();
             await deleteUser();
-            await refreshList();
+
+            // อัปเดต UI ให้ตอบสนองทันที แล้วค่อยรีเฟรชรายการแบบ background
+            setCustomerList((prev) => prev.filter((c) => c.id !== customerId));
+            refreshList().catch(() => {});
 
             Modal.success({ content: "ลบลูกค้าและบัญชีผู้ใช้สำเร็จ" });
             resolve();
@@ -299,27 +391,55 @@ function CustomerPage({ id }) {
   // console.log('Current documentId:', documentId);
 
   return (
-    <div className="customerpage-bg">
-      <ToastContainer />
+    <div className="min-h-screen bg-slate-50 flex flex-col font-prompt">
       <HomeHeader pharmacyName={pharmacy?.name_th || pharmacy?.name_en || ''} />
-      <main className="customerpage-main">
-        <div className="customerpage-container">
-          <div className="customerpage-header-row">
-            <h2 className="customerpage-title">ลูกค้าประจำร้านยา:</h2>
+      
+      <main className="flex-grow container mx-auto px-4 py-8 max-w-6xl">
+        {/* Header Section */}
+        <div className="relative overflow-hidden bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/60 p-8 mb-10 border border-slate-100">
+          <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
+            <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10 font-prompt">
+            <div className="space-y-1">
+              <div className="inline-flex items-center px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold tracking-wider uppercase mb-2">
+                Customer Management
+              </div>
+              <h2 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                ลูกค้าประจำร้านยา
+              </h2>
+              <p className="text-slate-400 font-medium">จัดการข้อมูลผู้ป่วยและประวัติการรักษาในระบบของคุณ</p>
+            </div>
+            
             <button
-              className="customerpage-add-btn"
+              className="group relative px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:shadow-indigo-200 transition-all duration-300 active:scale-95 flex items-center justify-center gap-3 overflow-hidden"
               onClick={() => navigate(`/form_customer?pharmacyId=${documentId}`)}
             >
-              เพิ่มลูกค้า
+              <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+              <span>เพิ่มข้อมูลลูกค้าใหม่</span>
             </button>
           </div>
-          {/* แสดงรายการลูกค้า */}
-          {customerList.length === 0 ? (
-            <div className="no-customers-message">
-              ไม่พบข้อมูลลูกค้าในร้านยานี้
+        </div>
+
+        {/* Customer List Grid */}
+        {customerList.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-200 shadow-sm font-prompt">
+            <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-slate-300 mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>
             </div>
-          ) : (
-            customerList.map(customer => {
+            <h3 className="text-xl font-black text-slate-800 mb-2">ไม่พบข้อมูลลูกค้า</h3>
+            <p className="text-slate-400 font-medium max-w-xs text-center leading-relaxed">
+              ยังไม่มีการบันทึกข้อมูลลูกค้าในร้านรายนี้ คุณสามารถเริ่มเพิ่มลูกค้าได้โดยกดที่ปุ่มด้านบน
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 font-prompt">
+            {customerList.map(customer => {
               const user = customer.users_permissions_user?.data?.attributes || customer.users_permissions_user || customer.attributes?.users_permissions_user;
               const customerDocumentId = customer.documentId || customer.attributes?.documentId;
               const userId = 
@@ -328,129 +448,150 @@ function CustomerPage({ id }) {
                 customer.users_permissions_user?.id ||
                 customer.attributes?.users_permissions_user?.id ||
                 null;
-              const customerName = user?.full_name || 'ลูกค้า';
+              const customerName = user?.full_name || customer.temp_full_name || customer.attributes?.temp_full_name || 'ลูกค้า';
               const followUpDate = customer.Follow_up_appointment_date || customer.attributes?.Follow_up_appointment_date;
+              const congenitalDisease = customer.congenital_disease || customer.attributes?.congenital_disease;
+              const allergicDrugs = customer.Allergic_drugs || customer.attributes?.Allergic_drugs;
 
               return (
-                <div className="modern-customer-card" key={customer.id}>
-                  {/* Header Section */}
-                  <div className="card-header">
-                    <div className="customer-avatar-modern">
-                      <div className="avatar-circle">
-                        {(user?.full_name?.charAt(0) || 'C').toUpperCase()}
+                <div 
+                  key={customer.id} 
+                  className="bg-white rounded-[2.5rem] p-8 shadow-md hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border border-slate-100 flex flex-col h-full"
+                >
+                  {/* Header */}
+                  <div className="flex items-start gap-5 mb-6">
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-2xl bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center text-2xl font-black text-indigo-600 shadow-inner">
+                        {(customerName.charAt(0) || 'C').toUpperCase()}
                       </div>
-                      <div className="customer-status-badge active">
-                        ●
-                      </div>
+                      {user && (
+                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
+                          <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+                        </div>
+                      )}
                     </div>
-                    <div className="customer-basic-info">
-                      <h3 className="customer-name-modern">
-                        {user?.full_name || 'ไม่พบชื่อ'}
+                    <div className="flex-grow min-w-0">
+                      <h3 className="text-xl font-black text-slate-800 truncate leading-tight mb-0.5">
+                        {customerName}
                       </h3>
-                      <p className="customer-username">
-                        @{user?.username || 'user'}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">UID:</span>
+                        <span className="text-xs font-black text-indigo-500/80 bg-indigo-50 px-2 py-0.5 rounded-md truncate">
+                          {user?.username || 'Manual Record'}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Content Section */}
-                  <div className="card-content">
-                    <div className="info-grid">
-                      <div className="info-item">
-                        <div className="info-icon phone">📞</div>
-                        <div className="info-text">
-                          <span className="info-label">เบอร์โทร</span>
-                          <span className="info-value">{user?.phone || 'ไม่ระบุ'}</span>
+                  {/* Info Content */}
+                  <div className="space-y-4 flex-grow mb-8">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 group hover:bg-white hover:border-indigo-100 transition-all">
+                        <div className="flex items-center gap-2 text-slate-400 mb-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                          <span className="text-[10px] font-black uppercase tracking-wider">เบอร์โทรศัพท์</span>
                         </div>
+                        <p className="text-sm font-bold text-slate-700">{user?.phone || customer.temp_phone || customer.attributes?.temp_phone || 'ไม่ระบุ'}</p>
                       </div>
-                      
-                      <div className="info-item">
-                        <div className="info-icon email">✉️</div>
-                        <div className="info-text">
-                          <span className="info-label">อีเมล</span>
-                          <span className="info-value">{user?.email || 'ไม่ระบุ'}</span>
+                      <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 group hover:bg-white hover:border-indigo-100 transition-all">
+                        <div className="flex items-center gap-2 text-slate-400 mb-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                          <span className="text-[10px] font-black uppercase tracking-wider">อีเมล</span>
                         </div>
+                        <p className="text-sm font-bold text-slate-700 truncate">{user?.email || 'ไม่มีบัญชี'}</p>
                       </div>
+                    </div>
 
-                      {/* Medical Info */}
-                      {(customer.congenital_disease || customer.attributes?.congenital_disease) && (
-                        <div className="info-item medical">
-                          <div className="info-icon medical">🏥</div>
-                          <div className="info-text">
-                            <span className="info-label">โรคประจำตัว</span>
-                            <span className="info-value">
-                              {customer.congenital_disease || customer.attributes?.congenital_disease}
-                            </span>
+                    {/* Medical Section */}
+                    <div className="space-y-3">
+                      {congenitalDisease && (
+                        <div className="flex items-start gap-4 p-4 bg-amber-50/40 rounded-2xl border border-amber-100/50">
+                          <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest leading-none block mb-1">โรคประจำตัว</span>
+                            <p className="text-sm font-bold text-amber-900 leading-tight">{congenitalDisease}</p>
                           </div>
                         </div>
                       )}
 
-                      {(customer.Allergic_drugs || customer.attributes?.Allergic_drugs) && (
-                        <div className="info-item allergy">
-                          <div className="info-icon allergy">⚠️</div>
-                          <div className="info-text">
-                            <span className="info-label">ยาที่แพ้</span>
-                            <span className="info-value">
-                              {customer.Allergic_drugs || customer.attributes?.Allergic_drugs}
-                            </span>
+                      {(() => {
+                        const allergyText = formatAllergy(allergicDrugs);
+                        if (!allergyText || allergyText === 'ไม่มีข้อมูล') return null;
+                        
+                        return (
+                          <div className="flex items-start gap-4 p-4 bg-rose-50/40 rounded-2xl border border-rose-100/50">
+                            <div className="w-8 h-8 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest leading-none block mb-1">ยาที่แพ้</span>
+                              <p className="text-sm font-black text-rose-900 leading-tight">{allergyText}</p>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
 
                     {/* Appointment Section */}
                     {followUpDate && (
-                      <div className="appointment-section">
-                        <div className="appointment-badge">
-                          <span className="appointment-icon">📅</span>
-                          <span className="appointment-text">
-                            นัดครั้งถัดไป: <strong>{formatThaiDate(followUpDate)}</strong>
-                          </span>
+                      <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white border border-emerald-100 flex items-center justify-center text-emerald-500 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none block mb-1">นัดหมายถัดไป</span>
+                            <p className="text-sm font-black text-emerald-900">{formatThaiDate(followUpDate)}</p>
+                          </div>
                         </div>
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></div>
                       </div>
                     )}
                   </div>
 
-                  {/* Footer Actions */}
-                  <div className="card-footer">
+                  {/* Actions */}
+                  <div className="mt-auto grid grid-cols-2 gap-3 pt-6 border-t border-slate-50">
                     <button
-                      className="btn-modern btn-primary"
+                      className="flex items-center justify-center gap-2 px-4 py-3.5 bg-indigo-50 text-indigo-700 font-black rounded-2xl hover:bg-indigo-100 transition-all active:scale-95 group"
                       onClick={() => {
                         if (!customerDocumentId) {
                           toast.error("ไม่พบข้อมูลลูกค้า ไม่สามารถดูรายละเอียดได้");
                           return;
                         }
-                        navigate(`/customer_detail/${customerDocumentId}?pharmacyId=${documentId}`);
+                        navigate(`/drug_store_pharmacy/${documentId}/customer/${customerDocumentId}/history?pharmacyId=${documentId}`);
                       }}
                     >
-                      <span className="btn-icon">👁️</span>
-                      <span className="btn-text">ดูรายละเอียด</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                      ดูรายละเอียด
                     </button>
                     
                     <button 
-                      className="btn-modern btn-danger"
+                      className="flex items-center justify-center gap-2 px-4 py-3.5 bg-rose-50 text-rose-600 font-black rounded-2xl hover:bg-rose-100 transition-all active:scale-95 group"
                       onClick={() => deleteCustomer(customer.id, customerDocumentId, userId, customerName)}
                     >
-                      <span className="btn-icon">🗑️</span>
-                      <span className="btn-text">ลบ</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-12 transition-transform"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                      ลบข้อมูล
                     </button>
                   </div>
                 </div>
               );
-            })
-          )}
-          
-          <div className="back-button-container">
-            <button
-              className="back-button"
-              onClick={() => navigate("/pharmacyHome")}
-            >
-              กลับ
-            </button>
+            })}
           </div>
+        )}
+        
+        <div className="mt-12 flex justify-center pb-10">
+          <button
+            className="group flex items-center gap-3 px-10 py-4 bg-white text-slate-500 font-black rounded-[2rem] shadow-sm border border-slate-100 hover:text-slate-800 hover:shadow-lg hover:border-slate-200 transition-all duration-300 active:scale-95"
+            onClick={() => navigate("/pharmacyHome")}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-x-1 transition-transform"><path d="m15 18-6-6 6-6"/></svg>
+            กลับสู่หน้าหลัก
+          </button>
         </div>
       </main>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 }

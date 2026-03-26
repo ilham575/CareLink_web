@@ -4,4 +4,6 @@ module.exports = {
     maxLimit: 100,
     withCount: true,
   },
+  // Prevent response size issues
+  responseLimit: '10mb',
 };

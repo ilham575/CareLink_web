@@ -1,0 +1,43 @@
+/* แท็กรายละเอียดแพ้ยา */
+.allergy-detail-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  background: #fff1f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.allergy-date-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  background: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.edit-btn-allergy {
+  background: linear-gradient(135deg, #faad14, #f5a623);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.edit-btn-allergy:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(250, 173, 20, 0.3);
+}

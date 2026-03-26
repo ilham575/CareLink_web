@@ -23,9 +23,6 @@
     "congenital_disease": {
       "type": "text"
     },
-    "Allergic_drugs": {
-      "type": "text"
-    },
     "Customers_symptoms": {
       "type": "text"
     },
@@ -55,6 +52,46 @@
       "relation": "manyToOne",
       "target": "api::staff-profile.staff-profile",
       "inversedBy": "assigned_customers"
+    },
+    "pharmacy_profile": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::pharmacy-profile.pharmacy-profile",
+      "inversedBy": "customer_profiles"
+    },
+    "Allergic_drugs": {
+      "type": "json"
+    },
+    "telegramChatId": {
+      "type": "string"
+    },
+    "medication_schedules": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::medication-schedule.medication-schedule",
+      "mappedBy": "customer"
+    },
+    "morning_meal_time": {
+      "type": "string",
+      "default": "08:00"
+    },
+    "lunch_meal_time": {
+      "type": "string",
+      "default": "12:00"
+    },
+    "evening_meal_time": {
+      "type": "string",
+      "default": "18:00"
+    },
+    "bedtime_time": {
+      "type": "string",
+      "default": "21:00"
+    },
+    "temp_full_name": {
+      "type": "string"
+    },
+    "temp_phone": {
+      "type": "string"
     }
   }
 }

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/home.css';
-import Footer from '../../components/footer';
+// Footer is rendered globally in App.js
 import { API } from '../../../utils/apiConfig';
 
-function PharmacyItem({ id, documentId, name_th, address, time_open, time_close, phone_store, photo_front }) {
+function PharmacyItem({ id, documentId, name_th, address, time_open, time_close, phone_store, photo_front, customerProfileDoc, onViewProfile }) {
   const navigate = useNavigate();
 
   const getImageUrl = (photo) => {
@@ -54,10 +54,20 @@ function PharmacyItem({ id, documentId, name_th, address, time_open, time_close,
       <div className="pharmacy-actions">
         <button
           className="detail-button"
-          style={{ background: '#4CAF50', width: '120px' }}
+          style={{ background: '#4CAF50', width: '130px' }}
           onClick={handleClick}
         >
-          ดู<br />ข้อมูลของร้าน
+          🏥 ดูข้อมูลร้าน
+        </button>
+        <button
+          className="detail-button"
+          style={{ background: '#2196F3', width: '130px' }}
+          onClick={() => {
+            const profileDoc = customerProfileDoc.attributes || customerProfileDoc;
+            navigate(`/customer/visit-history/${profileDoc.documentId}?pharmacyId=${documentId || id}`);
+          }}
+        >
+          📜 ประวัติการรักษา
         </button>
       </div>
     </div>
@@ -70,10 +80,16 @@ function CustomerHome() {
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
-  const [userId, setUserId] = useState(null);
   const [customerProfile, setCustomerProfile] = useState(null);
 
   const token = localStorage.getItem('jwt');
+
+  const handleViewProfile = () => {
+    if (customerProfile) {
+      const profileDoc = customerProfile.attributes || customerProfile;
+      navigate(`/customer_detail_view/${profileDoc.documentId}`);
+    }
+  };
 
   useEffect(() => {
     if (location.state?.showToast) {
@@ -81,96 +97,109 @@ function CustomerHome() {
     }
   }, [location.state]);
 
-  // ขั้นตอนที่ 1: ดึง user.id จาก /api/users/me
+  // ขั้นตอนที่ 1: ดึงข้อมูลลูกค้าและเก็บ customer profile
   useEffect(() => {
     if (!token) {
+      console.warn('⚠️ No token found');
       setLoading(false);
       return;
     }
 
-    fetch(API.users.list(), {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(userData => {
-        setUserId(userData.id);
-      })
-      .catch(err => {
-        console.error('❌ Error fetching user:', err);
-        setLoading(false);
-      });
-  }, [token]);
-
-  // ขั้นตอนที่ 2: ดึง customer profile โดยใช้ user.id
-  useEffect(() => {
-    if (!token || !userId) {
-      return;
-    }
-
-    const profilesUrl = API.customerProfiles.list(`filters[users_permissions_user][id][$eq]=${userId}&populate=drug_stores`);
-
-    fetch(profilesUrl, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => { 
-        if (data.data && data.data.length > 0) {
-          setCustomerProfile(data.data[0]);
+    const fetchCustomerData = async () => {
+      try {
+        // ดึง user ปัจจุบัน
+        console.log('📡 Fetching current user...');
+        const userRes = await fetch(API.users.me(), {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (!userRes.ok) throw new Error(`User fetch failed: ${userRes.status}`);
+        const userData = await userRes.json();
+        console.log('✅ User data:', userData);
+        
+        const currentUserId = userData.id;
+        if (!currentUserId) throw new Error('No user ID found');
+        
+        // ดึง customer profile พร้อม drug_stores
+        console.log('📡 Fetching customer profile for userId:', currentUserId);
+        const profileRes = await fetch(
+          `${API.BASE_URL}/api/customer-profiles?filters[users_permissions_user][id][$eq]=${currentUserId}&populate[0]=drug_stores&populate[1]=drug_stores.photo_front`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        if (!profileRes.ok) throw new Error(`Profile fetch failed: ${profileRes.status}`);
+        const profileData = await profileRes.json();
+        console.log('📊 Profile response:', profileData);
+        
+        if (profileData.data && profileData.data.length > 0) {
+          const profile = profileData.data[0];
+          console.log('✅ Found customer profile');
+          console.log('🏪 Followed stores:', profile.drug_stores || profile.attributes?.drug_stores);
+          setCustomerProfile(profile);
+        } else {
+          console.warn('⚠️ No customer profile found for this user');
+          setLoading(false);
         }
-      })
-      .catch(err => {
-        console.error('❌ Error fetching customer profile:', err);
-      });
-  }, [token, userId]);
+      } catch (err) {
+        console.error('❌ Error fetching customer data:', err);
+        setLoading(false);
+      }
+    };
+
+    fetchCustomerData();
+  }, [token]);
 
   // ขั้นตอนที่ 3: ดึงข้อมูลร้านยาที่ลูกค้าติดตาม
   useEffect(() => {
-    if (!customerProfile || !customerProfile.drug_stores) {
+    if (!customerProfile) {
       setLoading(false);
       return;
     }
 
     const loadFollowedPharmacies = async () => {
       try {
-        // ดึงข้อมูลร้านยาที่อยู่ใน customer profile
-        const followedStoreIds = customerProfile.drug_stores.map(store => store.id);
+        // Handle both nested (attributes) and flattened structure
+        const profileData = customerProfile.attributes || customerProfile;
+        const followedStores = profileData.drug_stores;
         
-        if (followedStoreIds.length === 0) {
+        console.log('🏪 Followed stores from profile:', followedStores);
+
+        if (!followedStores || followedStores.length === 0) {
+          console.warn('⚠️ No followed stores found');
           setPharmacies([]);
           setLoading(false);
           return;
         }
 
         // ดึงข้อมูลร้านยาเฉพาะที่ติดตาม
-        const res = await fetch(API.drugStores.list(), {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        const pharmaciesData = followedStores.map(store => {
+          // Handle both nested data structure and flattened structure
+          const storeData = store.attributes || store;
+          console.log('🏬 Processing store:', storeData.name_th, 'photo_front:', storeData.photo_front);
+          return {
+            documentId: store.documentId || storeData.documentId,
+            id: store.id,
+            name_th: storeData.name_th,
+            name_en: storeData.name_en,
+            address: storeData.address,
+            time_open: formatTime(storeData.time_open),
+            time_close: formatTime(storeData.time_close),
+            phone_store: storeData.phone_store,
+            photo_front: storeData.photo_front,
+            photo_in: storeData.photo_in,
+            photo_staff: storeData.photo_staff,
+            services: storeData.services || {},
+            type: storeData.type,
+            license_number: storeData.license_number,
+            license_doc: storeData.license_doc,
+            link_gps: storeData.link_gps,
+          };
         });
 
-        if (!res.ok) throw new Error("ไม่สามารถโหลดร้านยาได้");
-
-        const data = await res.json();
-        const pharmaciesFromAPI = (data.data || []).map(store => ({
-          documentId: store.documentId,
-          id: store.id,
-          name_th: store.name_th,
-          name_en: store.name_en,
-          address: store.address,
-          time_open: formatTime(store.time_open),
-          time_close: formatTime(store.time_close),
-          phone_store: store.phone_store,
-          photo_front: store.photo_front,
-          photo_in: store.photo_in,
-          photo_staff: store.photo_staff,
-          services: store.services || {},
-          type: store.type,
-          license_number: store.license_number,
-          license_doc: store.license_doc,
-          link_gps: store.link_gps,
-        }));
-
-        setPharmacies(pharmaciesFromAPI);
+        console.log('✅ Processed pharmacies:', pharmaciesData.length, 'stores');
+        setPharmacies(pharmaciesData);
       } catch (err) {
-        console.error("API error:", err);
+        console.error("❌ Error loading followed pharmacies:", err);
         toast.error("ไม่สามารถโหลดข้อมูลร้านยาได้");
         setPharmacies([]);
       } finally {
@@ -179,7 +208,7 @@ function CustomerHome() {
     };
 
     loadFollowedPharmacies();
-  }, [token, customerProfile]);
+  }, [customerProfile]);
 
   const filteredPharmacies = pharmacies.filter(pharmacy =>
     pharmacy.name_th?.toLowerCase().includes(searchText.toLowerCase())
@@ -187,7 +216,6 @@ function CustomerHome() {
 
   return (
     <div className="app-container">
-      <ToastContainer />
       <HomeHeader isLoggedIn={true} onSearch={setSearchText} />
       <main className="main-content">
         <h2 style={{ margin: '20px 0', color: '#333' }}>ร้านยาที่กำลังติดตามคุณ:</h2>
@@ -212,13 +240,14 @@ function CustomerHome() {
             {filteredPharmacies.map(pharmacy => (
               <PharmacyItem
                 {...pharmacy}
+                customerProfileDoc={customerProfile}
+                onViewProfile={handleViewProfile}
                 key={pharmacy.documentId || pharmacy.id}
               />
             ))}
           </>
         )}
       </main>
-      <Footer />
     </div>
   );
 }

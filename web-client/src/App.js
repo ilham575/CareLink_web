@@ -3,8 +3,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocat
 import DrugStoreDetail from './js/pages/default/DrugStoreDetail';
 import LoginPage from './js/pages/default/signin';
 import Signup from './js/pages/default/Signup';
+import ForgotPassword from './js/pages/default/ForgotPassword';
+import ResetPassword from './js/pages/default/ResetPassword';
 import './css/theme.css';
 import './App.css';
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AdminHome from './js/pages/admin/home';
 import PharmacyHome from './js/pages/pharmacy/home';
@@ -32,24 +35,53 @@ import DrugStoresDetailStaff from './js/pages/staff/DrugStoresDetail_staff';
 import EditStaffProfile from './js/pages/staff/editStaffProfile';
 import FormCustomerPage from './js/components/middle_page/formcustomerPage';
 import CustomerDetail from './js/pages/pharmacy/detail_customer';
+import DrugStoresDetail_customer from './js/pages/customer/DrugStoresDetail_customer';
+import CustomerDetail_customer from './js/pages/customer/CustomerDetail_customer';
+import CustomerVisitHistory from './js/pages/customer/CustomerVisitHistory';
+import EditSymptomsCustomer from './js/pages/customer/EditSymptoms_customer';
+import EditProfileCustomer from './js/pages/customer/EditProfile_customer';
+import PrintTransferForm from './js/pages/pharmacy/PrintTransferForm';
+import PrintAllergyCard from './js/pages/pharmacy/PrintAllergyCard';
 import RoleBasedRedirect from './js/utils/rolebasedredirect';
+import VisitHistory from './js/pages/pharmacy/VisitHistory';
+import StaffVisitHistory from './js/pages/staff/StaffVisitHistory';
 import 'antd/dist/reset.css';
 import { API } from './utils/apiConfig';
+import useNotificationListener from './hooks/useNotificationListener';
 
-// Override console.log to disable all console.log calls
-// console.log('🔗 API Base URL:', API.BASE_URL);
-console.log = () => {};
+// Override console.log based on environment/branch
+const isDevelopBranch = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+if (isDevelopBranch) {
+  console.log('🔗 API Base URL:', API.BASE_URL);
+  // console.log = () => {};
+} else {
+  // console.log('🔗 API Base URL:', API.BASE_URL);
+  console.log = () => {};
+}
 
 function App() {
+  // Hook for medication reminders
+  const getUser = () => {
+    try {
+        const userStr = localStorage.getItem('user');
+        return userStr ? JSON.parse(userStr) : null;
+    } catch (e) { return null; }
+  };
+  const user = getUser();
+  useNotificationListener(user?.id);
+
   return (
     <Router>
-      <div className="App">
+      <div className="App min-h-screen flex flex-col">
+        <div className="flex-1">
         <Routes>
           {/* Root path - จะ redirect ตาม role หรือแสดง Home */}
           <Route path="/" element={<RoleBasedRedirect />} />
           
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/drug_store/:id" element={<DrugStoreDetail />} />
           
           {/* -------------------- ADMIN -------------------- */}
@@ -69,6 +101,10 @@ function App() {
           <Route element={<RequireRole role="pharmacy" />}>
             <Route path="/pharmacyHome" element={<PharmacyHome />} />
             <Route path="/drug_store_pharmacy/:id" element={<DrugStoresDetailPharmacist />} />
+            <Route 
+              path="/drug_store_pharmacy/:pharmacyId/customer/:customerDocumentId/history" 
+              element={<VisitHistory />} 
+            />
           </Route>
 
           {/* -------------------- STAFF -------------------- */}
@@ -76,6 +112,10 @@ function App() {
             <Route path="/staffHome" element={<StaffHome />} />
             <Route path="/drug_store_staff_detail/:id" element={<DrugStoresDetailStaff />} />
             <Route path="/drug_store_staff/:id/customers" element={<CustomerPageStaff />} />
+            <Route 
+              path="/drug_store_staff/:pharmacyId/customer/:customerDocumentId/history" 
+              element={<StaffVisitHistory />} 
+            />
             <Route path="/staff/customer_detail/:customerDocumentId" element={<CustomerDetailStaff />} />
             <Route path="/edit_staff_profile" element={<EditStaffProfile />} />
           </Route>
@@ -83,6 +123,11 @@ function App() {
           {/* -------------------- CUSTOMER -------------------- */}
           <Route element={<RequireRole role="customer" />}>
             <Route path="/customerHome" element={<CustomerHome />} />
+            <Route path="/drug_store_customer/:id" element={<DrugStoresDetail_customer />} />
+            <Route path="/customer_detail_view/:customerDocumentId" element={<CustomerDetail_customer />} />
+            <Route path="/customer/visit-history/:customerDocumentId" element={<CustomerVisitHistory />} />
+            <Route path="/customer/edit_symptoms/:customerDocumentId" element={<EditSymptomsCustomer />} />
+            <Route path="/customer/edit_profile" element={<EditProfileCustomer />} />
           </Route>
 
           {/* -------------------- STAFF MANAGEMENT -------------------- */}
@@ -104,9 +149,14 @@ function App() {
             <Route path="/form_customer" element={<FormCustomerPage />} />
             <Route path="/form_customer/:id" element={<FormCustomerPage />} />
             <Route path="/customer_detail/:customerDocumentId" element={<CustomerDetail />} />
+            <Route path="/print_transfer_form/:customerDocumentId" element={<PrintTransferForm />} />
+            <Route path="/print_allergy_card/:customerDocumentId" element={<PrintAllergyCard />} />
           </Route>
         </Routes>
+        </div>
         <Footer />
+        {/* Global Toast Container to persist across navigation */}
+        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnHover />
       </div>
     </Router>
   );

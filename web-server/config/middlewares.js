@@ -1,19 +1,44 @@
 module.exports = [
   'strapi::errors',
   {
-    name: 'strapi::cors',
+    name: 'strapi::security',
     config: {
-      origin: ['*'],
-      methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-      headers: [
-        'Content-Type',
-        'Authorization',
-        'Cache-Control',
-      ],
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          'connect-src': ["'self'", 'https:'],
+          'img-src': ["'self'", 'data:', 'blob:', 'https:', 'storage.googleapis.com', 'storage.cloud.google.com'],
+          'media-src': ["'self'", 'data:', 'blob:', 'https:', 'storage.googleapis.com', 'storage.cloud.google.com'],
+          upgradeInsecureRequests: null,
+        },
+      },
     },
   },
-  'strapi::security',
+  {
+    name: 'strapi::cors',
+    config: {
+      origin: [
+        'https://carelink-web-489111.web.app',
+        'https://carelink-web-489111.firebaseapp.com',
+        'https://carelink-server-j7mi5c6znq-as.a.run.app',
+        // เพิ่ม custom domain ถ้ามี เช่น 'https://carelink.yourdomain.com',
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:5173'
+      ],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
+      headers: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'Cache-Control'],
+      keepHeaderOnError: true,
+    },
+  },
   'strapi::poweredBy',
+  {
+    name: 'strapi::compression',
+    config: {
+      gzip: true,
+      br: true,
+    },
+  },
   'strapi::logger',
   'strapi::query',
   {
@@ -23,7 +48,7 @@ module.exports = [
       jsonLimit: '256mb',
       textLimit: '256mb',
       formidable: {
-        maxFileSize: 50 * 1024 * 1024,
+        maxFileSize: 250 * 1024 * 1024, // 250MB
       },
     },
   },

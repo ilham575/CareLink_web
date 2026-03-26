@@ -5,12 +5,13 @@ body {
 }
 
 .detail-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   padding: 0;
   margin: 0;
   background: var(--bg-card);
   border-radius: var(--radius-lg);
-  /* max-width: 900px; */
-  /* margin: 32px auto; */
   box-shadow: var(--shadow-lg);
 }
 

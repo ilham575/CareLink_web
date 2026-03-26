@@ -53,10 +53,11 @@ export const API = {
   // ==================
   drugStores: {
     list: (filters = '') => `${BASE_URL}/api/drug-stores?${filters}`,
-    listWithPhotos: () => `${BASE_URL}/api/drug-stores?populate[0]=pharmacy_profiles&populate[1]=photo_front&populate[2]=photo_in&populate[3]=photo_staff`,
-    getById: (id) => `${BASE_URL}/api/drug-stores/${id}?populate[0]=pharmacy_profiles&populate[1]=photo_front&populate[2]=photo_in&populate[3]=photo_staff`,
+    // Populate pharmacy_profiles and staff_profiles with nested users so UI can show pharmacist/staff names
+    listWithPhotos: () => `${BASE_URL}/api/drug-stores?populate[0]=pharmacy_profiles&populate[1]=pharmacy_profiles.users_permissions_user&populate[2]=staff_profiles&populate[3]=staff_profiles.users_permissions_user&populate[4]=photo_front&populate[5]=photo_in&populate[6]=photo_staff`,
+    getById: (id) => `${BASE_URL}/api/drug-stores/${id}?populate[0]=pharmacy_profiles&populate[1]=pharmacy_profiles.users_permissions_user&populate[2]=staff_profiles&populate[3]=staff_profiles.users_permissions_user&populate[4]=photo_front&populate[5]=photo_in&populate[6]=photo_staff`,
     getByIdFull: (id) => `${BASE_URL}/api/drug-stores/${id}?populate=*`,
-    getByDocumentId: (documentId) => `${BASE_URL}/api/drug-stores?filters[documentId][$eq]=${documentId}&populate[0]=pharmacy_profiles&populate[1]=photo_front&populate[2]=photo_in&populate[3]=photo_staff`,
+    getByDocumentId: (documentId) => `${BASE_URL}/api/drug-stores?filters[documentId][$eq]=${documentId}&populate[0]=pharmacy_profiles&populate[1]=pharmacy_profiles.users_permissions_user&populate[2]=staff_profiles&populate[3]=staff_profiles.users_permissions_user&populate[4]=photo_front&populate[5]=photo_in&populate[6]=photo_staff`,
     listFiltered: (filterObj = {}) => {
       const params = new URLSearchParams();
       Object.entries(filterObj).forEach(([key, value]) => {
@@ -85,6 +86,8 @@ export const API = {
     getByDocumentId: (documentId) => `${BASE_URL}/api/pharmacy-profiles?filters[documentId][$eq]=${documentId}`,
     getByUserDocumentId: (userDocumentId) => 
       `${BASE_URL}/api/pharmacy-profiles?filters[users_permissions_user][documentId][$eq]=${userDocumentId}&populate=*`,
+    getByUserId: (userId) => 
+      `${BASE_URL}/api/pharmacy-profiles?filters[users_permissions_user][id][$eq]=${userId}&populate=*`,
     listFiltered: (filterObj = {}) => {
       const params = new URLSearchParams();
       params.append('populate', '*');
@@ -180,14 +183,20 @@ export const API = {
     list: (filters = '') => `${BASE_URL}/api/notifications?${filters}`,
     listAll: () => `${BASE_URL}/api/notifications?populate=*`,
     getById: (id) => `${BASE_URL}/api/notifications/${id}?populate=*`,
-    getByDocumentId: (documentId) => `${BASE_URL}/api/notifications?filters[documentId][$eq]=${documentId}`,
+    getByDocumentId: (documentId) => `${BASE_URL}/api/notifications/${documentId}?populate=*`,
+    // Lightweight polling: only fetch status fields, no relations
+    getStatusOnly: (documentId) => `${BASE_URL}/api/notifications/${documentId}?fields[0]=staff_work_status&fields[1]=type&fields[2]=data&fields[3]=is_read`,
     getStaffAssignments: (staffDocumentId, customerDocumentId) => 
       `${BASE_URL}/api/notifications?filters[staff_profile][documentId][$eq]=${staffDocumentId}&filters[customer_profile][documentId][$eq]=${customerDocumentId}&filters[type][$eq]=customer_assignment&populate[]=staff_profile&populate[]=pharmacy_profile&populate[]=drug_store&populate[]=customer_profile`,
+    getStaffAssignmentsLight: (staffDocumentId, customerDocumentId) =>
+      `${BASE_URL}/api/notifications?filters[staff_profile][documentId][$eq]=${staffDocumentId}&filters[customer_profile][documentId][$eq]=${customerDocumentId}&filters[type][$eq]=customer_assignment&fields[0]=staff_work_status&fields[1]=type&fields[2]=is_read&sort[0]=createdAt:desc&pagination[limit]=1`,
     getCustomerNotifications: (customerDocumentId) =>
-      `${BASE_URL}/api/notifications?filters[$or][0][type][$eq]=customer_assignment&filters[$or][1][type][$eq]=customer_assignment_update&filters[customer_profile][documentId][$eq]=${customerDocumentId}&sort=createdAt:desc&pagination[limit]=1`,
+      `${BASE_URL}/api/notifications?filters[$or][0][type][$eq]=customer_assignment&filters[$or][1][type][$eq]=customer_assignment_update&filters[customer_profile][documentId][$eq]=${customerDocumentId}&sort=updatedAt:desc&pagination[limit]=1&populate=*`,
     create: () => `${BASE_URL}/api/notifications`,
+    assignToStaff: () => `${BASE_URL}/api/notifications/assign-to-staff`,
     update: (id) => `${BASE_URL}/api/notifications/${id}`,
-    delete: (id) => `${BASE_URL}/api/notifications/${id}`,
+    updateByDocumentId: (documentId) => `${BASE_URL}/api/notifications/${documentId}`,
+    delete: (documentId) => `${BASE_URL}/api/notifications/${documentId}`,
   },
 
   // ==================
@@ -213,6 +222,7 @@ export const API = {
     },
     create: () => `${BASE_URL}/api/admin-profiles`,
     update: (id) => `${BASE_URL}/api/admin-profiles/${id}`,
+    updateByDocumentId: (documentId) => `${BASE_URL}/api/admin-profiles/${documentId}`,
     delete: (id) => `${BASE_URL}/api/admin-profiles/${id}`,
   },
 

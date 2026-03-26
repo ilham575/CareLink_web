@@ -16,33 +16,43 @@ module.exports = {
       
       // ลองหาด้วย documentId ก่อน
       if (fileId.length > 5 && isNaN(fileId)) {
-        file = await strapi.entityService.findMany('plugin::upload.file', {
-          filters: {
-            documentId: {
-              $eq: fileId
-            }
-          }
+        // ใน Strapi 5 ใช้ db.query หา documentId จะชัวร์กว่า
+        file = await strapi.db.query('plugin::upload.file').findOne({
+          where: { documentId: fileId }
         });
-        file = file?.[0];
+        
+        // ถ้ายังไม่เจอ ลองหาด้วย entityService (เผื่อเป็นรุ่นอื่น)
+        if (!file) {
+          const results = await strapi.entityService.findMany('plugin::upload.file', {
+            filters: {
+              documentId: {
+                $eq: fileId
+              }
+            }
+          });
+          file = results?.[0];
+        }
       } 
       
       // ถ้าหาไม่เจอ หรือไม่ใช่ documentId ให้หาด้วย ID
-      if (!file && !isNaN(fileId)) {
+      if (!file && !isNaN(parseInt(fileId))) {
         file = await strapi.entityService.findOne('plugin::upload.file', parseInt(fileId));
       }
       
       if (!file) {
         console.log('File not found in database for ID:', fileId);
-        return ctx.notFound('File not found');
+        return ctx.notFound('File not found in database');
       }
 
       console.log('File found in database:', {
         id: file.id,
+        documentId: file.documentId,
         name: file.name,
         hash: file.hash,
         ext: file.ext,
         provider: file.provider,
-        mime: file.mime
+        mime: file.mime,
+        url: file.url
       });
 
       // ถ้าเป็น local provider ให้หาไฟล์ที่มีอยู่จริง
@@ -104,11 +114,25 @@ module.exports = {
         } else {
           console.log('Uploads directory does not exist:', publicPath);
         }
+      } else if (file.url) {
+        // ถ้าเป็น provider อื่น (เช่น GCS) ให้ redirect ไปยัง URL ของไฟล์นั้นเลย
+        console.log('Redirecting to cloud storage URL:', file.url);
+        
+        // ตรวจสอบว่าเป็น URL สัมพัทธ์หรือไม่
+        let finalUrl = file.url;
+        if (file.url.startsWith('/')) {
+          // ถ้าเป็น local path ที่หลงมา หรือสัมพัทธ์ ให้พยายามสร้าง URL เต็ม
+          // แต่ปกติ GCS จะเป็น absolute URL อยู่แล้ว
+          const baseUrl = strapi.config.get('server.url', '');
+          finalUrl = baseUrl + file.url;
+        }
+        
+        return ctx.redirect(finalUrl);
       }
       
       // ถ้าหาไม่เจอ ส่ง 404
-      console.log('File not found on disk');
-      return ctx.notFound('File not found on disk');
+      console.log('File not found on disk/storage');
+      return ctx.notFound('File not found on disk or storage');
       
     } catch (error) {
       console.error('Error serving file:', error);

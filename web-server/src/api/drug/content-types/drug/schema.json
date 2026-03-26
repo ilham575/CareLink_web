@@ -20,17 +20,57 @@
     "description": {
       "type": "text"
     },
-    "lot_number": {
-      "type": "string"
-    },
-    "date_produced": {
-      "type": "string"
-    },
-    "expiry_date": {
-      "type": "string"
+    "manufacturer": {
+      "type": "string",
+      "description": "ชื่อยี่ห้า - ชื่อที่บริษัทตั้งขึ้นเพื่อจำหน่ายยา"
     },
     "price": {
-      "type": "string"
+      "type": "decimal"
+    },
+    "drug_unit": {
+      "type": "string",
+      "default": "tablet"
+    },
+    "drug_unit_custom": {
+      "type": "string",
+      "description": "ชื่อหน่วยกรณีเลือก other"
+    },
+    "suggested_time": {
+      "type": "time"
+    },
+    "take_morning": {
+      "type": "boolean",
+      "default": false
+    },
+    "take_lunch": {
+      "type": "boolean",
+      "default": false
+    },
+    "take_evening": {
+      "type": "boolean",
+      "default": false
+    },
+    "take_bedtime": {
+      "type": "boolean",
+      "default": false
+    },
+    "meal_relation": {
+      "type": "enumeration",
+      "enum": [
+        "before",
+        "after",
+        "with_meal",
+        "none"
+      ],
+      "default": "after"
+    },
+    "dosage_per_time": {
+      "type": "string",
+      "default": ""
+    },
+    "frequency_hours": {
+      "type": "integer",
+      "default": 0
     },
     "drug_store": {
       "type": "relation",

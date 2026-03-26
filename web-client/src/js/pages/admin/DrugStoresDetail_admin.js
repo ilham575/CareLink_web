@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import HomeHeader from '../../components/HomeHeader';
 import { formatTime } from '../../utils/time';
 import '../../../css/pages/default/pharmacyDetail.css';
-import Footer from '../../components/footer';
+// Footer is rendered globally in App.js
 import { API } from '../../../utils/apiConfig';
 
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1337';
@@ -166,7 +166,6 @@ function DrugStoresDetail_admin() {
         <div style={{ textAlign: 'center', marginTop: 50 }}>
           กำลังโหลดข้อมูล...
         </div>
-        <Footer />
       </div>
     );
   }
@@ -193,7 +192,6 @@ function DrugStoresDetail_admin() {
             กลับ
           </button>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -404,8 +402,6 @@ function DrugStoresDetail_admin() {
           กลับ
         </button>
       </div>
-
-      <Footer />
     </div>
   );
 }

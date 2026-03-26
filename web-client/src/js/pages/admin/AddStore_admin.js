@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from "react-router-dom";
 import HomeHeader from "../../components/HomeHeader";
 import { API } from "../../../utils/apiConfig";
@@ -7,6 +9,12 @@ function AddStore_admin() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false); // ✅ เพิ่ม loading state
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [mapData, setMapData] = useState({
+    name: '',
+    latitude: '',
+    longitude: ''
+  });
   const [formData, setFormData] = useState({
     name_th: "",
     name_en: "",
@@ -96,6 +104,71 @@ function AddStore_admin() {
 
   const handleBack = () => setStep(1);
 
+  // ฟังก์ชันเปิด Google Map Picker
+  const openMapPicker = () => {
+    setShowMapPicker(true);
+  };
+
+  // ฟังก์ชันปิด Google Map Picker
+  const closeMapPicker = () => {
+    setShowMapPicker(false);
+  };
+
+  // ฟังก์ชันเซ็ต Google Map Link
+  const setMapLink = () => {
+    if (mapData.latitude && mapData.longitude) {
+      // ใช้ query parameter format เพื่อให้ปักหมุดที่พิกัดที่ต้องการ
+      const gpsLink = `https://www.google.com/maps/search/${mapData.latitude}+${mapData.longitude}/@${mapData.latitude},${mapData.longitude},18z`;
+      setFormData({ ...formData, link_gps: gpsLink });
+      closeMapPicker();
+      toast.success('บันทึกพิกัดร้านยาเรียบร้อยแล้ว!');
+    } else {
+      toast.error('กรุณากำหนดพิกัดร้านยา');
+    }
+  };
+
+  // ฟังก์ชันรับพิกัดจาก Geolocation API ของเครื่อง
+  const getLocationFromDevice = () => {
+    if (!navigator.geolocation) {
+      toast.error('เบราว์เซอร์ของคุณไม่รองรับการหาพิกัด');
+      return;
+    }
+
+    toast.info('กำลังค้นหาพิกัด... (กรุณายอมรับการขออนุญาต)', { autoClose: false });
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setMapData({
+          ...mapData,
+          latitude: latitude.toFixed(4),
+          longitude: longitude.toFixed(4),
+          name: `พิกัดปัจจุบัน (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
+        });
+        toast.dismiss();
+        toast.success(`✓ พบพิกัด: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+      },
+      (error) => {
+        toast.dismiss();
+        if (error.code === error.PERMISSION_DENIED) {
+          toast.error('คุณปฏิเสธการเข้าถึงพิกัด กรุณาอนุญาตในการตั้งค่าเบราว์เซอร์');
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          toast.error('ไม่สามารถหาพิกัดได้ โปรดลองใหม่');
+        } else if (error.code === error.TIMEOUT) {
+          toast.error('หมดเวลาการหาพิกัด กรุณาลองใหม่');
+        } else {
+          toast.error('เกิดข้อผิดพลาดในการหาพิกัด');
+        }
+      }
+    );
+  };
+
+  // ฟังก์ชันรับพิกัดจาก Google Maps Embed
+  const handleMapClick = (e) => {
+    if (e.target.tagName === 'IFRAME') return; // ป้องกัน click บน iframe
+    // ใน real implementation จะต้องใช้ Google Maps API
+  };
+
   // ✅ ฟังก์ชันอัพโหลดรูปไป Strapi
   const uploadImageToStrapi = async (file) => {
     try {
@@ -166,9 +239,9 @@ function AddStore_admin() {
       const userData = await userRes.json();
       const currentUserId = userData.id;
 
-      // ดึง admin profile ของ user ปัจจุบัน
+      // ดึง admin profile ของ user ปัจจุบัน (รวม draft items ด้วย)
       const adminProfileRes = await fetch(
-        API.adminProfiles.list(`filters[users_permissions_user][id][$eq]=${currentUserId}`),
+        API.adminProfiles.list(`filters[users_permissions_user][id][$eq]=${currentUserId}&publicationState=preview`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const adminProfileData = await adminProfileRes.json();
@@ -209,7 +282,7 @@ function AddStore_admin() {
       console.log('📤 Step 1: Creating drug store...');
       console.log('📤 POST payload:', JSON.stringify(payload, null, 2));
 
-      const response = await fetch(API.drugStores.create(), {
+      const response = await fetch(`${API.drugStores.create()}?populate=admin_profile`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -224,7 +297,7 @@ function AddStore_admin() {
       console.log('✅ Step 1 Complete - Store created:', createdStoreDocumentId);
       console.log('📥 POST Response:', JSON.stringify(result, null, 2));
 
-      // Step 2: Link admin_profile ด้วย documentId
+      // Step 2: Link admin_profile using documentId (not numeric ID)
       if (createdStoreDocumentId && currentAdminProfileDocumentId) {
         console.log('📤 Step 2: Linking admin_profile with documentId...');
         
@@ -236,14 +309,15 @@ function AddStore_admin() {
         
         console.log('📤 PUT payload:', JSON.stringify(updatePayload, null, 2));
         
-        const updateRes = await fetch(
-          `${API.drugStores.update(createdStoreDocumentId)}`,
-          {
-            method: 'PUT',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatePayload),
-          }
-        );
+        // Add populate query to return the linked admin_profile in the response
+        // Include publicationState=preview to fetch draft/unpublished admin_profile items
+        const updateUrl = `${API.drugStores.update(createdStoreDocumentId)}?populate=admin_profile&publicationState=preview`;
+        
+        const updateRes = await fetch(updateUrl, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatePayload),
+        });
         
         if (updateRes.ok) {
           const updateResult = await updateRes.json();
@@ -256,7 +330,7 @@ function AddStore_admin() {
         }
       }
 
-      alert("บันทึกร้านขายยาเรียบร้อย!");
+      toast.success("บันทึกร้านขายยาเรียบร้อย!");
       // Force refresh หน้า adminHome
       navigate("/adminhome", { 
         state: { 
@@ -267,7 +341,7 @@ function AddStore_admin() {
 
     } catch (error) {
       console.error('Error creating pharmacy:', error);
-      alert(`เกิดข้อผิดพลาด: ${error.message}`);
+      toast.error(`เกิดข้อผิดพลาด: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -277,7 +351,9 @@ function AddStore_admin() {
     <>
       <HomeHeader />
       <div className="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6 mt-6">
-        <h2 className="text-2xl font-bold text-center mb-6 text-green-700">เพิ่มร้านขายยา</h2>
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-center mb-2 text-green-700">เพิ่มร้านขายยา</h2>
+        </div>
 
         {step === 1 && (
           <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -388,14 +464,28 @@ function AddStore_admin() {
             {/* Google map */}
             <div className="md:col-span-2">
               <label className="block font-semibold mb-1">Link Google Map*</label>
-              <input
-                type="text"
-                name="link_gps"
-                value={formData.link_gps}
-                onChange={handleChange}
-                className="w-full border rounded p-2"
-                required
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  name="link_gps"
+                  value={formData.link_gps}
+                  onChange={handleChange}
+                  className="flex-1 border rounded p-2"
+                  placeholder="https://www.google.com/maps/search/lat+lng/@lat,lng,18z"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={openMapPicker}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 whitespace-nowrap"
+                  title="เลือกสถานที่จาก Google Maps"
+                >
+                  📍 เลือก
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                หรือคลิกปุ่ม "เลือก" เพื่อเลือกสถานที่ใหม่
+              </p>
             </div>
 
             {/* ประเภทร้าน */}
@@ -462,7 +552,20 @@ function AddStore_admin() {
               </div>
             </div>
 
-            <div className="md:col-span-2 flex justify-end">
+            <div className="md:col-span-2 flex justify-between items-center">
+              <button
+                type="button"
+                className="bg-gray-500 text-white font-bold py-2 px-4 rounded hover:bg-gray-600"
+                onClick={() => {
+                  const role = localStorage.getItem('role');
+                  if (role === 'admin') navigate('/adminHome');
+                  else if (role === 'pharmacy') navigate('/pharmacyHome');
+                  else if (role === 'staff') navigate('/staffHome');
+                  else navigate(-1);
+                }}
+              >
+                กลับ
+              </button>
               <button
                 type="button"
                 className="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700"
@@ -532,15 +635,31 @@ function AddStore_admin() {
               </label>
             </div>
 
-            <div className="flex justify-between">
-              <button
-                type="button"
-                className="bg-gray-500 text-white font-bold py-2 px-6 rounded hover:bg-gray-600"
-                onClick={handleBack}
-                disabled={isSubmitting}
-              >
-                ย้อนกลับ
-              </button>
+            <div className="flex items-center justify-between">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="bg-gray-500 text-white font-bold py-2 px-6 rounded hover:bg-gray-600"
+                  onClick={() => {
+                    const role = localStorage.getItem('role');
+                    if (role === 'admin') navigate('/adminHome');
+                    else if (role === 'pharmacy') navigate('/pharmacyHome');
+                    else if (role === 'staff') navigate('/staffHome');
+                    else navigate(-1);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  กลับ
+                </button>
+                <button
+                  type="button"
+                  className="bg-gray-500 text-white font-bold py-2 px-6 rounded hover:bg-gray-600"
+                  onClick={handleBack}
+                  disabled={isSubmitting}
+                >
+                  ย้อนกลับ
+                </button>
+              </div>
               <button
                 type="submit"
                 className={`py-2 px-6 rounded font-bold ${
@@ -554,6 +673,122 @@ function AddStore_admin() {
           </form>
         )}
       </div>
+
+      {/* Google Map Picker Modal */}
+      {showMapPicker && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
+            <div className="border-b px-6 py-4 flex justify-between items-center">
+              <h2 className="text-lg font-bold">เลือกสถานที่ร้านยา</h2>
+              <button
+                onClick={closeMapPicker}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto px-6 py-4 flex flex-col gap-4">
+              {/* ส่วนหาพิกัดจากเครื่อง */}
+              <div className="border rounded p-4 bg-yellow-50">
+                <h3 className="font-semibold mb-3 text-amber-900">📍 วิธี 0: ใช้พิกัดจากเครื่องของคุณ (ด่วนที่สุด)</h3>
+                <button
+                  type="button"
+                  onClick={getLocationFromDevice}
+                  className="w-full px-4 py-3 bg-amber-500 text-white rounded hover:bg-amber-600 font-semibold flex items-center justify-center gap-2"
+                >
+                  🎯 ค้นหาพิกัดปัจจุบัน
+                </button>
+                <p className="text-xs text-amber-700 mt-2">
+                  💡 กดปุ่มนี้เพื่อให้ระบบหาพิกัดของตำแหน่งปัจจุบันของคุณ (ต้องอนุญาตในเบราว์เซอร์)
+                </p>
+              </div>
+
+              {/* ส่วนใส่พิกัด */}
+              <div className="border rounded p-4 bg-gray-50">
+                <h3 className="font-semibold mb-3">วิธี 1: ใส่พิกัดโดยตรง (ทั้ง 2 ช่อง)</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">ละติจูด (Latitude)</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      placeholder="13.7563"
+                      value={mapData.latitude}
+                      onChange={(e) => setMapData({...mapData, latitude: e.target.value})}
+                      className="w-full border rounded p-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">ลองจิจูด (Longitude)</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      placeholder="100.4925"
+                      value={mapData.longitude}
+                      onChange={(e) => setMapData({...mapData, longitude: e.target.value})}
+                      className="w-full border rounded p-2 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ส่วนใส่ชื่อสถานที่ */}
+              <div className="border rounded p-4 bg-gray-50">
+                <h3 className="font-semibold mb-3">วิธี 2: ค้นหาชื่อสถานที่</h3>
+                <input
+                  type="text"
+                  placeholder="ใส่ชื่อร้านยา หรือที่อยู่ (เช่น 'ร้านยาสวัสดิ์ บางนา')"
+                  value={mapData.name}
+                  onChange={(e) => setMapData({...mapData, name: e.target.value})}
+                  className="w-full border rounded p-2 text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 ทำการค้นหา Google Maps จากชื่อ แล้วสำเร็จรูป URL จากการค้นหา
+                </p>
+              </div>
+
+              {/* ส่วนสาธิตการใช้ */}
+              <div className="border rounded p-4 bg-blue-50">
+                <h3 className="font-semibold mb-2 text-blue-900">📌 วิธีการหาพิกัด:</h3>
+                <ol className="text-sm text-blue-900 list-decimal list-inside space-y-1">
+                  <li>เปิด <strong>Google Maps</strong> ใน browser</li>
+                  <li>ค้นหาชื่อร้านยา หรือปักหมุดตำแหน่ง</li>
+                  <li>กดเลือก <strong>แชร์</strong> → คัดลอก URL</li>
+                  <li>หรือดูแถบ address bar ที่มี <code>@lat,lng</code></li>
+                  <li>ใส่ละติจูด กับ ลองจิจูด ด้านบน</li>
+                </ol>
+              </div>
+
+              {/* แสดงตัวอย่าง */}
+              {mapData.latitude && mapData.longitude && (
+                <div className="border rounded p-4 bg-green-50">
+                  <p className="text-sm font-semibold text-green-900">✅ URL ที่สร้างจาก:</p>
+                  <code className="text-xs bg-white border rounded p-2 block mt-2 break-all">
+                    https://www.google.com/maps/search/{mapData.latitude}+{mapData.longitude}/@{mapData.latitude},{mapData.longitude},18z
+                  </code>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t px-6 py-4 flex gap-3 justify-end">
+              <button
+                onClick={closeMapPicker}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={setMapLink}
+                disabled={!mapData.latitude || !mapData.longitude}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                ✓ บันทึกพิกัด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

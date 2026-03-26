@@ -1,0 +1,54 @@
+{
+  "kind": "collectionType",
+  "collectionName": "medication_schedules",
+  "info": {
+    "singularName": "medication-schedule",
+    "pluralName": "medication-schedules",
+    "displayName": "Medication Schedule",
+    "description": "Schedule for customer medication reminders"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "drug_name": {
+      "type": "string",
+      "required": true
+    },
+    "schedule_time": {
+      "type": "time",
+      "required": true
+    },
+    "days_of_week": {
+      "type": "json",
+      "default": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "customer_document_id": {
+      "type": "string"
+    },
+    "customer": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::customer-profile.customer-profile",
+      "inversedBy": "medication_schedules"
+    },
+    "meal_relation": {
+      "type": "string"
+    },
+    "dosage_per_time": {
+      "type": "string"
+    },
+    "dosage_unit": {
+      "type": "string"
+    },
+    "take_until_finished": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}
